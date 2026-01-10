@@ -1,7 +1,10 @@
 """Password hashing utilities using Argon2id."""
 
+import logging
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+
+logger = logging.getLogger(__name__)
 
 ph = PasswordHasher()
 
@@ -16,6 +19,8 @@ def hash_password(password: str) -> str:
     Returns:
         Hashed password as string
     """
+    logger.info("Hashing password")
+
     return ph.hash(password)
 
 
@@ -39,10 +44,12 @@ def verify_password(password: str, hashed_password: str) -> bool:
         Other exceptions indicate system issues and should be handled by caller.
     """
     try:
+        logger.info("Verifying password")
         ph.verify(hashed_password, password)
         return True
+
     except VerifyMismatchError:
-        # Expected: user typed wrong password
+        logger.warning("Incorrect password")
         return False
 
 
@@ -60,4 +67,6 @@ def check_password_needs_rehash(hashed_password: str) -> bool:
         Best practice is to check this after each successful authentication.
         If True, rehash the password and update the stored hash in the database.
     """
-    return ph.check_needs_rehash(hashed_password)
+    result = ph.check_needs_rehash(hashed_password)
+    logger.debug("Checking if password needs rehash: %s", result)
+    return result
