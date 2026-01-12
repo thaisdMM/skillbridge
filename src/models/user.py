@@ -21,11 +21,13 @@ class User(ABC):
         self._email = email
         self._hashed_password = hashed_password  # hashed
         self._created_at = created_at
+        self._user_type = self.get_user_type()
         logger.debug(
-            "%s instance created: email=%s, id=%s",
+            "%s instance created: email=%s, id=%s, type=%s",
             self.__class__.__name__,
             self._email,
             self._user_id,
+            self._user_type,
         )
 
     @property
@@ -39,6 +41,46 @@ class User(ABC):
     @property
     def created_at(self) -> datetime:
         return self._created_at
+
+    @property
+    def user_type(self) -> str:
+        return self._user_type
+
+    @abstractmethod
+    def get_user_type(self) -> str:
+        """Get the type of system users: if is freelance or client"""
+        pass
+
+    @classmethod
+    def _validate_creation_data(cls, email: str, password: str) -> tuple[bool, str]:
+        """Validate data for user creation
+
+        Args:
+            email: Email address of the new user to verify
+            password: Plain text password given for the new user to verify
+
+        Returns:
+            tuple[bool, str]: (is_valid, error_message)
+            - is_valid: True if data meets all requirements, False otherwise
+            - error_message: Empty sting if is_valid, specific error message otherwise
+        """
+        from src.utils.validators import validate_email, validate_password
+
+        logger.info("Email validatation attempt for: %s", email)
+
+        email_is_valid = validate_email(email)
+        if not email_is_valid:
+            logger.debug("Invalid email format: %s", email)
+            return False, "Invalid email"
+
+        logger.info("Password validation attempt for: %s", email)
+        # validate_password is tuple to be False has to
+        password_is_valid, password_error = validate_password(password)
+        if not password_is_valid:
+            logger.debug("Invalid password format for: %s", email)
+            return False, password_error
+
+        return True, ""
 
     # concrete method = the same for all
     def verify_password(self, password: str) -> bool:
@@ -67,11 +109,6 @@ class User(ABC):
             logger.warning("Invalid password attempt for: %s", self._email)
 
         return result
-
-    @abstractmethod
-    def get_user_type(self) -> str:
-        """Get the type of system users: if is freelancer or client"""
-        pass
 
     def __eq__(self, other: User) -> bool:
         """Compares if the user is the same by user's id
