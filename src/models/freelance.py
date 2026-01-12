@@ -10,11 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class Freelance(User):
-    """This is a Model class representing a user of the system as a freelance type
+    """Model class representing a freelance user in the system.
 
     This class is a subclass of User and inherits its attributes and methods.
+    It includes factory methods for creating new freelancers and reconstructing
+    existing freelancers from storage.
 
-    It includes methods for creatting a new freelance and reconstructing a existing freelance from storage.
+    Attributes:
+        Inherits all attributes from User class (user_id, email, hashed_password,
+        created_at, user_type).
     """
 
     def get_user_type(self) -> str:
@@ -63,10 +67,10 @@ class Freelance(User):
         email: str,
         hashed_password: str,
         created_at: datetime,
-    ):
+    ) -> Freelance:
         """Factory method to reconstruct freelance from storage.
 
-        Reconstructs a Freelance instace from storage data withoud
+        Reconstructs a Freelance instance from storage data without
         validating or re-hashing (data already validated when saved)
 
         Args:
@@ -74,6 +78,8 @@ class Freelance(User):
             email: Stored email address
             hashed_password: Already hashed password from storage
             created_at: Original creation timestamp
+        Returns:
+            Freelance: Reconstructed freelance user instance
         """
         logger.info("Reconstructing freelance user from storage: id=%s", user_id)
         return cls(
