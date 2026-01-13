@@ -9,12 +9,12 @@ from src.utils.security import hash_password
 logger = logging.getLogger(__name__)
 
 
-class Freelance(User):
+class Freelancer(User):
     """Model class representing a freelance user in the system.
 
     This class is a subclass of User and inherits its attributes and methods.
-    It includes factory methods for creating new freelancers and reconstructing
-    existing freelancers from storage.
+    It includes factory methods for creating new freelance users and reconstructing
+    existing freelance users from storage.
 
     Attributes:
         Inherits all attributes from User class (user_id, email, hashed_password,
@@ -26,7 +26,7 @@ class Freelance(User):
         return "freelance"
 
     @classmethod
-    def create(cls, email: str, password: str) -> Freelance:
+    def create(cls, email: str, password: str) -> Freelancer:
         """Factory method to create a new freelance user with validate data.
 
             This method validates email and password before creating the instance,
@@ -37,28 +37,28 @@ class Freelance(User):
             password: Plain text password (will be hashed automatically)
 
         Returns:
-            Freelance: New freelance user instance
+            freelancer: New freelance user instance
 
         Raises:
             ValueError: If email format is invalid or password doesn't meet requirements
         """
-        logger.info("Creating a new freelancer user for %s", email)
+        logger.info("Creating a new freelance user for %s", email)
         is_valid, error_message = cls._validate_creation_data(email, password)
 
         if not is_valid:
-            logger.warning("Failed to create freelance: %s", error_message)
+            logger.warning("Failed to create freelance user: %s", error_message)
             raise ValueError(f"Failed to validate the data: {error_message}")
 
         hashed = hash_password(password)
 
-        freelance_instance = cls(
+        freelancer_instance = cls(
             user_id=None,
             email=email,
             hashed_password=hashed,
             created_at=datetime.now(),
         )
-        logger.info("Freelance user created successfully for: %s", email)
-        return freelance_instance
+        logger.info("freelance user created successfully for: %s", email)
+        return freelancer_instance
 
     @classmethod
     def from_storage(
@@ -67,10 +67,10 @@ class Freelance(User):
         email: str,
         hashed_password: str,
         created_at: datetime,
-    ) -> Freelance:
-        """Factory method to reconstruct freelance from storage.
+    ) -> Freelancer:
+        """Factory method to reconstruct freelance user from storage.
 
-        Reconstructs a Freelance instance from storage data without
+        Reconstructs a freelance user instance from storage data without
         validating or re-hashing (data already validated when saved)
 
         Args:
@@ -79,7 +79,7 @@ class Freelance(User):
             hashed_password: Already hashed password from storage
             created_at: Original creation timestamp
         Returns:
-            Freelance: Reconstructed freelance user instance
+            freelancer: Reconstructed freelance user instance
         """
         logger.info("Reconstructing freelance user from storage: id=%s", user_id)
         return cls(
