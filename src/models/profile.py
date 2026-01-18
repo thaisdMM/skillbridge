@@ -32,16 +32,12 @@ class Profile(ABC):
         self._created_at = datetime.now(UTC)
 
         logger.debug(
-            "%s instance created: email=%s, profile_id=%s, bio=%s",
+            "%s instance created: profile_id=%s",
             self.__class__.__name__,
-            self.user.email,
             self.profile_id,
-            self.bio[:50],
         )
 
-        logger.info(
-            "Profile initialized for user: %s | type: %s", user.email, user.user_type
-        )
+        logger.info("Profile initialized successfully")
 
     def _validate_user_protocol(self, user: object) -> None:
         """
@@ -126,9 +122,7 @@ class Profile(ABC):
             ValueError: If bio is empty or exceeds max length
         """
         logger.debug(
-            "Setting bio for user: %s | type: %s - length: %d",
-            self.user.email,
-            self.user.user_type,
+            "Setting bio - length: %d",
             len(value) if value else 0,
         )
         if not value or not value.strip():
@@ -141,7 +135,7 @@ class Profile(ABC):
 
         self._bio = value.strip()
 
-        logger.debug("Bio validation successful: %s", value[:50])
+        logger.debug("Bio validation successful")
 
     @abstractmethod
     def display_info(self) -> str:

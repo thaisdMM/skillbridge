@@ -42,7 +42,7 @@ class Freelancer(User):
         Raises:
             ValueError: If email format is invalid or password doesn't meet requirements
         """
-        logger.info("Creating a new freelance user for %s", email)
+        logger.info("Creating new freelance user")
         is_valid, error_message = cls._validate_creation_data(email, password)
 
         if not is_valid:
@@ -57,7 +57,7 @@ class Freelancer(User):
             hashed_password=hashed,
             created_at=datetime.now(),
         )
-        logger.info("freelance user created successfully for: %s", email)
+        logger.info("Freelance user created successfully")
         return freelancer_instance
 
     @classmethod

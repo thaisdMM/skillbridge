@@ -23,9 +23,8 @@ class User(ABC):
         self._created_at = created_at
         self._user_type = self.get_user_type()
         logger.debug(
-            "%s instance created: email=%s, id=%s, type=%s",
+            "%s instance created: id=%s, type=%s",
             self.__class__.__name__,
-            self._email,
             self._user_id,
             self._user_type,
         )
@@ -66,20 +65,21 @@ class User(ABC):
         """
         from src.utils.validators import validate_email, validate_password
 
-        logger.info("Email validatation attempt for: %s", email)
+        logger.info("Starting email validation")
 
         email_is_valid = validate_email(email)
         if not email_is_valid:
-            logger.debug("Invalid email format: %s", email)
+            logger.debug("Email validation failed - invalid format")
             return False, "Invalid email"
 
-        logger.info("Password validation attempt for: %s", email)
+        logger.info("Starting password validation")
         # validate_password is tuple to be False has to
         password_is_valid, password_error = validate_password(password)
         if not password_is_valid:
-            logger.debug("Invalid password format for: %s", email)
+            logger.debug("Password validation failed")
             return False, password_error
 
+        logger.debug("User data validation successful")
         return True, ""
 
     # concrete method = the same for all
@@ -98,15 +98,15 @@ class User(ABC):
         """
         from src.utils.security import verify_password
 
-        logger.info("Password verification attempt for: %s", self._email)
+        logger.info("Starting password verification")
 
         result = verify_password(password, self._hashed_password)
 
         if result:
-            logger.info("Password verified successfully for: %s", self._email)
+            logger.info("Password verification successful")
 
         else:
-            logger.warning("Invalid password attempt for: %s", self._email)
+            logger.warning("Password verification failed")
 
         return result
 

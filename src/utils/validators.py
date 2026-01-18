@@ -35,14 +35,15 @@ def validate_email(email: str) -> bool:
     """
     EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$"
 
-    logger.debug("Checking validation for: email=%s", email)
+    logger.debug("Starting email validation")
     is_email_valid = re.fullmatch(EMAIL_PATTERN, email.strip())
 
     result = is_email_valid is not None
 
     if not result:
-        logger.debug("Email format invalid: %s", email)
+        logger.debug("Email validation failed - invalid format")
 
+    logger.debug("Email validation successful")
     return result
 
 
@@ -71,6 +72,9 @@ def validate_password(password: str) -> tuple[bool, str]:
         >>> validate_password("weak")
         (False, "Password must be at least 8 characters long.")
     """
+
+    logger.debug("Starting password validation")
+
     check_password = password.strip()
 
     if len(check_password) < 8:
@@ -106,4 +110,5 @@ def validate_password(password: str) -> tuple[bool, str]:
         logger.debug("Password validation failed: missing special character")
         return False, "Password must contain at least one special character."
 
+    logger.debug("Password validation successful")
     return True, ""

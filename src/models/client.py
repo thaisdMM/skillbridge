@@ -42,7 +42,7 @@ class Client(User):
             ValueError: if email format is invalid or password doesn't meet requirements
         """
 
-        logger.info("Creating a new client user for: %s", email)
+        logger.info("Creating new client user")
 
         is_valid, error_message = cls._validate_creation_data(email, password)
         if not is_valid:
@@ -57,7 +57,7 @@ class Client(User):
             hashed_password=hashed,
             created_at=datetime.now(),
         )
-        logger.info("Client user created successfully for: %s", email)
+        logger.info("Client user created successfully")
         return client_instance
 
     @classmethod
