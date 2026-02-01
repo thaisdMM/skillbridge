@@ -24,12 +24,17 @@ class Profile(ABC):
             TypeError: If user doesn't implement UserProtocol
             ValueError: If bio validation fails
         """
-        self._validate_user_protocol(user)
-        self._user = user
-        # receives @property that is already validate in setter method
-        self.bio = bio
+        # Create ID first so it's available for logging during validation
         self._profile_id = uuid4()
         self._created_at = datetime.now(UTC)
+
+        # Validate and set user
+        self._validate_user_protocol(user)
+        self._user = user
+
+        # Validate and set bio (can raise exceptions)
+        # receives @property that is already validate in setter method
+        self.bio = bio
 
         logger.debug(
             "%s instance created: profile_id=%s",
