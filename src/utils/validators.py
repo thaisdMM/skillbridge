@@ -106,9 +106,12 @@ def validate_password(password: str) -> tuple[bool, str]:
             "Password cannot be all lowercase, it must contain at least one uppercase letter.",
         )
 
-    if not re.search(r"[^a-zA-Z0-9]", check_password):
+    if not re.search(r"[^a-zA-Z0-9\s]", check_password):
         logger.debug("Password validation failed: missing special character")
-        return False, "Password must contain at least one special character."
+        return (
+            False,
+            "Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?~ etc.).",
+        )
 
     logger.debug("Password validation successful")
     return True, ""
