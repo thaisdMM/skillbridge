@@ -24,6 +24,12 @@ def invalid_email():
 
 
 @pytest.fixture
+def valid_name():
+    """Reusable valid name for tests"""
+    return "Test User"
+
+
+@pytest.fixture
 def valid_password():
     """Reusable valid password for tests"""
     return "Secure_Abc123!@!"
@@ -54,6 +60,7 @@ def test_user_cannot_be_instantiated_directly():
         User(
             user_id=1,
             email="test@test.com",
+            name="Test User",
             hashed_password="$argon2id$v=19$m=65536,t=3,p=4$hash",
             created_at=datetime.now(),
         )
@@ -61,10 +68,12 @@ def test_user_cannot_be_instantiated_directly():
     assert "abstract" in error_message or "can't instantiate" in error_message
 
 
-def test_validate_creation_data_correct_data(valid_email: str, valid_password: str):
+def test_validate_creation_data_correct_data(
+    valid_email: str, valid_name: str, valid_password: str
+):
     """Test _validate_creation_data() with valid data"""
 
-    result = User._validate_creation_data(valid_email, valid_password)
+    result = User._validate_creation_data(valid_email, valid_name, valid_password)
     is_valid, message = result
 
     assert isinstance(result, tuple)
@@ -73,11 +82,11 @@ def test_validate_creation_data_correct_data(valid_email: str, valid_password: s
 
 
 def test_validate_creation_data_with_invalid_email_returns_false(
-    invalid_email: str, valid_password: str
+    invalid_email: str, valid_name: str, valid_password: str
 ):
     """Test that _validate_creation_data() with invalid email returns False"""
 
-    result = User._validate_creation_data(invalid_email, valid_password)
+    result = User._validate_creation_data(invalid_email, valid_name, valid_password)
     is_valid, message = result
 
     assert isinstance(result, tuple)
@@ -86,13 +95,69 @@ def test_validate_creation_data_with_invalid_email_returns_false(
 
 
 def test_validate_creation_data_with_invalid_password_returns_false(
-    valid_email: str, invalid_password: str
+    valid_email: str, valid_name: str, invalid_password: str
 ):
     """Test that _validate_creation_data() with invalid password returns False"""
 
-    result = User._validate_creation_data(valid_email, invalid_password)
+    result = User._validate_creation_data(valid_email, valid_name, invalid_password)
     is_valid, message = result
 
     assert isinstance(result, tuple)
     assert is_valid is False
     assert message != ""
+
+
+def test_validate_creation_data_with_empty_name_returns_false(
+    valid_email: str, valid_password: str
+):
+    """Test that _validate_creation_data() with empty name returns False"""
+
+    name = ""
+    result = User._validate_creation_data(valid_email, name, valid_password)
+    is_valid, message = result
+
+    assert isinstance(result, tuple)
+    assert is_valid is False
+    assert message == "Name cannot be empty"
+
+
+def test_validate_creation_data_with_whitespace_name_strip_correctly_returns_false(
+    valid_email: str, valid_password: str
+):
+    """Test that _validate_creation_data() with whitespace name is correctly stripped and returns False"""
+
+    name = "   "
+    result = User._validate_creation_data(valid_email, name, valid_password)
+    is_valid, message = result
+
+    assert isinstance(result, tuple)
+    assert is_valid is False
+    assert message == "Name cannot be empty"
+
+
+def test_validate_creation_data_with_too_short_name_returns_false(
+    valid_email: str, valid_password: str
+):
+    """Test that _validate_creation_data() with name less than 2 characters returns False"""
+
+    name = " P "
+    result = User._validate_creation_data(valid_email, name, valid_password)
+    is_valid, message = result
+
+    assert isinstance(result, tuple)
+    assert is_valid is False
+    assert message == "Name must be at least 2 characters"
+
+
+def test_validate_creation_data_with_too_long_name_returns_false(
+    valid_email: str, valid_password: str
+):
+    """Test that _validate_creation_data() with name more than 2 characters returns False"""
+
+    name = "Test" * 15
+    result = User._validate_creation_data(valid_email, name, valid_password)
+    is_valid, message = result
+
+    assert isinstance(result, tuple)
+    assert is_valid is False
+    assert message == "Name must be at most 50 characters"
