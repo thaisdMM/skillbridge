@@ -25,7 +25,7 @@ class Client(User):
         return "client"
 
     @classmethod
-    def create(cls, email: str, password: str) -> Client:
+    def create(cls, email: str, name: str, password: str) -> Client:
         """Factory method to create a new client user with validate data.
 
             This method validates email and password before creating the instance,
@@ -34,6 +34,8 @@ class Client(User):
         Args:
             email: Email address of the new client user
             password: Plain text password (will be hashed automatically)
+            name: Display name for the client
+
 
         Returns:
             freelancer: New client instance
@@ -44,7 +46,7 @@ class Client(User):
 
         logger.info("Creating new client user")
 
-        is_valid, error_message = cls._validate_creation_data(email, password)
+        is_valid, error_message = cls._validate_creation_data(email, name, password)
         if not is_valid:
             logger.warning("Failed to create a new client: %s", error_message)
             raise ValueError(f"Failed to validate the data: {error_message}")
@@ -54,6 +56,7 @@ class Client(User):
         client_instance = cls(
             user_id=None,
             email=email,
+            name=name,
             hashed_password=hashed,
             created_at=datetime.now(),
         )
@@ -62,7 +65,12 @@ class Client(User):
 
     @classmethod
     def from_storage(
-        cls, user_id: int, email: str, hashed_password: str, created_at: datetime
+        cls,
+        user_id: int,
+        email: str,
+        name: str,
+        hashed_password: str,
+        created_at: datetime,
     ) -> Client:
         """Factory method to reconstruct client from storage.
 
@@ -74,6 +82,7 @@ class Client(User):
             email: Stored email address
             hashed_password: Already hashed password from storage
             created_at: Original creation timestamp
+            name: Display name from storage
 
         Returns:
             Client: Reconstructed client instance
@@ -82,6 +91,7 @@ class Client(User):
         return cls(
             user_id=user_id,
             email=email,
+            name=name,
             hashed_password=hashed_password,
             created_at=created_at,
         )

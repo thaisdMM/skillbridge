@@ -14,11 +14,24 @@ class User(ABC):
         self,
         user_id: int | None,  # New user None: doesn't have id yet
         email: str,
+        name: str,
         hashed_password: str,
         created_at: datetime,
     ):
+        """
+        Initialize User with essential data.
+
+        Args:
+            user_id: User identifier (None if new user)
+            email: Email address of the user
+            name: Display name for the user
+            hashed_password: Already hashed password (hashing done by subclass factory methods)
+            created_at: Timestamp of user creation
+        """
+
         self._user_id = user_id
         self._email = email
+        self._name = name
         self._hashed_password = hashed_password  # hashed
         self._created_at = created_at
         self._user_type = self.get_user_type()
@@ -38,6 +51,10 @@ class User(ABC):
         return self._email
 
     @property
+    def name(self) -> str:
+        return self._name
+
+    @property
     def created_at(self) -> datetime:
         return self._created_at
 
@@ -51,12 +68,15 @@ class User(ABC):
         pass
 
     @classmethod
-    def _validate_creation_data(cls, email: str, password: str) -> tuple[bool, str]:
+    def _validate_creation_data(
+        cls, email: str, name: str, password: str
+    ) -> tuple[bool, str]:
         """Validate data for user creation
 
         Args:
             email: Email address of the new user to verify
             password: Plain text password given for the new user to verify
+            name: Display name for the user
 
         Returns:
             tuple[bool, str]: (is_valid, error_message)
@@ -71,6 +91,21 @@ class User(ABC):
         if not email_is_valid:
             logger.debug("Email validation failed - invalid format")
             return False, "Invalid email"
+
+        logger.info("Starting name validation")
+        name_stripped = name.strip()
+        if not name_stripped:
+            logger.debug("Name validation failed - empty name: %d", len(name_stripped))
+            return False, "Name cannot be empty"
+
+        if len(name_stripped) < 2:
+            logger.debug("Name validation failed - too short: %d", len(name_stripped))
+            return False, "Name must be at least 2 characters"
+
+        if len(name_stripped) > 50:
+            logger.debug("Name validation failed - too long: %d", len(name_stripped))
+            return False, "Name must be at most 50 characters"
+        logger.debug("Name validation successful")
 
         logger.info("Starting password validation")
         # validate_password is tuple to be False has to
@@ -136,5 +171,5 @@ class User(ABC):
         return result
 
     def __repr__(self) -> str:
-        """Returns a string with the user information like: type of user, user id and user email"""
-        return f"{self.__class__.__name__} (id= {self._user_id}), email '{self._email}'"
+        """Returns a string with the user information like: type of user, user id, name and user email"""
+        return f"{self.__class__.__name__} (id= {self._user_id}), name '{self._name}',  email '{self._email}'"

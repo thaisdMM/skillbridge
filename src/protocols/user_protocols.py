@@ -15,6 +15,7 @@ class UserProtocol(Protocol):
     Required attributes:
         - user_id: Unique identifier (int or None)
         - email: Email address (str)
+        - name: Name display for the user
         - created_at: Creation timestamp (datetime)
         - user_type: User type string (str)
 
@@ -30,6 +31,11 @@ class UserProtocol(Protocol):
     @property
     def email(self) -> str:
         """User email address"""
+        ...
+
+    @property
+    def name(self) -> str:
+        """User name"""
         ...
 
     @property

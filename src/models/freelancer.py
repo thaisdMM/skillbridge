@@ -26,7 +26,7 @@ class Freelancer(User):
         return "freelance"
 
     @classmethod
-    def create(cls, email: str, password: str) -> Freelancer:
+    def create(cls, email: str, name: str, password: str) -> Freelancer:
         """Factory method to create a new freelance user with validate data.
 
             This method validates email and password before creating the instance,
@@ -35,6 +35,7 @@ class Freelancer(User):
         Args:
             email: Email address of the new freelance user
             password: Plain text password (will be hashed automatically)
+            name: Display name for the freelancer
 
         Returns:
             freelancer: New freelance user instance
@@ -43,7 +44,7 @@ class Freelancer(User):
             ValueError: If email format is invalid or password doesn't meet requirements
         """
         logger.info("Creating new freelance user")
-        is_valid, error_message = cls._validate_creation_data(email, password)
+        is_valid, error_message = cls._validate_creation_data(email, name, password)
 
         if not is_valid:
             logger.warning("Failed to create freelance user: %s", error_message)
@@ -54,6 +55,7 @@ class Freelancer(User):
         freelancer_instance = cls(
             user_id=None,
             email=email,
+            name=name,
             hashed_password=hashed,
             created_at=datetime.now(),
         )
@@ -65,6 +67,7 @@ class Freelancer(User):
         cls,
         user_id: int,
         email: str,
+        name: str,
         hashed_password: str,
         created_at: datetime,
     ) -> Freelancer:
@@ -78,6 +81,8 @@ class Freelancer(User):
             email: Stored email address
             hashed_password: Already hashed password from storage
             created_at: Original creation timestamp
+            name: Display name from storage
+
         Returns:
             freelancer: Reconstructed freelance user instance
         """
@@ -85,6 +90,7 @@ class Freelancer(User):
         return cls(
             user_id=user_id,
             email=email,
+            name=name,
             hashed_password=hashed_password,
             created_at=created_at,
         )
