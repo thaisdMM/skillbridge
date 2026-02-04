@@ -22,7 +22,7 @@ def valid_bio():
 @pytest.fixture
 def valid_freelancer():
     """Reusable valid freelance user"""
-    return Freelancer.create("user@test.com", "SecurePass123!")
+    return Freelancer.create("user@test.com", "User Name", "SecurePass123!")
 
 
 @pytest.fixture
@@ -348,7 +348,7 @@ class TestFreelancerProfileDisplayInfo:
         )
         result = freelancer_profile.display_info()
 
-        assert "Freelance: user@test.com" in result
+        assert "Freelance: User Name" in result
         assert "$50.00/hr" in result
         assert "Python, Django, Api Development" in result
         assert "Experienced Python developer looking for collaboration" in result
@@ -372,7 +372,7 @@ class TestFreelancerProfileDisplayInfo:
         result = freelancer_profile.display_info()
 
         assert isinstance(result, str)
-        assert "Freelance: user@test.com" in result
+        assert "Freelance: User Name" in result
         assert "$50.00/hr" in result
         assert "Python" in result
         assert "Experienced Python developer looking for collaboration" in result

@@ -31,6 +31,12 @@ def valid_email():
 
 
 @pytest.fixture
+def valid_name():
+    """Reusable valid name for tests"""
+    return "Test User"
+
+
+@pytest.fixture
 def valid_password():
     """Reusable valid password for tests."""
     return "SecurePass123!"
@@ -40,7 +46,7 @@ class TestProfileUserProtocolValidation:
     """Test suite for UserProtocol validation in Profile."""
 
     def test_profile_accepts_valid_freelancer_user(
-        self, valid_bio: str, valid_email: str, valid_password: str
+        self, valid_bio: str, valid_email: str, valid_name: str, valid_password: str
     ):
         """
         Test that Profile accepts valid Freelancer instance.
@@ -52,7 +58,7 @@ class TestProfileUserProtocolValidation:
         - Generated attributes (profile_id, created_at) are valid
         """
         # Arrange
-        freelancer = Freelancer.create(valid_email, valid_password)
+        freelancer = Freelancer.create(valid_email, valid_name, valid_password)
 
         class TestProfile(Profile):
             def display_info(self) -> str:
@@ -65,6 +71,7 @@ class TestProfileUserProtocolValidation:
         assert profile is not None
         assert profile.user == freelancer
         assert profile.user.email == valid_email
+        assert profile.user.name == valid_name
         assert profile.bio == valid_bio
 
         # Assert: UserProtocol implementation
@@ -76,7 +83,7 @@ class TestProfileUserProtocolValidation:
         assert profile.created_at.tzinfo is not None
 
     def test_profile_accepts_valid_client_user(
-        self, valid_bio: str, valid_email: str, valid_password: str
+        self, valid_bio: str, valid_email: str, valid_name: str, valid_password: str
     ):
         """
         Test that Profile accepts valid Client instance.
@@ -88,7 +95,7 @@ class TestProfileUserProtocolValidation:
         - Generated attributes (profile_id, created_at) are valid
         """
         # Arrange
-        client = Client.create(valid_email, valid_password)
+        client = Client.create(valid_email, valid_name, valid_password)
 
         class TestProfile(Profile):
             def display_info(self) -> str:
@@ -101,6 +108,7 @@ class TestProfileUserProtocolValidation:
         assert profile is not None
         assert profile.user == client
         assert profile.user.email == valid_email
+        assert profile.user.name == valid_name
         assert profile.bio == valid_bio
 
         # Assert: UserProtocol implementation
@@ -121,7 +129,7 @@ class TestProfileUserProtocolValidation:
         - Error message shows exactly what is missing
         """
 
-        # Arrange: Object missing user_id and created_at
+        # Arrange: Object missing user_id, name and created_at
         class InvalidUser:
             email = "invalid@test.com"
             user_type = "invalid"
@@ -144,6 +152,7 @@ class TestProfileUserProtocolValidation:
         assert "Missing required members" in error_message
         assert "user_id" in error_message
         assert "created_at" in error_message
+        assert "name" in error_message
 
     def test_profile_rejects_object_missing_methods(self, valid_bio: str):
         """
@@ -159,6 +168,7 @@ class TestProfileUserProtocolValidation:
         class InvalidUser:
             user_id = 1
             email = "invalid@test.com"
+            name = "Invalid User"
             created_at = datetime.now()
             user_type = "invalid"
             # Missing: verify_password() method
@@ -192,6 +202,7 @@ class TestProfileUserProtocolValidation:
         class InvalidUser:
             user_id = 1
             email = "invalid@test.com"
+            name = "Invalid User"
             created_at = datetime.now()
             user_type = "invalid"
             verify_password = True  # Not a function!
@@ -216,7 +227,9 @@ class TestProfileUserProtocolValidation:
 class TestProfileBioSetterValidation:
     """Test suite for bio setter validation in Profile class."""
 
-    def test_bio_rejects_empty_string(self, valid_email: str, valid_password: str):
+    def test_bio_rejects_empty_string(
+        self, valid_email: str, valid_name: str, valid_password: str
+    ):
         """
         Test that Profile bio setter rejects empty string.
 
@@ -225,18 +238,20 @@ class TestProfileBioSetterValidation:
         - Error message is clear and specific
         """
         # Arrange
-        user = Freelancer.create(valid_email, valid_password)
+        user = Freelancer.create(valid_email, valid_name, valid_password)
         bio = ""
 
         class TestProfile(Profile):
             def display_info(self) -> str:
-                return f"Test Profile: {self.user.email}"
+                return f"Test Profile: {self.user.name}"
 
         # Act & Assert
         with pytest.raises(ValueError, match="Bio cannot be empty"):
             TestProfile(user, bio)
 
-    def test_bio_rejects_whitespace_only(self, valid_email: str, valid_password: str):
+    def test_bio_rejects_whitespace_only(
+        self, valid_email: str, valid_name: str, valid_password: str
+    ):
         """
         Test that Profile bio setter rejects whitespace-only string.
 
@@ -245,7 +260,7 @@ class TestProfileBioSetterValidation:
         - Error message is clear and specific
         """
         # Arrange
-        user = Freelancer.create(valid_email, valid_password)
+        user = Freelancer.create(valid_email, valid_name, valid_password)
         bio = "   "
 
         class TestProfile(Profile):
@@ -256,7 +271,9 @@ class TestProfileBioSetterValidation:
         with pytest.raises(ValueError, match="Bio cannot be empty"):
             TestProfile(user, bio)
 
-    def test_bio_rejects_none_value(self, valid_email: str, valid_password: str):
+    def test_bio_rejects_none_value(
+        self, valid_email: str, valid_name: str, valid_password: str
+    ):
         """
         Test that Profile bio setter rejects None value.
 
@@ -265,7 +282,7 @@ class TestProfileBioSetterValidation:
         - Error message indicates invalid value
         """
         # Arrange
-        user = Freelancer.create(valid_email, valid_password)
+        user = Freelancer.create(valid_email, valid_name, valid_password)
         bio = None
 
         class TestProfile(Profile):
@@ -278,7 +295,9 @@ class TestProfileBioSetterValidation:
         ):
             TestProfile(user, bio)
 
-    def test_bio_rejects_string_too_long(self, valid_email: str, valid_password: str):
+    def test_bio_rejects_string_too_long(
+        self, valid_email: str, valid_name: str, valid_password: str
+    ):
         """
         Test that Profile bio setter rejects string exceeding max length.
 
@@ -288,7 +307,7 @@ class TestProfileBioSetterValidation:
         - Max length is 500 characters
         """
         # Arrange
-        user = Freelancer.create(valid_email, valid_password)
+        user = Freelancer.create(valid_email, valid_name, valid_password)
         bio = "a" * 501  # 501 characters
 
         class TestProfile(Profile):
@@ -299,7 +318,9 @@ class TestProfileBioSetterValidation:
         with pytest.raises(ValueError, match="Bio too long"):
             TestProfile(user, bio)
 
-    def test_bio_strips_whitespace(self, valid_email: str, valid_password: str):
+    def test_bio_strips_whitespace(
+        self, valid_email: str, valid_name: str, valid_password: str
+    ):
         """
         Test that Profile bio setter strips leading/trailing whitespace.
 
@@ -309,7 +330,7 @@ class TestProfileBioSetterValidation:
         - Bio is stored in cleaned format
         """
         # Arrange
-        user = Client.create(valid_email, valid_password)
+        user = Client.create(valid_email, valid_name, valid_password)
         bio = "   This is a test bio with whitespace    "
         expected_bio = "This is a test bio with whitespace"
 
@@ -328,7 +349,7 @@ class TestProfileAbstractBehavior:
     """Test suite for Profile abstract class behavior."""
 
     def test_profile_cannot_be_instantiated_directly(
-        self, valid_email: str, valid_password: str, valid_bio: str
+        self, valid_email: str, valid_name: str, valid_password: str, valid_bio: str
     ):
         """
         Test that Profile (ABC) cannot be instantiated directly.
@@ -339,7 +360,7 @@ class TestProfileAbstractBehavior:
         - Error message indicates abstract class/method
         """
         # Arrange
-        user = Freelancer.create(valid_email, valid_password)
+        user = Freelancer.create(valid_email, valid_name, valid_password)
 
         # Act & Assert: Cannot instantiate ABC directly
         with pytest.raises(TypeError, match="Can't instantiate abstract class"):
