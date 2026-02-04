@@ -161,7 +161,7 @@ class FreelancerProfile(Profile):
             )
             raise ValueError(
                 "Cannot delete skill as it's the last remaining skill"
-                "Freelancer profiles must maintain at least one skill. "
+                "Freelancer profiles must maintain at least one skill."
                 "Add a replacement skill before removing this one."
             )
 
@@ -185,13 +185,13 @@ class FreelancerProfile(Profile):
         Display formatted freelancer profile information.
 
         Returns:
-            Formatted string containing user type, email, hourly rate,
+            Formatted string containing user type, name, hourly rate,
             skills list, and portfolio URL (if available)
         """
         skills_list = ", ".join(self.skills)
 
         result = (
-            f"{self.user.user_type.title()}: {self.user.email}\n"
+            f"{self.user.user_type.title()}: {self.user.name}\n"
             f"Hourly Rate: ${self.hourly_rate:.2f}/hr\n"
             f"Skills: {skills_list}\n"
             f"Biography: {self.bio}"

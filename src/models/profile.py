@@ -62,7 +62,7 @@ class Profile(ABC):
         logger.debug("Validating user protocol for type: %s", type(user).__name__)
 
         # Mandatory attributes (properties)
-        required_attrs = ["user_id", "email", "created_at", "user_type"]
+        required_attrs = ["user_id", "email", "name", "created_at", "user_type"]
 
         # Mandatory methods
         required_methods = ["verify_password"]
