@@ -42,6 +42,7 @@ def validate_email(email: str) -> bool:
 
     if not result:
         logger.debug("Email validation failed - invalid format")
+        return result
 
     logger.debug("Email validation successful")
     return result
