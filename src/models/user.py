@@ -85,6 +85,7 @@ class User(ABC):
         """
         from src.utils.validators import validate_email, validate_password
 
+        logger.debug("Starting data validation for user creation")
         logger.info("Starting email validation")
 
         email_is_valid = validate_email(email)
