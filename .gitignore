@@ -1,21 +1,35 @@
 # Python
 __pycache__/
-*.py[cod]
 *.pyc
-*$py.class
-*.so
+*.pyo
+*.pyd
 .Python
-env/
+*.so
+
+# Virtual Environments
+oop-version/.venv/
+django-version/.venv/
 venv/
-.venv/
+ENV/
 
 # Environment
 .env
 .env.local
 
-# IDE
+# Django
+django-version/db.sqlite3
+django-version/*.log
+django-version/staticfiles/
+django-version/media/
+
+# OOP Project
+oop-version/.coverage
+oop-version/.pytest_cache/
+
+# IDEs
 .vscode/
 .idea/
+.qoder/
 *.swp
 *.swo
 
@@ -27,8 +41,3 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Django
-*.log
-db.sqlite3
-db.sqlite3-journal
