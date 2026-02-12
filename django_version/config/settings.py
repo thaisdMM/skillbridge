@@ -87,16 +87,11 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST", "localhost"),
         "PORT": os.getenv("DB_PORT", "5432"),
-        "CONN_MAX_AGE": 600,  # Psycopg 3: keep connections 10min
         "OPTIONS": {
-            "pool": {
-                "min_size": 2,
-                "max_size": 10,
-            }
+            "pool": True,
         },
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
