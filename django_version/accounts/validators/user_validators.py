@@ -126,6 +126,14 @@ def validate_strong_password(value: str) -> None:
             code="password_too_short",
         )
 
+    # Check withespace
+    if re.search(r"\s", password):
+        logger.debug("Password validation failed: spaces or withespace")
+        raise ValidationError(
+            _("Password cannot contain spaces or whitespace characters."),
+            code="password_contains_whitespace",
+        )
+
     # Check if only digits
     if password.isdigit():
         logger.debug("Password validation failed: only digits")
@@ -134,14 +142,6 @@ def validate_strong_password(value: str) -> None:
                 "Password cannot contain only digits, it must include letters and special characters."
             ),
             code="password_only_digits",
-        )
-
-    # Check if only alphabetic
-    if password.isalpha():
-        logger.debug("Password validation failed: only alphabetic")
-        raise ValidationError(
-            _("Password must contain at least one special character."),
-            code="password_no_special_char",
         )
 
     # Check if all uppercase
@@ -165,7 +165,7 @@ def validate_strong_password(value: str) -> None:
         )
 
     # Check for special characters
-    if not re.search(r"[^a-zA-Z0-9\s]", password):
+    if not re.search(r"[^a-zA-Z0-9]", password):
         logger.debug("Password validation failed: missing special character")
         raise ValidationError(
             _(
