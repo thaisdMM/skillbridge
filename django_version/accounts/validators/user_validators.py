@@ -26,7 +26,7 @@ def validate_email(value: str) -> None:
         value: Email address to validate
 
     Raises:
-        ValidationError: If email format is invalid
+        ValidationError: If email is empty or format is invalid
 
     Examples:
         >>> validate_email("user@example.com")  # OK
@@ -38,6 +38,14 @@ def validate_email(value: str) -> None:
     logger.debug("Starting email validation")
 
     email_stripped = value.strip()
+
+    if not email_stripped:
+        logger.debug("Email validation failed - empty email")
+        raise ValidationError(
+            _("Email cannot be empty."),
+            code="empty_email",
+        )
+
     is_valid = re.fullmatch(EMAIL_PATTERN, email_stripped) is not None
 
     if not is_valid:

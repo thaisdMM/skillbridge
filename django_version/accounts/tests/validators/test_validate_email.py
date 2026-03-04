@@ -59,6 +59,26 @@ def test_validate_email_valid_with_special_characters():
         pytest.fail("Valid email with special characters raised ValidationError ")
 
 
+def test_validate_email_invalid_empty():
+    """Test an invalid email - empty email"""
+    email = ""
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_email(email)
+
+    assert exc_info.value.code == "empty_email"
+
+
+def test_validate_email_invalid_empty_stripped_whitespace():
+    """Test an invalid email - empty with whitespace"""
+    email = "    "
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_email(email)
+
+    assert exc_info.value.code == "empty_email"
+
+
 def test_validate_email_invalid_missing_at_symbol():
     """Test an invalid email format without @ symbol"""
 
