@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "accounts.apps.AccountsConfig"
+    "accounts.apps.AccountsConfig",
 ]
 
 MIDDLEWARE = [
@@ -112,6 +112,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Password hashing
+# https://docs.djangoproject.com/en/6.0/topics/auth/passwords/#using-argon2-with-django
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
@@ -133,56 +140,56 @@ STATIC_URL = "static/"
 
 # ============= LOGGING CONFIGURATION =============
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '\n[{levelname}] {asctime} -  {name} → {message}',
-            'style': '{',
-            'datefmt': '%Y-%m-%d %H:%M:%S',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "\n[{levelname}] {asctime} -  {name} → {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
         },
     },
-    'loggers': {
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
         # apps - DEBUG
-        'accounts': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "accounts": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
         },
-        'profiles': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "profiles": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
         },
-        'jobs': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "jobs": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
         },
         # Django internal - INFO
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
-        'django.db.backends': {  # SQL query
-            'handlers': ['console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',  # Debug only dev
-            'propagate': False,
+        "django.db.backends": {  # SQL query
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",  # Debug only dev
+            "propagate": False,
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
     },
 }
