@@ -74,6 +74,10 @@ class BaseUserManager(DjangoBaseUserManager):
         validate_user_name(name)
 
         # can create a account using google, github - without password
+        # normalize password first: treat whitespace-only as None
+        if password is not None:
+            password = password.strip() or None
+
         if password:
             logger.debug("Validating password")
             validate_strong_password(password)
@@ -91,6 +95,10 @@ class BaseUserManager(DjangoBaseUserManager):
             logger.debug("Starting hashing password")
             user.set_password(password)
             logger.debug("Password hashed successfully")
+
+        else:
+            logger.debug("No password provided - setting unusable password")
+            user.set_unusable_password()
 
         user.save(using=self._db)
 
@@ -245,15 +253,9 @@ class BaseUser(AbstractBaseUser):
         Return the user type based on the concrete subclass.
 
         Returns:
-            str: 'client', 'freelancer', or 'unknown'
+            str: 'client', 'freelancer', or the sublcass name lowercased
         """
-
-        # hasattr checks if the instance has a related object
-        if hasattr(self, "client"):
-            return "client"
-        elif hasattr(self, "freelancer"):
-            return "freelancer"
-        return "unknown"
+        return self.__class__.__name__.lower()
 
     def __str__(self) -> str:
         """
