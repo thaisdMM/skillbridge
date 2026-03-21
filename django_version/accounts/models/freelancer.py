@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from django.db import models
 
-from accounts.models.base import BaseUser
+from accounts.models.base import BaseUser, BaseUserManager
 
 
 class Freelancer(BaseUser):
@@ -46,7 +46,7 @@ class Freelancer(BaseUser):
         ),
     )
 
-    objects = BaseUser.objects.__class__()
+    objects = BaseUserManager()
 
     class Meta:
         verbose_name = "Freelancer"

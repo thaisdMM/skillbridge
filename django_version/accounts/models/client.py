@@ -6,7 +6,7 @@ and identification functionality from BaseUser.
 """
 
 from __future__ import annotations
-from accounts.models.base import BaseUser
+from accounts.models.base import BaseUser, BaseUserManager
 
 
 class Client(BaseUser):
@@ -29,7 +29,7 @@ class Client(BaseUser):
             is_superuser: Full administrative permissions
     """
 
-    objects = BaseUser.objects.__class__()
+    objects = BaseUserManager()
 
     class Meta:
         verbose_name = "Client"
