@@ -1,99 +1,25 @@
 # SkillBridge
 
-Freelancer marketplace platform - Evolution from pure Python OOP to Django framework.
+[![CI](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml)
 
-## 📂 Project Structure
+Freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market.
 
-This repository showcases the architectural evolution of the project:
+This repository is structured as a monorepo documenting the full technical evolution of the project — from a pure Python OOP foundation to a production-ready Django application.
 
-```
-skillbridge/
-├── oop_version/      # Pure Python implementation (foundational learning)
-│   ├── src/          # OOP models with ABC patterns
-│   └── tests/        # 73 tests (pytest)
-│
-└── django_version/   # Django framework implementation (production-ready)
-    ├── config/       # Django project settings
-    └── manage.py     # Django management
-```
+---
 
-## 🎯 Why Two Versions?
+## Repository Structure
 
-It started with OOP to put OOP knowledge into practice.
+| Directory | Description |
+|---|---|
+| [`oop_version/`](./oop_version/) | Pure Python implementation — OOP foundations, 100 tests |
+| [`django_version/`](./django_version/) | Django application — production-oriented, active development |
 
-It switched to Django to apply Django knowledge and for better project development.
+Each directory contains its own `README.md` with setup instructions and technical details.
 
-**OOP Version:** Demonstrates understanding of:
+---
 
-- Abstract Base Classes & composition patterns
-- Type hints & SOLID principles
-- Test-driven development (73 tests passing)
-- Security best practices (Argon2, GDPR logging)
+## Author
 
-**Django Version:** Production-ready implementation with:
-
-- Django ORM with PostgreSQL
-- Connection pooling (psycopg3)
-- Environment-based configuration
-- RESTful API architecture (in progress)
-
-## 🚀 Quick Start
-
-### OOP Version
-
-```bash
-cd oop_version
-python -m venv .venv
-source .venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
-pytest
-```
-
-### Django Version
-
-```bash
-cd django_version
-python -m venv .venv
-source .venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
-```
-
-## 🛠️ Tech Stack
-
-- **Language:** Python 3.13+
-- **Framework:** Django 6.0
-- **Database:** PostgreSQL 15
-- **Testing:** pytest, pytest-django
-- **ORM:** Django ORM (psycopg3 driver)
-
-## 📝 Development Status
-
-🚧 Under active development
-
-**Completed:**
-
-- [x] OOP foundation (User, Profile models with ABC)
-- [x] 73 unit tests (pytest)
-- [x] Django project setup
-- [x] PostgreSQL integration with connection pooling
-- [x] Environment-based configuration
-
-**In Progress:**
-
-- [ ] Django models migration (User, Profile)
-- [ ] REST API (Django REST Framework)
-- [ ] JWT Authentication
-- [ ] API documentation (OpenAPI/Swagger)
-- [ ] Deployment configuration
-
-## 👤 Author
-
-**Thais Moreira**
-Backend Python Developer
-Portfolio project for international job market
-
-## 📧 Contact
-
-Looking for junior backend Python positions in Europe/remote
+**Thaís Moreira** — Career transition: Law → Backend Python
+Open to junior backend Python positions in Europe and remote.
