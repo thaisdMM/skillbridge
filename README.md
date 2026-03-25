@@ -1,99 +1,82 @@
 # SkillBridge
 
-Freelancer marketplace platform - Evolution from pure Python OOP to Django framework.
+[![CI](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml)
 
-## 📂 Project Structure
+A freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market, demonstrating clean Django architecture, REST API design, automated testing, and GDPR awareness.
 
-This repository showcases the architectural evolution of the project:
+> This repository documents the full technical evolution of the project — from a pure Python OOP foundation to a production-ready Django application. See [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions and trade-offs.
 
-```
-skillbridge/
-├── oop_version/      # Pure Python implementation (foundational learning)
-│   ├── src/          # OOP models with ABC patterns
-│   └── tests/        # 73 tests (pytest)
-│
-└── django_version/   # Django framework implementation (production-ready)
-    ├── config/       # Django project settings
-    └── manage.py     # Django management
-```
+---
 
-## 🎯 Why Two Versions?
+## Tech Stack
 
-It started with OOP to put OOP knowledge into practice.
+| Layer | Technology |
+|---|---|
+| Language | Python 3.14 |
+| Framework | Django 6.0.3 |
+| Database | PostgreSQL 17 |
+| Auth | Custom user model (email-based login) |
+| Password hashing | Argon2id |
+| Testing | pytest · pytest-django |
+| Containerization | Docker · docker-compose |
+| CI | GitHub Actions |
 
-It switched to Django to apply Django knowledge and for better project development.
+---
 
-**OOP Version:** Demonstrates understanding of:
+## Quick Start
 
-- Abstract Base Classes & composition patterns
-- Type hints & SOLID principles
-- Test-driven development (73 tests passing)
-- Security best practices (Argon2, GDPR logging)
-
-**Django Version:** Production-ready implementation with:
-
-- Django ORM with PostgreSQL
-- Connection pooling (psycopg3)
-- Environment-based configuration
-- RESTful API architecture (in progress)
-
-## 🚀 Quick Start
-
-### OOP Version
+**Requirements:** Docker and docker-compose installed.
 
 ```bash
-cd oop_version
-python -m venv .venv
-source .venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
-pytest
+git clone https://github.com/thaisdMM/skillbridge.git
+cd skillbridge/django_version
+cp .env.example .env   # fill in your credentials
+docker-compose up --build
 ```
 
-### Django Version
+Run the test suite inside the container:
 
 ```bash
-cd django_version
-python -m venv .venv
-source .venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+docker-compose exec web pytest
 ```
 
-## 🛠️ Tech Stack
+---
 
-- **Language:** Python 3.13+
-- **Framework:** Django 6.0
-- **Database:** PostgreSQL 15
-- **Testing:** pytest, pytest-django
-- **ORM:** Django ORM (psycopg3 driver)
+## Project Status
 
-## 📝 Development Status
+**django_version** — active development
 
-🚧 Under active development
+- [x] Custom user model (`AbstractBaseUser` + `BaseUserManager`, email login)
+- [x] `Client` and `Freelancer` models with Abstract Base Class pattern
+- [x] Custom validators (name, email, password) ported from pure Python
+- [x] PostgreSQL integration (psycopg3 + connection pooling)
+- [x] 65 tests passing
+- [x] Docker + docker-compose
+- [x] GitHub Actions CI
+- [ ] `profiles/` app
+- [ ] `jobs/` app
+- [ ] Django REST Framework + JWT
+- [ ] OpenAPI documentation (drf-spectacular)
+- [ ] Deployment (Railway or Render)
 
-**Completed:**
+**oop_version** — completed learning phase (Python 3.13)
 
-- [x] OOP foundation (User, Profile models with ABC)
-- [x] 73 unit tests (pytest)
-- [x] Django project setup
-- [x] PostgreSQL integration with connection pooling
-- [x] Environment-based configuration
+Pure Python stage used to apply OOP concepts before the Django migration. The full reasoning is in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-**In Progress:**
+---
 
-- [ ] Django models migration (User, Profile)
-- [ ] REST API (Django REST Framework)
-- [ ] JWT Authentication
-- [ ] API documentation (OpenAPI/Swagger)
-- [ ] Deployment configuration
+## Architecture
 
-## 👤 Author
+Key decisions documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
 
-**Thais Moreira**
-Backend Python Developer
-Portfolio project for international job market
+- **Abstract Base Classes over Multi-Table Inheritance** — two independent tables, no unnecessary JOINs
+- **Custom user model** — email as `USERNAME_FIELD`, built from `AbstractBaseUser`
+- **Service layer** — business logic separated from models
+- **Monorepo structure** — `oop_version` and `django_version` as a deliberate learning progression
 
-## 📧 Contact
+---
 
-Looking for junior backend Python positions in Europe/remote
+## Author
+
+**Thais Moreira** — Career transition: Law → Backend Python
+Open to junior backend Python positions in Europe and remote.
