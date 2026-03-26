@@ -88,7 +88,7 @@ def test_validate_password_with_error_no_special_character():
     """Test password with error: password without special character"""
 
     password = "abcDEF12"
-    expected_message = "Password must contain at least one special character."
+    expected_message = "Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?~ etc.)."
 
     is_valid, message = validate_password(password)
 
@@ -96,17 +96,3 @@ def test_validate_password_with_error_no_special_character():
     assert (
         message == expected_message
     ), f"Got: '{message}', Expected: {expected_message}"
-
-
-# # example with error to se the result with customized error message
-# def test_validate_password_with_error_no_special_character():
-#     """Test password with error: password without special character"""
-#     password = "abcDEF12"
-#     expected_message = "MESSAGE WITH ERROR"
-
-#     is_valid, message = validate_password(password)
-
-#     assert is_valid is False, f"Expected password '{password}' to be invalid."
-#     assert (
-#         message == expected_message
-#     ), f"Got: '{message}', Expected: {expected_message}"
