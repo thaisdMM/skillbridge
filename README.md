@@ -2,81 +2,24 @@
 
 [![CI](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml)
 
-A freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market, demonstrating clean Django architecture, REST API design, automated testing, and GDPR awareness.
+Freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market.
 
-> This repository documents the full technical evolution of the project — from a pure Python OOP foundation to a production-ready Django application. See [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions and trade-offs.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Language | Python 3.14 |
-| Framework | Django 6.0.3 |
-| Database | PostgreSQL 17 |
-| Auth | Custom user model (email-based login) |
-| Password hashing | Argon2id |
-| Testing | pytest · pytest-django |
-| Containerization | Docker · docker-compose |
-| CI | GitHub Actions |
+This repository is structured as a monorepo documenting the full technical evolution of the project — from a pure Python OOP foundation to a production-ready Django application.
 
 ---
 
-## Quick Start
+## Repository Structure
 
-**Requirements:** Docker and docker-compose installed.
+| Directory                              | Description                                                  |
+| -------------------------------------- | ------------------------------------------------------------ |
+| [`oop_version/`](./oop_version/)       | Pure Python implementation — OOP foundations, 100 tests      |
+| [`django_version/`](./django_version/) | Django application — production-oriented, active development |
 
-```bash
-git clone https://github.com/thaisdMM/skillbridge.git
-cd skillbridge/django_version
-cp .env.example .env   # fill in your credentials
-docker-compose up --build
-```
-
-Run the test suite inside the container:
-
-```bash
-docker-compose exec web pytest
-```
-
----
-
-## Project Status
-
-**django_version** — active development
-
-- [x] Custom user model (`AbstractBaseUser` + `BaseUserManager`, email login)
-- [x] `Client` and `Freelancer` models with Abstract Base Class pattern
-- [x] Custom validators (name, email, password) ported from pure Python
-- [x] PostgreSQL integration (psycopg3 + connection pooling)
-- [x] 65 tests passing
-- [x] Docker + docker-compose
-- [x] GitHub Actions CI
-- [ ] `profiles/` app
-- [ ] `jobs/` app
-- [ ] Django REST Framework + JWT
-- [ ] OpenAPI documentation (drf-spectacular)
-- [ ] Deployment (Railway or Render)
-
-**oop_version** — completed learning phase (Python 3.13)
-
-Pure Python stage used to apply OOP concepts before the Django migration. The full reasoning is in [ARCHITECTURE.md](./ARCHITECTURE.md).
-
----
-
-## Architecture
-
-Key decisions documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
-
-- **Abstract Base Classes over Multi-Table Inheritance** — two independent tables, no unnecessary JOINs
-- **Custom user model** — email as `USERNAME_FIELD`, built from `AbstractBaseUser`
-- **Service layer** — business logic separated from models
-- **Monorepo structure** — `oop_version` and `django_version` as a deliberate learning progression
+Each directory contains its own `README.md` with setup instructions and technical details.
 
 ---
 
 ## Author
 
-**Thais Moreira** — Career transition: Law → Backend Python
+**Thaís Moreira** — Career transition: Law → Backend Python
 Open to junior backend Python positions in Europe and remote.
