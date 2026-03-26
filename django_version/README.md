@@ -4,22 +4,22 @@
 
 A freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market, demonstrating clean Django architecture, REST API design, automated testing, and GDPR awareness.
 
-> This repository documents the full technical evolution of the project. See [ARCHITECTURE.md](./ARCHITECTURE.md) for design decisions and trade-offs.
+> Architecture decisions and trade-offs documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.14 |
-| Framework | Django 6.0.3 |
-| Database | PostgreSQL 17 |
-| Auth | Custom user model (email-based login) |
-| Password hashing | Argon2id |
-| Testing | pytest · pytest-django |
-| Containerization | Docker · docker-compose |
-| CI | GitHub Actions |
+| Layer            | Technology                            |
+| ---------------- | ------------------------------------- |
+| Language         | Python 3.14                           |
+| Framework        | Django 6.0.3                          |
+| Database         | PostgreSQL 17                         |
+| Auth             | Custom user model (email-based login) |
+| Password hashing | Argon2id                              |
+| Testing          | pytest · pytest-django                |
+| Containerization | Docker · docker-compose               |
+| CI               | GitHub Actions                        |
 
 ---
 
@@ -67,12 +67,12 @@ Key decisions documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
 
 - **Abstract Base Classes over Multi-Table Inheritance** — two independent tables, no unnecessary JOINs
 - **Custom user model** — email as `USERNAME_FIELD`, built from `AbstractBaseUser`
-- **Service layer** — business logic separated from models
-- **Monorepo structure** — `django_version` as a deliberate learning progression
+- **Custom validators over Django built-ins** — specific error codes and human-readable messages per failure case
+- **Monorepo structure** — `django_version` is the production phase of a deliberate learning progression
 
 ---
 
 ## Author
 
-**Thais Moreira** — Career transition: Law → Backend Python
+**Thaís Moreira** — Career transition: Law → Backend Python
 Open to junior backend Python positions in Europe and remote.
