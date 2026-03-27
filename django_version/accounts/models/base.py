@@ -263,7 +263,7 @@ class BaseUser(AbstractBaseUser):
         Returns:
             str: String with email and name of the user
         """
-        return f"{self.email} ({self.name})"
+        return f"{self.name} ({self.email})"
 
     def __repr__(self) -> str:
         """
