@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 import pytest
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from accounts.models.freelancer import Freelancer
-    from accounts.models.client import Client
+from accounts.models.freelancer import Freelancer
+from accounts.models.client import Client
 
 
 @pytest.fixture
