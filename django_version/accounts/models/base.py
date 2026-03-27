@@ -15,9 +15,6 @@ from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager as DjangoBaseUserManager,
 )
-
-
-from django.core.exceptions import ValidationError
 from django.db import models
 
 from accounts.validators.user_validators import (
