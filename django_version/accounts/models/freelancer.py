@@ -60,7 +60,7 @@ class Freelancer(BaseUser):
         Returns:
             str: User type, name and email
         """
-        return f"Freelancer: {self.name} ({self.email})"
+        return f"{self.user_type.capitalize()}: {self.name} ({self.email})"
 
     def __repr__(self) -> str:
         """

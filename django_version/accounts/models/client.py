@@ -15,7 +15,7 @@ class Client(BaseUser):
 
     Inherits all authentication and identification functionality from BaseUser.
 
-    This model creates the 'client' table in the database, containing
+    This model creates the 'clients' table in the database, containing
     inherited BaseUser columns.
 
     Attributes:
@@ -29,8 +29,6 @@ class Client(BaseUser):
             is_superuser: Full administrative permissions
     """
 
-    objects = BaseUserManager()
-
     class Meta:
         verbose_name = "Client"
         verbose_name_plural = "Clients"
@@ -43,4 +41,4 @@ class Client(BaseUser):
         Returns:
             str: User type, name and email
         """
-        return f"Client: {self.name} ({self.email})"
+        return f"{self.user_type.capitalize()}: {self.name} ({self.email})"
