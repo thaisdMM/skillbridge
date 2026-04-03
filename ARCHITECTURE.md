@@ -3,11 +3,11 @@
 This document records the key technical decisions made during the development of SkillBridge,
 including the reasoning behind each choice and the trade-offs accepted.
 It is intended for engineers and technical recruiters who want to understand
-not just *what* was built, but *why*.
+not just _what_ was built, but _why_.
 
 ---
 
-## 1. Monorepo Structure: `oop_version` → `django_version`
+## Monorepo Structure: `oop_version` → `django_version`
 
 ### Context
 
@@ -53,7 +53,7 @@ This was a deliberate architectural decision, not an abandonment.
 
 ---
 
-## 2. Abstract Base Classes over Multi-Table Inheritance
+## Abstract Base Classes over Multi-Table Inheritance
 
 ### Context
 
@@ -66,7 +66,7 @@ ways to model this.
 Django creates one table for the parent model and one for each child. Every query on a child
 model performs an implicit JOIN with the parent table.
 
-**Option B — Abstract Base Classes** *(chosen)*
+**Option B — Abstract Base Classes** _(chosen)_
 The parent model (`BaseUser`) is declared `abstract = True`. Django creates no table for it.
 Each concrete model (`Client`, `Freelancer`) gets its own fully independent table with all
 fields included.
@@ -92,7 +92,7 @@ revisited. For the current scope of SkillBridge, this trade-off is acceptable.
 
 ---
 
-## 3. Custom User Model: `AbstractBaseUser` + `BaseUserManager`
+## Custom User Model: `AbstractBaseUser` + `BaseUserManager`
 
 ### Context
 
@@ -130,7 +130,7 @@ The `BaseUser` model includes:
 
 ---
 
-## 4. Custom Validators over Django Built-ins
+## Custom Validators over Django Built-ins
 
 ### Context
 
@@ -159,7 +159,7 @@ pattern matching. This validator consolidates the name validation that in `oop_v
 inside the `User` model's `_validate_creation_data` method. Moving it here follows Single
 Responsibility and makes it reusable by DRF serializers.
 
-**`validate_strong_password`** is intentionally *not* a single regex. Password requirements
+**`validate_strong_password`** is intentionally _not_ a single regex. Password requirements
 are validated as sequential conditional checks, each raising a distinct error with a specific
 human-readable message:
 
@@ -186,7 +186,7 @@ password is "invalid".
 
 ---
 
-## 5. Argon2id as Password Hashing Algorithm
+## Argon2id as Password Hashing Algorithm
 
 ### Context
 
@@ -213,7 +213,7 @@ and carried through both versions consistently.
 
 ---
 
-## 6. PostgreSQL with psycopg3 and Connection Pooling
+## PostgreSQL with psycopg3 and Connection Pooling
 
 ### Decision
 
@@ -233,7 +233,7 @@ connection pooling and caused an error during initial setup.
 
 ---
 
-## 7. GDPR-Aligned Logging from Day One
+## GDPR-Aligned Logging from Day One
 
 ### Decision
 
@@ -256,7 +256,7 @@ the first logging decisions, not retrofitted later.
 
 ---
 
-## 8. Docker and GitHub Actions CI
+## Docker and GitHub Actions CI
 
 ### Decision
 
@@ -279,13 +279,46 @@ not optional extras added at the end.
 
 ---
 
+## Django Admin — Password Field Exclusion
+
+### Decision
+
+Admin interfaces for `Client` and `Freelancer` do not expose a password field.
+Operators manage accounts (activate, deactivate, adjust availability) but never
+set passwords on behalf of users.
+
+### Reasoning
+
+Users without a password receive `set_unusable_password()` via `create_user`,
+which is the correct state for accounts pending OAuth login or email-based
+invitation. Password creation is the responsibility of the authentication flow,
+not the admin panel. Exposing a password field in the admin would bypass
+validation logic defined in `BaseUserManager.create_user`.
+
+---
+
+## Django Admin — Staff Access Control
+
+### Decision
+
+`has_module_perms` requires both `is_active=True` and `is_staff=True` to grant
+admin panel access.
+
+### Reasoning
+
+`is_staff` alone does not guarantee an account is operational. A deactivated
+staff account loses admin access automatically without requiring manual flag
+removal, which reduces the risk of orphaned permissions after account suspension.
+
+---
+
 ## Principles Applied Throughout
 
-| Principle | Application |
-|---|---|
-| Single Responsibility | Models, validators, and services in separate files with clear scope |
-| Open/Closed | Abstract base classes allow extension without modifying existing models |
-| Liskov Substitution | `Client` and `Freelancer` are substitutable where `BaseUser` is expected |
-| DRY | Shared fields and logic defined once in `BaseUser`, not duplicated across models |
-| Type Hints | Used throughout for clarity and IDE support (Python 3.14) |
-| Security by default | Argon2id, GDPR-aligned logging, and whitespace-safe validators from the start |
+| Principle             | Application                                                                      |
+| --------------------- | -------------------------------------------------------------------------------- |
+| Single Responsibility | Models, validators, and services in separate files with clear scope              |
+| Open/Closed           | Abstract base classes allow extension without modifying existing models          |
+| Liskov Substitution   | `Client` and `Freelancer` are substitutable where `BaseUser` is expected         |
+| DRY                   | Shared fields and logic defined once in `BaseUser`, not duplicated across models |
+| Type Hints            | Used throughout for clarity and IDE support (Python 3.14)                        |
+| Security by default   | Argon2id, GDPR-aligned logging, and whitespace-safe validators from the start    |
