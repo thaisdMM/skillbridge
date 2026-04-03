@@ -300,6 +300,6 @@ class BaseUser(AbstractBaseUser):
             app_label: Application label to check permissions for
 
         Returns:
-            bool: True if user is staff, False otherwise
+            bool: True if user is active and staff, False otherwise
         """
-        return self.is_staff
+        return self.is_active and self.is_staff
