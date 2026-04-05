@@ -6,7 +6,7 @@ and identification functionality from BaseUser.
 """
 
 from __future__ import annotations
-from accounts.models.base import BaseUser, BaseUserManager
+from accounts.models.base import BaseUser
 
 
 class Client(BaseUser):

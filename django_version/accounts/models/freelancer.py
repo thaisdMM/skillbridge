@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from django.db import models
 
-from accounts.models.base import BaseUser, BaseUserManager
+from accounts.models.base import BaseUser
 
 
 class Freelancer(BaseUser):
@@ -45,8 +45,6 @@ class Freelancer(BaseUser):
             "Freelancers can toggle this without deactivating their account."
         ),
     )
-
-    objects = BaseUserManager()
 
     class Meta:
         verbose_name = "Freelancer"
