@@ -47,6 +47,9 @@ INSTALLED_APPS = [
     "accounts.apps.AccountsConfig",
 ]
 
+# Custom user model — must be set before the first migration
+AUTH_USER_MODEL = "accounts.StaffUser"
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
