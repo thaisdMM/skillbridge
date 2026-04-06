@@ -279,21 +279,22 @@ not optional extras added at the end.
 
 ---
 
-## Django Admin — Password Field Exclusion
+## Django Admin — Password Handling
 
 ### Decision
 
-Admin interfaces for `Client` and `Freelancer` do not expose a password field.
-Operators manage accounts (activate, deactivate, adjust availability) but never
-set passwords on behalf of users.
+Admin interfaces for `Client`, `Freelancer`, and `StaffUser` do not expose
+a password input field. `save_model` calls `set_unusable_password()` when
+the password field is empty on save.
 
 ### Reasoning
 
 Users without a password receive `set_unusable_password()` via `create_user`,
 which is the correct state for accounts pending OAuth login or email-based
 invitation. Password creation is the responsibility of the authentication flow,
-not the admin panel. Exposing a password field in the admin would bypass
-validation logic defined in `BaseUserManager.create_user`.
+not the admin panel. The `save_model` override closes a Django default behavior
+gap: `ModelAdmin` does not call `set_unusable_password()` automatically, which
+would leave `password = ''` in the database for admin-created accounts.
 
 ---
 
@@ -301,14 +302,86 @@ validation logic defined in `BaseUserManager.create_user`.
 
 ### Decision
 
-`has_module_perms` requires both `is_active=True` and `is_staff=True` to grant
-admin panel access.
+`has_module_perms` in `BaseUser` requires both `is_active=True` and
+`is_staff=True` to grant admin panel access.
 
 ### Reasoning
 
 `is_staff` alone does not guarantee an account is operational. A deactivated
 staff account loses admin access automatically without requiring manual flag
-removal, which reduces the risk of orphaned permissions after account suspension.
+removal, reducing the risk of orphaned permissions after account suspension.
+
+---
+
+## Django Admin — Deletion Disabled
+
+### Decision
+
+`has_delete_permission` returns `False` across all three admin classes
+(`FreelancerAdmin`, `ClientAdmin`, `StaffUserAdmin`).
+
+### Reasoning
+
+In a marketplace platform, user deletion is irreversible and affects
+associated data such as contracts and history. Deactivation via `is_active`
+is the correct lifecycle operation. Disabling deletion in the admin prevents
+accidental data loss and aligns with GDPR requirements around data retention
+and audit trails.
+
+---
+
+## Django Admin — Privilege Field Separation
+
+### Decision
+
+`Client` and `Freelancer` admin interfaces do not expose `is_staff` or
+`is_superuser` fields. `StaffUserAdmin` exposes `is_staff` (editable by
+superusers only) and `is_superuser` (always readonly).
+
+### Reasoning
+
+`is_staff` and `is_superuser` are not business attributes of `Client` or
+`Freelancer` — they are inherited from `BaseUser` for technical reasons.
+Exposing them would allow operators to accidentally or maliciously escalate
+privileges. Promoting a `StaffUser` to superuser is intentionally a
+shell-only operation (`createsuperuser` or Django shell), enforcing the
+principle of least privilege. Granular permission groups are planned for
+a future sprint.
+
+---
+
+## BaseUser — Superuser Implies Staff Invariant
+
+### Decision
+
+`BaseUser.clean()` raises `ValidationError` if `is_superuser=True` and
+`is_staff=False`.
+
+### Reasoning
+
+Django requires `is_staff=True` to access the admin panel. A superuser
+without staff status can authenticate but cannot reach the admin interface,
+producing an incoherent permission state. Enforcing this at the model level
+via `clean()` protects all concrete models uniformly, regardless of whether
+the save originates from the admin, API, or shell (`full_clean()` must be
+called explicitly in the latter case).
+
+---
+
+## Freelancer — Active/Availability Invariant
+
+### Decision
+
+`Freelancer.clean()` raises `ValidationError` if `is_active=False` and
+`is_available=True`.
+
+### Reasoning
+
+An inactive freelancer is not visible to clients on the platform. Allowing
+an inactive account to be marked as available would produce corrupted state:
+the freelancer would appear available in availability queries but could not
+receive or respond to proposals. Enforcing this at the model level ensures
+the rule applies across the admin, REST API, and shell.
 
 ---
 
