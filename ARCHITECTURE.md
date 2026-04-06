@@ -130,6 +130,28 @@ The `BaseUser` model includes:
 
 ---
 
+## AUTH_USER_MODEL — StaffUser as Authentication Model
+
+### Decision
+
+`AUTH_USER_MODEL = "accounts.StaffUser"` configured in `settings.py`
+before the first migration. `StaffUser(BaseUser)` is the third concrete model
+of the project, with its own table `staff_users`.
+
+### Reasoning
+
+Django requires that `AUTH_USER_MODEL` be defined before the first
+migration — it is the only configuration that becomes extremely difficult
+to change after migrations are applied with real data. `StaffUser` was
+chosen instead of making `BaseUser` concrete to preserve the ABC vs MTI decision:
+`Client` and `Freelancer` continue to be independent tables without JOIN.
+A platform operator is not a client nor a freelancer —
+correct separation of responsibilities. ForeignKeys that reference
+`settings.AUTH_USER_MODEL` (such as the planned `changed_by` for TASK 2.2.4)
+point to `staff_users`.
+
+---
+
 ## Custom Validators over Django Built-ins
 
 ### Context
