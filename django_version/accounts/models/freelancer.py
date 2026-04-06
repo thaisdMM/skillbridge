@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from django.db import models
 
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+
 from accounts.models.base import BaseUser
 
 
@@ -45,6 +48,28 @@ class Freelancer(BaseUser):
             "Freelancers can toggle this without deactivating their account."
         ),
     )
+
+    def clean(self) -> None:
+        """
+        Enforce business rule: an inactive freelancer cannot be marked as available.
+
+        An inactive account is not visible to clients. Marking it as available
+        would produce corrupted state — the freelancer would appear available
+        but could not receive proposals.
+
+        Raises:
+            ValidationError: If is_active is False and is_available is True.
+        """
+        super().clean()
+        if not self.is_active and self.is_available:
+            raise ValidationError(
+                {
+                    "is_available": _(
+                        "An inactive freelancer cannot be marked as available. "
+                        "Activate the account first or set availability to unavailable."
+                    )
+                }
+            )
 
     class Meta:
         verbose_name = "Freelancer"
