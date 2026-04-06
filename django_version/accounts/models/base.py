@@ -16,6 +16,8 @@ from django.contrib.auth.models import (
     BaseUserManager as DjangoBaseUserManager,
 )
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 from accounts.validators.user_validators import (
     validate_email,
@@ -303,3 +305,17 @@ class BaseUser(AbstractBaseUser):
             bool: True if user is active and staff, False otherwise
         """
         return self.is_active and self.is_staff
+
+    def clean(self) -> None:
+        """
+        Enforce invariant: a superuser must always have staff status.
+
+        is_superuser grants full admin access, which requires is_staff=True
+        to enter the Django admin site. Allowing is_superuser=True with
+        is_staff=False produces an incoherent state.
+        """
+        super().clean()
+        if self.is_superuser and not self.is_staff:
+            raise ValidationError(
+                {"is_staff": _("A superuser must also have staff status.")}
+            )
