@@ -407,6 +407,23 @@ the rule applies across the admin, REST API, and shell.
 
 ---
 
+## StaffUser — `is_staff` Default Override
+
+### Decision
+
+`StaffUser` overrides the `is_staff` field inherited from `BaseUser`, setting `default=True` instead of the inherited `default=False`.
+
+### Reasoning
+
+`BaseUser` defines `is_staff=False` as the default to protect `Client` and `Freelancer` — business users who must never have admin access by default. `StaffUser` exists specifically to represent platform operators whose sole purpose is administrative access via the Django admin panel. A `StaffUser` born with `is_staff=False` would be inconsistent with the model's own reason for existing: it would sit in the `staff_users` table but be unable to access the admin without manual intervention.
+
+Keeping `is_superuser=False` as the inherited default is intentional. Staff access and superuser access are distinct privilege levels. Operators get admin access by default; superuser elevation remains an explicit, manual operation following the principle of least privilege.
+
+### Trade-off accepted
+
+Any code that creates a `StaffUser` without explicitly setting `is_staff=False` will produce an admin-enabled account. This is the intended behavior for this model and must be considered when writing tests that create `StaffUser` instances with non-default states.
+
+---
 ## Principles Applied Throughout
 
 | Principle             | Application                                                                      |
