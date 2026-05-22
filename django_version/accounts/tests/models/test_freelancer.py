@@ -6,6 +6,7 @@ functionality from BaseUser, which has its own tests.
 """
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 from accounts.models.freelancer import Freelancer
 
@@ -55,3 +56,34 @@ def test_freelancer_create_user_has_correct_default_flags(freelancer_user):
     assert freelancer_user.is_staff is False
     assert freelancer_user.is_superuser is False
     assert freelancer_user.is_active is True
+
+
+@pytest.mark.django_db
+def test_freelancer_clean_raises_if_inactive_and_available(valid_freelancer_data):
+    """Test that full_clean() raises ValidationError when freelancer is inactive and available."""
+    freelancer = Freelancer(
+        **{
+            **valid_freelancer_data,
+            "is_active": False,
+            "is_available": True,
+        }
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        freelancer.full_clean()
+
+    assert "is_available" in exc_info.value.error_dict
+    assert "inactive freelancer cannot be marked as available" in exc_info.value.error_dict["is_available"][0].message.lower()
+
+
+@pytest.mark.django_db
+def test_freelancer_clean_passes_if_inactive_and_unavailable(valid_freelancer_data):
+    """Test that full_clean() passes when freelancer is inactive and unavailable."""
+    freelancer = Freelancer(
+        **{
+            **valid_freelancer_data,
+            "is_active": False,
+            "is_available": False,
+        }
+    )
+    freelancer.full_clean()

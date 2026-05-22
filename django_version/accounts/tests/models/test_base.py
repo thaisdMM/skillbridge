@@ -207,3 +207,33 @@ def test_create_super_user_with_is_superuser_false_raises_value_error(valid_user
         Freelancer.objects.create_superuser(
             **{**valid_user_data, "is_superuser": False}
         )
+
+@pytest.mark.django_db
+def test_clean_method_raises_validation_error_for_superuser_without_staff_status(valid_user_data):
+    """Test that full_clean() raises ValidationError when is_superuser is True but is_staff is False."""
+    user = Freelancer(
+        **{
+            **valid_user_data,
+            "is_superuser": True,
+            "is_staff": False,
+        }
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        user.full_clean()
+
+    assert "is_staff" in exc_info.value.error_dict
+    assert "superuser must also have staff status" in exc_info.value.error_dict["is_staff"][0].message.lower()
+
+
+@pytest.mark.django_db
+def test_clean_method_passes_for_valid_superuser(valid_user_data):
+    """Test that full_clean() passes successfully when both is_superuser and is_staff are True."""
+    user = Freelancer(
+        **{
+            **valid_user_data,
+            "is_superuser": True,
+            "is_staff": True,
+        }
+    )
+    user.full_clean()
