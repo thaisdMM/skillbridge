@@ -316,6 +316,7 @@ class BaseUser(AbstractBaseUser):
         """
         super().clean()
         if self.is_superuser and not self.is_staff:
+            logger.error("Superuser without staff status")
             raise ValidationError(
                 {"is_staff": _("A superuser must also have staff status.")}
             )

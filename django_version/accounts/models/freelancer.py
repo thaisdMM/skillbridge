@@ -7,6 +7,7 @@ account fields.
 """
 
 from __future__ import annotations
+import logging
 
 from django.db import models
 
@@ -15,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from accounts.models.base import BaseUser
 
+logger = logging.getLogger(__name__)
 
 class Freelancer(BaseUser):
     """
@@ -62,6 +64,7 @@ class Freelancer(BaseUser):
         """
         super().clean()
         if not self.is_active and self.is_available:
+            logger.error("An inactive freelancer cannot be available.")
             raise ValidationError(
                 {
                     "is_available": _(
