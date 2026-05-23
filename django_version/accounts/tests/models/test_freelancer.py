@@ -72,8 +72,7 @@ def test_freelancer_clean_raises_if_inactive_and_available(valid_freelancer_data
     with pytest.raises(ValidationError) as exc_info:
         freelancer.full_clean()
 
-    assert "is_available" in exc_info.value.error_dict
-    assert "inactive freelancer cannot be marked as available" in exc_info.value.error_dict["is_available"][0].message.lower()
+    assert exc_info.value.error_dict["is_available"][0].code == "freelancer_inactive_available"
 
 
 @pytest.mark.django_db

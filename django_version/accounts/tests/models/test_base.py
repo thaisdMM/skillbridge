@@ -222,8 +222,7 @@ def test_clean_method_raises_validation_error_for_superuser_without_staff_status
     with pytest.raises(ValidationError) as exc_info:
         user.full_clean()
 
-    assert "is_staff" in exc_info.value.error_dict
-    assert "superuser must also have staff status" in exc_info.value.error_dict["is_staff"][0].message.lower()
+    assert exc_info.value.error_dict["is_staff"][0].code == "superuser_without_staff"
 
 
 @pytest.mark.django_db

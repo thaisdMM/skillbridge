@@ -66,12 +66,13 @@ class Freelancer(BaseUser):
         if not self.is_active and self.is_available:
             logger.error("An inactive freelancer cannot be available.")
             raise ValidationError(
-                {
-                    "is_available": _(
+                {"is_available": ValidationError(
+                    _(
                         "An inactive freelancer cannot be marked as available. "
                         "Activate the account first or set availability to unavailable."
-                    )
-                }
+                    ),
+                    code="freelancer_inactive_available",
+                )}
             )
 
     class Meta:
