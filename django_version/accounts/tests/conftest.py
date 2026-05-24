@@ -1,6 +1,5 @@
 """Shared fixtures for accounts app tests."""
 
-from __future__ import annotations
 import pytest
 
 from accounts.models.freelancer import Freelancer
