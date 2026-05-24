@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "accounts.apps.AccountsConfig",
+    "profiles.apps.ProfilesConfig",
 ]
 
 # Custom user model — must be set before the first migration
