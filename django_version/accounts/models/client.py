@@ -5,7 +5,6 @@ This module defines the concrete Client user model, inheriting authentication
 and identification functionality from BaseUser.
 """
 
-from __future__ import annotations
 from accounts.models.base import BaseUser
 
 

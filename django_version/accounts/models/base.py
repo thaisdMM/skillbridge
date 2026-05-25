@@ -6,8 +6,6 @@ Client and Freelancer models, providing common authentication and
 identification functionality.
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 

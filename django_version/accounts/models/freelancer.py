@@ -6,7 +6,6 @@ and identification functionality from BaseUser and adding freelancer-specific
 account fields.
 """
 
-from __future__ import annotations
 import logging
 
 from django.db import models
