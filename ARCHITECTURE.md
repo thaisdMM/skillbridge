@@ -424,6 +424,44 @@ Keeping `is_superuser=False` as the inherited default is intentional. Staff acce
 Any code that creates a `StaffUser` without explicitly setting `is_staff=False` will produce an admin-enabled account. This is the intended behavior for this model and must be considered when writing tests that create `StaffUser` instances with non-default states.
 
 ---
+
+## Skill — Controlled Vocabulary with Admin-Managed List
+
+### Decision
+`Skill` is a standalone model with `unique=True` on `name`, managed exclusively
+by platform administrators. Freelancers select from the existing list — they
+cannot create skills freely. The list is seeded with a curated set of ~30 skills
+across four service categories: Technology, Design, Writing, and Marketing.
+
+### Reasoning
+The platform requires reliable filtering and matching between freelancer profiles
+and job postings (`list_open_jobs(skills=...)` in Sprint 2.3). Free-text skill
+input would make this query fragile — the same skill entered as "python",
+"Python", and "Python 3" would produce three separate, unmatchable records.
+A controlled vocabulary solves this at the data layer, not the application layer.
+
+The four categories (TECHNOLOGY, DESIGN, WRITING, MARKETING) were chosen to
+reflect real freelance service areas with broad market demand, replacing the
+generic TECHNICAL/LANGUAGE/SOFT taxonomy originally proposed. This aligns the
+seed data with the platform's actual scope and makes category-based filtering
+meaningful to end users.
+
+### Trade-off accepted
+Limiting skill creation to admins introduces friction when a freelancer's skill
+does not exist in the list. Three approaches were considered for this:
+
+- **Option A — Free text input**: rejected because it breaks filtering and
+  matching at the query level.
+- **Option B — User suggestion with admin approval** (e.g. `status=PENDING`
+  awaiting admin review): considered viable for a future iteration. The current
+  model does not prevent this extension without breaking changes.
+- **Option C — Admin-only managed list** _(chosen)_: accepted for the current
+  scope. Prioritises data consistency and query reliability over user freedom.
+
+This constraint is intentional for the portfolio scope and is documented as a
+known future extension point.
+---
+
 ## Principles Applied Throughout
 
 | Principle             | Application                                                                      |
