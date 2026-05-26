@@ -460,6 +460,42 @@ does not exist in the list. Three approaches were considered for this:
 
 This constraint is intentional for the portfolio scope and is documented as a
 known future extension point.
+
+---
+
+## Skill Seed — bulk_create Without clean() Validation
+
+### Context
+The `Skill` model defines a `clean()` method that strips whitespace from `name`
+and raises `ValidationError` if the result is empty. Django does not call
+`clean()` automatically on `bulk_create()`, `.create()`, or `.save()` — it must
+be invoked explicitly via `full_clean()`.
+
+### Decision
+The data migration `0002_seed_skills` uses `bulk_create(ignore_conflicts=True)`
+without calling `full_clean()` on each instance.
+
+### Reasoning
+Seed data is authored directly in source code, reviewed before commit, and
+inserted in a controlled environment. The `clean()` method exists to protect
+the database from errors introduced by platform administrators when creating
+or editing skills via the Django Admin — the only valid insertion path outside
+of migrations. That protection is unnecessary when the data source is the
+codebase itself.
+
+`ignore_conflicts=True` was added to guard against re-execution in unstable
+environments (e.g. a `migrate` run twice due to a deployment error), preventing
+`unique constraint` violations on `name` without requiring a try/except block.
+
+### Trade-off accepted
+Skipping `full_clean()` means whitespace errors or empty names in the seed list
+would be inserted silently. This risk is accepted because:
+- Seed data is static and visually reviewable before any migration runs.
+- The `clean()` method remains active for the only valid insertion path outside
+  of migrations: the Django Admin, restricted to platform administrators.
+- If a seed entry is malformed, the fix is a code change and a new migration —
+  not a runtime error to handle.
+
 ---
 
 ## Principles Applied Throughout
