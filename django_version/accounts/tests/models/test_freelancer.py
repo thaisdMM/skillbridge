@@ -43,6 +43,16 @@ def test_freelancer_str_representation(freelancer_user):
 
 
 @pytest.mark.django_db
+def test_freelancer_repr_representation(freelancer_user):
+    """Test that __repr__ returns class name, id, email, and availability status."""
+    assert repr(freelancer_user) == (
+        f"Freelancer(id={freelancer_user.id}, "
+        f"email={freelancer_user.email!r}, "
+        f"is_available={freelancer_user.is_available})"
+    )
+
+
+@pytest.mark.django_db
 def test_freelancer_email_is_unique(freelancer_user, valid_freelancer_data):
     """Test that the database raises IntegrityError when the same email is used twice."""
     with pytest.raises(IntegrityError):

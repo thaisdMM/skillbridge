@@ -27,6 +27,12 @@ def test_client_str_representation(client_user):
 
 
 @pytest.mark.django_db
+def test_client_repr_representation(client_user):
+    """Test that __repr__ returns class name, id, email, and name."""
+    assert repr(client_user) == f"Client (id={client_user.id}), email={client_user.email!r}, name={client_user.name!r}"
+
+
+@pytest.mark.django_db
 def test_client_email_is_unique(client_user, valid_client_data):
     """Test that the database raises IntegrityError: when the same email is used twice."""
     client = client_user

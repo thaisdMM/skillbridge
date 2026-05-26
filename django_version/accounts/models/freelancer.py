@@ -97,6 +97,6 @@ class Freelancer(BaseUser):
         """
         return (
             f"{self.__class__.__name__}(id={self.id}, "
-            f"email='{self.email}', "
+            f"email={self.email!r}, "
             f"is_available={self.is_available})"
         )

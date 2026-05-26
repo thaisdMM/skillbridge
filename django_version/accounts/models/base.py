@@ -274,7 +274,7 @@ class BaseUser(AbstractBaseUser):
         """
         return (
             f"{self.__class__.__name__} (id={self.id}), "
-            f"email='{self.email}', name='{self.name}'"
+            f"email={self.email!r}, name={self.name!r}"
         )
 
     # PERMISSION METHODS (required for Django admin)
