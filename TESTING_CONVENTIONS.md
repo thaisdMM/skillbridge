@@ -22,7 +22,7 @@ accounts/
     base.py
     freelancer.py
   tests/
-    conftest.py           ← shared fixtures for accounts app
+    conftest.py           ← shared fixtures for app
     models/
       test_base.py        ← tests for accounts/models/base.py
       test_freelancer.py  ← tests for accounts/models/freelancer.py
