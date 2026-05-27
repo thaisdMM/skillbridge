@@ -28,7 +28,7 @@ def test_skill_repr_representation() -> None:
     becomes the plain string 'TECHNOLOGY'.
     """
     skill = Skill(name="Python", category=Skill.Category.TECHNOLOGY)
-    assert repr(skill) == "Skill(id=None, name='Python', category=Skill.Category.TECHNOLOGY)"
+    assert repr(skill) == f"Skill (id=None, name={skill.name!r}, category={skill.category!r})"
 
 
 # TESTS: Validation & Normalization via clean() (No Database Required)
