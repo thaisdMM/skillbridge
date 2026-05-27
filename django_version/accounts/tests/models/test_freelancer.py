@@ -46,7 +46,7 @@ def test_freelancer_str_representation(freelancer_user):
 def test_freelancer_repr_representation(freelancer_user):
     """Test that __repr__ returns class name, id, email, and availability status."""
     assert repr(freelancer_user) == (
-        f"Freelancer(id={freelancer_user.id}, "
+        f"Freelancer (id={freelancer_user.id}, "
         f"email={freelancer_user.email!r}, "
         f"is_available={freelancer_user.is_available})"
     )

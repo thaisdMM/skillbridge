@@ -88,7 +88,7 @@ class Skill(models.Model):
             str: Class name with id, name and category.
         """
         return (
-            f"{self.__class__.__name__}(id={self.id}, "
+            f"{self.__class__.__name__} (id={self.id}, "
             f"name={self.name!r}, "
             f"category={self.category!r})"
         )
