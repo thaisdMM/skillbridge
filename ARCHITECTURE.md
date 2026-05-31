@@ -497,6 +497,73 @@ would be inserted silently. This risk is accepted because:
   not a runtime error to handle.
 
 ---
+## FreelancerProfile — on_delete=PROTECT on OneToOneField
+
+### Context
+`FreelancerProfile` has a `OneToOneField` pointing to `Freelancer`.
+Django requires an `on_delete` policy to be explicitly declared on every
+`ForeignKey` and `OneToOneField`.
+
+### Options considered
+
+**Option A — CASCADE** _(original roadmap suggestion)_
+Deletes the profile automatically if the linked `Freelancer` is deleted.
+
+**Option B — PROTECT** _(chosen)_
+Raises `ProtectedError` at the database level if a deletion of a `Freelancer`
+with an associated profile is attempted.
+
+### Decision
+`on_delete=models.PROTECT` was chosen.
+
+### Reasoning
+The platform does not delete users — deactivation via `is_active=False` is
+the only supported lifecycle transition for `Freelancer` accounts. This is
+enforced at the Admin layer (`has_delete_permission = False` on all admin
+classes) and is a documented architectural decision.
+
+`PROTECT` makes this invariant explicit at the database level. If a deletion
+is attempted by mistake — via shell, script, or a future admin change — the
+database refuses and raises an error rather than silently removing the profile.
+`CASCADE` would produce silent data loss in a scenario the architecture
+explicitly prohibits.
+
+### Trade-off accepted
+If physical deletion of a `Freelancer` ever becomes a supported operation,
+the `on_delete` policy will need to be revisited alongside the deactivation
+strategy. This is considered a future extension point, not a current
+requirement.
+
+---
+## FreelancerProfile — Minimum One Skill Enforced at Serializer Level
+
+### Context
+`FreelancerProfile.skills` is a `ManyToManyField`. The business rule requires
+that every published profile has at least one skill associated with it.
+
+### Decision
+The minimum-one-skill constraint is not enforced in `FreelancerProfile.clean()`.
+It is enforced at the serializer level in the DRF layer (Sprint 2.2).
+
+### Reasoning
+Django's `ManyToManyField` relationship is stored in a separate join table and
+is only available after the model instance has been saved to the database.
+When `clean()` is called — either explicitly via `full_clean()` or by Django
+Admin before saving — the M2M relationship does not yet exist on an unsaved
+instance. Enforcing `self.skills.count() >= 1` in `clean()` would always fail
+on creation, regardless of what the user selected.
+
+The correct enforcement point for M2M business rules is the serializer
+(`validate_skills()`) or the form (`clean_skills()`), where the data is
+available before the instance is saved.
+
+### Trade-off accepted
+A `FreelancerProfile` can exist in the database without any skills if created
+directly via the ORM (shell, fixtures, migrations). This is accepted because
+the only valid creation paths for end users — the API and the Admin — enforce
+the constraint at their respective validation layers.
+
+---
 
 ## Principles Applied Throughout
 
