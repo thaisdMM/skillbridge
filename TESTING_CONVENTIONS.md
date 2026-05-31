@@ -85,6 +85,63 @@ def freelancer_user(db, valid_freelancer_data) -> Freelancer:
 
 ---
 
+## Data fixtures (dicts) and overrides pattern
+
+Always prefer returning a plain Python `dict` of valid model fields from your baseline data fixtures, rather than a persisted model instance or pre-instantiated object.
+
+### Baseline Data Fixture Rule
+Name baseline data fixtures `valid_<model_name>_data`. They must return a `dict` of complete, valid parameters that can be unpacked to construct or save the model.
+
+```python
+@pytest.fixture
+def valid_freelancer_profile_data(freelancer_user: Freelancer) -> dict:
+    """Valid data to create a FreelancerProfile instance."""
+    from decimal import Decimal
+    return {
+        "user": freelancer_user,
+        "hourly_rate": Decimal("50.00"),
+        "portfolio_url": "https://portfolio.example.com",
+        "years_of_experience": 5,
+        "bio": "Experienced Python developer looking for collaboration",
+    }
+```
+
+### Composition and Inheritance Rule
+If a model builds upon or references another model, compositionally merge the dictionaries in `conftest.py` rather than duplicating keys:
+
+```python
+@pytest.fixture
+def valid_freelancer_data(valid_user_data: dict[str, str]) -> dict[str, str | bool]:
+    """Valid data to create a Freelancer user, inheriting from valid_user_data."""
+    return {
+        **valid_user_data,
+        "is_available": True,
+    }
+```
+
+### Merging and Overriding in Tests
+When testing invalid inputs, edge cases, or boundary conditions, use Python's double-asterisk (`**`) dictionary unpacking combined with a dictionary merge (`{**valid_data, "field": override_value}`) to specify only the fields you want to mutate.
+
+```python
+def test_freelancer_profile_raises_validation_error_with_empty_portfolio_url(
+    valid_freelancer_profile_data: dict, invalid_url: str
+) -> None:
+    """Test that an empty or whitespace-only portfolio_url raises a ValidationError."""
+    profile = FreelancerProfile(
+        **{
+            **valid_freelancer_profile_data,
+            "portfolio_url": invalid_url,
+        }
+    )
+    with pytest.raises(ValidationError) as exc_info:
+        profile.clean()
+    
+    assert "portfolio_url" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["portfolio_url"][0].code == "portfolio_url_empty_string"
+```
+
+---
+
 ## Abstract models — how to test them
 
 Abstract models (`abstract = True`) cannot be directly instantiated in tests.
@@ -193,8 +250,14 @@ Do not use `parametrize` when each case requires a different assertion.
 
 ## ValidationError — always assert on code, never on message
 
+Before checking the error code, always assert that the field key exists in `error_dict` to prevent cryptic `KeyError` exceptions when tests fail.
+
 ```python
 # CORRECT
+assert "bio" in exc_info.value.error_dict
+assert exc_info.value.error_dict["bio"][0].code == "bio_too_long"
+
+# WRONG — referencing directly without key presence check can raise KeyError
 assert exc_info.value.error_dict["bio"][0].code == "bio_too_long"
 
 # WRONG — messages can change, codes are contracts
@@ -256,6 +319,28 @@ Do NOT test in the abstract base:
 
 ---
 
+## Type hints in tests
+
+Always write standard, clean type hints on test functions and fixtures to maintain code quality, ease readability, and ensure IDE autocompletion.
+
+- Test functions should always be type-hinted with a return type of `-> None`.
+- Test function arguments and fixture inputs must always have explicit type annotations.
+
+```python
+@pytest.fixture
+def valid_freelancer_profile_data(freelancer_user: Freelancer) -> dict:
+    """Valid data to create a FreelancerProfile instance."""
+    ...
+
+def test_freelancer_profile_raises_validation_error_with_empty_portfolio_url(
+    valid_freelancer_profile_data: dict, invalid_url: str
+) -> None:
+    """Test description..."""
+    ...
+```
+
+---
+
 ## import conventions in test files
 
 ```python
@@ -284,3 +369,6 @@ from accounts.models.freelancer import Freelancer
 | Writing one test per invalid value | Use `@pytest.mark.parametrize` |
 | Skipping `conftest.py` | Always create it before writing test files |
 | Testing abstract model timestamps | Defer to concrete model test files |
+| Returning saved objects or unsaved model instances from baseline data fixtures | Return raw dictionaries (`dict`) and compose/unpack them for flexibility |
+| Omitting type hints in tests or returning untyped values from fixtures | Use type hints (`-> None` on tests, explicit types on fixtures and function arguments) |
+| Asserting on validation error codes without first asserting the field key's existence | Assert the key exists in `error_dict` first to avoid unclear `KeyError` tracebacks |
