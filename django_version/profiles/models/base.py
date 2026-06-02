@@ -103,7 +103,7 @@ class Profile(models.Model):
                     }
                 )
 
-        logger.debug("Bio validation successful")
+            logger.debug("Bio validation successful")
 
     def get_display_info(self) -> dict:
         """
