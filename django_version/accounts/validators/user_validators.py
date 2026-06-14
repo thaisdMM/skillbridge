@@ -124,10 +124,8 @@ def validate_strong_password(value: str) -> None:
     """
     logger.debug("Starting password validation")
 
-    password = value.strip()
-
     # Check minimum length
-    if len(password) < 8:
+    if len(value) < 8:
         logger.debug("Password validation failed: too short")
         raise ValidationError(
             _("Password must be at least 8 characters long."),
@@ -135,7 +133,7 @@ def validate_strong_password(value: str) -> None:
         )
 
     # Check withespace
-    if re.search(r"\s", password):
+    if re.search(r"\s", value):
         logger.debug("Password validation failed: spaces or withespace")
         raise ValidationError(
             _("Password cannot contain spaces or whitespace characters."),
@@ -143,7 +141,7 @@ def validate_strong_password(value: str) -> None:
         )
 
     # Check if only digits
-    if password.isdigit():
+    if value.isdigit():
         logger.debug("Password validation failed: only digits")
         raise ValidationError(
             _(
@@ -153,7 +151,7 @@ def validate_strong_password(value: str) -> None:
         )
 
     # Check if all uppercase
-    if password.isupper():
+    if value.isupper():
         logger.debug("Password validation failed: only uppercase letters")
         raise ValidationError(
             _(
@@ -163,7 +161,7 @@ def validate_strong_password(value: str) -> None:
         )
 
     # Check if all lowercase
-    if password.islower():
+    if value.islower():
         logger.debug("Password validation failed: only lowercase letters")
         raise ValidationError(
             _(
@@ -173,7 +171,7 @@ def validate_strong_password(value: str) -> None:
         )
 
     # Check for special characters
-    if not re.search(r"[^a-zA-Z0-9]", password):
+    if not re.search(r"[^a-zA-Z0-9]", value):
         logger.debug("Password validation failed: missing special character")
         raise ValidationError(
             _(
