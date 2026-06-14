@@ -90,6 +90,10 @@ It is not possible to query `BaseUser.objects.all()` and retrieve both clients a
 in a single queryset. If this requirement ever emerges, the architecture would need to be
 revisited. For the current scope of SkillBridge, this trade-off is acceptable.
 
+A third concrete model, `StaffUser`, follows this same Abstract Base Class pattern.
+It is not a domain user type but the platform's authentication model; the reasoning
+for its existence is documented in the AUTH_USER_MODEL section.
+
 ---
 
 ## Custom User Model: `AbstractBaseUser` + `BaseUserManager`
@@ -114,8 +118,6 @@ The `BaseUserManager` implements:
 The `BaseUser` model includes:
 
 - Fields: `email` (unique), `name`, `created_at`, `is_active`, `is_staff`, `is_superuser`
-- `user_type` property: returns `'client'` or `'freelancer'` dynamically via
-  `__class__.__name__.lower()`
 - `has_perm()` and `has_module_perms()` for Django admin integration
 
 ### Reasoning
@@ -146,9 +148,7 @@ to change after migrations are applied with real data. `StaffUser` was
 chosen instead of making `BaseUser` concrete to preserve the ABC vs MTI decision:
 `Client` and `Freelancer` continue to be independent tables without JOIN.
 A platform operator is not a client nor a freelancer —
-correct separation of responsibilities. ForeignKeys that reference
-`settings.AUTH_USER_MODEL` (such as the planned `changed_by` for TASK 2.2.4)
-point to `staff_users`.
+correct separation of responsibilities. ForeignKeys that reference `settings.AUTH_USER_MODEL` point to `staff_users`.
 
 ---
 
@@ -186,16 +186,30 @@ are validated as sequential conditional checks, each raising a distinct error wi
 human-readable message:
 
 - `password_too_short` — fewer than 8 characters
-- `password_contains_whitespace` — spaces, tabs, or newlines present
+- `password_contains_whitespace` — any whitespace present, **including leading
+  or trailing**; the validator does not strip the password (see _User Input
+  Normalization — Owned by the Serializer Layer_)
 - `password_only_digits` — no letters or special characters
 - `password_all_uppercase` / `password_all_lowercase` — missing case diversity
-- `password_no_special_char` — caught via `re.search(r"[^a-zA-Z0-9]", password)`
+- `password_no_special_char` — caught via `re.search(r"[^a-zA-Z0-9]", value)`
 
 Regex is used only for this last check. A single-pattern approach was considered and
 rejected: it would have produced one generic error message regardless of which requirement
 failed, giving the user no actionable feedback. The sequential approach means a user who
 submits `"weakpass"` learns exactly that a special character is missing — not that the
 password is "invalid".
+
+**Normalization inside validators is validation-local and is being relocated.**
+The `.strip()` calls in `validate_email` and `validate_user_name` exist only to
+make the *validation* whitespace-tolerant; they do not normalize the value that
+is stored — storage normalization is performed separately by the manager
+(`name.strip()` and Django's `normalize_email`). Per the project's
+layer-ownership rule, normalization belongs to the serializer, not the
+validator. Removing these strips is deferred until the DRF serializer exists; see
+_User Input Normalization — Owned by the Serializer Layer_. `validate_strong_password`
+is the deliberate exception: it no longer strips and rejects any whitespace
+outright, because a password must never be silently altered — the reasoning is
+recorded in that section.
 
 ### Reasoning
 
@@ -367,8 +381,7 @@ superusers only) and `is_superuser` (always readonly).
 Exposing them would allow operators to accidentally or maliciously escalate
 privileges. Promoting a `StaffUser` to superuser is intentionally a
 shell-only operation (`createsuperuser` or Django shell), enforcing the
-principle of least privilege. Granular permission groups are planned for
-a future sprint.
+principle of least privilege. Granular permission groups are a planned future extension.
 
 ---
 
@@ -428,14 +441,16 @@ Any code that creates a `StaffUser` without explicitly setting `is_staff=False` 
 ## Skill — Controlled Vocabulary with Admin-Managed List
 
 ### Decision
+
 `Skill` is a standalone model with `unique=True` on `name`, managed exclusively
 by platform administrators. Freelancers select from the existing list — they
 cannot create skills freely. The list is seeded with a curated set of ~30 skills
 across four service categories: Technology, Design, Writing, and Marketing.
 
 ### Reasoning
+
 The platform requires reliable filtering and matching between freelancer profiles
-and job postings (`list_open_jobs(skills=...)` in Sprint 2.3). Free-text skill
+and job postings (`list_open_jobs(skills=...)`). Free-text skill
 input would make this query fragile — the same skill entered as "python",
 "Python", and "Python 3" would produce three separate, unmatchable records.
 A controlled vocabulary solves this at the data layer, not the application layer.
@@ -447,6 +462,7 @@ seed data with the platform's actual scope and makes category-based filtering
 meaningful to end users.
 
 ### Trade-off accepted
+
 Limiting skill creation to admins introduces friction when a freelancer's skill
 does not exist in the list. Three approaches were considered for this:
 
@@ -466,16 +482,19 @@ known future extension point.
 ## Skill Seed — bulk_create Without clean() Validation
 
 ### Context
+
 The `Skill` model defines a `clean()` method that strips whitespace from `name`
 and raises `ValidationError` if the result is empty. Django does not call
 `clean()` automatically on `bulk_create()`, `.create()`, or `.save()` — it must
 be invoked explicitly via `full_clean()`.
 
 ### Decision
+
 The data migration `0002_seed_skills` uses `bulk_create(ignore_conflicts=True)`
 without calling `full_clean()` on each instance.
 
 ### Reasoning
+
 Seed data is authored directly in source code, reviewed before commit, and
 inserted in a controlled environment. The `clean()` method exists to protect
 the database from errors introduced by platform administrators when creating
@@ -488,8 +507,10 @@ environments (e.g. a `migrate` run twice due to a deployment error), preventing
 `unique constraint` violations on `name` without requiring a try/except block.
 
 ### Trade-off accepted
+
 Skipping `full_clean()` means whitespace errors or empty names in the seed list
 would be inserted silently. This risk is accepted because:
+
 - Seed data is static and visually reviewable before any migration runs.
 - The `clean()` method remains active for the only valid insertion path outside
   of migrations: the Django Admin, restricted to platform administrators.
@@ -497,9 +518,11 @@ would be inserted silently. This risk is accepted because:
   not a runtime error to handle.
 
 ---
+
 ## FreelancerProfile — on_delete=PROTECT on OneToOneField
 
 ### Context
+
 `FreelancerProfile` has a `OneToOneField` pointing to `Freelancer`.
 Django requires an `on_delete` policy to be explicitly declared on every
 `ForeignKey` and `OneToOneField`.
@@ -514,9 +537,11 @@ Raises `ProtectedError` at the database level if a deletion of a `Freelancer`
 with an associated profile is attempted.
 
 ### Decision
+
 `on_delete=models.PROTECT` was chosen.
 
 ### Reasoning
+
 The platform does not delete users — deactivation via `is_active=False` is
 the only supported lifecycle transition for `Freelancer` accounts. This is
 enforced at the Admin layer (`has_delete_permission = False` on all admin
@@ -529,23 +554,28 @@ database refuses and raises an error rather than silently removing the profile.
 explicitly prohibits.
 
 ### Trade-off accepted
+
 If physical deletion of a `Freelancer` ever becomes a supported operation,
 the `on_delete` policy will need to be revisited alongside the deactivation
 strategy. This is considered a future extension point, not a current
 requirement.
 
 ---
+
 ## FreelancerProfile — Minimum One Skill Enforced at Serializer Level
 
 ### Context
+
 `FreelancerProfile.skills` is a `ManyToManyField`. The business rule requires
 that every published profile has at least one skill associated with it.
 
 ### Decision
+
 The minimum-one-skill constraint is not enforced in `FreelancerProfile.clean()`.
-It is enforced at the serializer level in the DRF layer (Sprint 2.2).
+It is enforced at the serializer level in the DRF layer.
 
 ### Reasoning
+
 Django's `ManyToManyField` relationship is stored in a separate join table and
 is only available after the model instance has been saved to the database.
 When `clean()` is called — either explicitly via `full_clean()` or by Django
@@ -558,6 +588,7 @@ The correct enforcement point for M2M business rules is the serializer
 available before the instance is saved.
 
 ### Trade-off accepted
+
 A `FreelancerProfile` can exist in the database without any skills if created
 directly via the ORM (shell, fixtures, migrations). This is accepted because
 the only valid creation paths for end users — the API and the Admin — enforce
@@ -565,13 +596,76 @@ the constraint at their respective validation layers.
 
 ---
 
+## User Input Normalization — Owned by the Serializer Layer
+
+### Context
+
+User text input such as `email` and `name` carries incidental whitespace.
+Trimming and formatting that input is *normalization* — distinct from
+*validation* (rejecting input that breaks a rule). In the current codebase the
+strip happens in the wrong places: inside the validators (`validate_email`,
+`validate_user_name`) and inside the `create_user` manager (`name.strip()`,
+alongside Django's `normalize_email`). `conventions.md` is explicit that
+normalization is a serializer/form responsibility, not a model, manager, or
+validator one.
+
+### Decision
+
+Normalization is owned by the DRF serializer layer. Validators validate only;
+the manager persists only. The whitespace strips currently embedded in the
+validators and the manager are recognized as misplaced and will be relocated to
+the serializer when the DRF layer is built.
+
+Passwords are a deliberate exception: they are **never** normalized at any
+layer. `validate_strong_password` was corrected to stop stripping and now
+rejects any whitespace — including leading and trailing — with
+`password_contains_whitespace`.
+
+### Reasoning
+
+- **Layer ownership.** A normalization rule must live in exactly one layer.
+  Spreading `.strip()` across the validator and the manager duplicates the rule
+  and hides where it is owned.
+- **The password bug that forced the issue.** `validate_strong_password`
+  previously stripped a *local copy*, validated the stripped value, and then
+  `create_user` hashed the *original* unstripped password. A password entered
+  with edge spaces passed validation but was stored as the hash of a different
+  string — the user could never log in, and no error was shown. Stripping a
+  password is not normalization; it silently changes the secret. The correct
+  fix was to remove the strip and reject whitespace outright, not to relocate
+  it to another layer.
+- **Email and name are genuinely normalizable.** Trimming `"  Test User  "` to
+  `"Test User"` is safe and desirable, so their strip is relocated to the
+  serializer rather than removed.
+
+### Status and deferral
+
+- **Done:** `validate_strong_password` no longer strips; leading/trailing
+  whitespace is rejected with `password_contains_whitespace`.
+- **Deferred until DRF exists:** removing the internal strips from
+  `validate_email` and `validate_user_name`, and the `name.strip()` in
+  `create_user`. These must be done in the same change that introduces the user
+  serializer, so the normalization lands in the serializer rather than
+  disappearing.
+
+### Trade-off accepted
+
+Until the serializer exists, the manager's `name.strip()` and `normalize_email`
+remain the only normalization for non-API paths (shell, `createsuperuser`,
+scripts, fixtures, Admin). Removing them before the serializer is in place would
+leave those paths storing raw, unnormalized input. The strips therefore stay
+until their replacement exists — the rule is relocated, never simply deleted.
+
+---
+
 ## Principles Applied Throughout
 
-| Principle             | Application                                                                      |
-| --------------------- | -------------------------------------------------------------------------------- |
-| Single Responsibility | Models, validators, and services in separate files with clear scope              |
-| Open/Closed           | Abstract base classes allow extension without modifying existing models          |
-| Liskov Substitution   | `Client` and `Freelancer` are substitutable where `BaseUser` is expected         |
-| DRY                   | Shared fields and logic defined once in `BaseUser`, not duplicated across models |
-| Type Hints            | Used throughout for clarity and IDE support (Python 3.14)                        |
-| Security by default   | Argon2id, GDPR-aligned logging, and whitespace-safe validators from the start    |
+| Principle                | Application                                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Single Responsibility    | Models and validators in separate files with clear scope                                                                                                           |
+| Open/Closed              | Abstract base classes allow extension without modifying existing models                                                                                            |
+| Liskov Substitution      | `Client`, `Freelancer`, and `StaffUser` are substitutable where `BaseUser` is expected                                                                             |
+| DRY                      | Shared fields and logic defined once in `BaseUser`, not duplicated across models                                                                                   |
+| Type Hints               | Used throughout for clarity and IDE support (Python 3.14)                                                                                                          |
+| Security by default      | Argon2id, GDPR-aligned logging, and whitespace-safe validators from the start                                                                                      |
+| Deactivate, never delete | `is_active=False` is the only supported lifecycle transition; `on_delete=PROTECT` and admin `has_delete_permission=False` enforce this across ORM and admin layers |
