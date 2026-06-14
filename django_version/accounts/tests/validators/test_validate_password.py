@@ -34,28 +34,37 @@ def test_validate_strong_password_with_error_length_too_short() -> None:
     assert exc_info.value.code == "password_too_short"
 
 
-def test_validate_strong_password_with_error_only_number_digits() -> None:
-    """Password with only digits raises password_only_digits ValidationError."""
+def test_validate_strong_password_with_only_digits_raises_error() -> None:
+    """All-digit password raises password_only_digits ValidationError."""
     with pytest.raises(ValidationError) as exc_info:
         validate_strong_password("123456789")
 
     assert exc_info.value.code == "password_only_digits"
 
 
-def test_validate_strong_password_with_error_only_uppercase_letters() -> None:
-    """Password with only uppercase letters raises password_all_uppercase ValidationError."""
+@pytest.mark.parametrize(
+    "password",
+    [
+        "EFGH@!KKK",
+        "1234!@#$",
+        "!@#$%^&*",
+        "1234567!",
+    ],
+)
+def test_validate_strong_password_missing_lowercase_raises_error(password: str) -> None:
+    """Password with no lowercase letter raises password_missing_lowercase ValidationError."""
     with pytest.raises(ValidationError) as exc_info:
-        validate_strong_password("EFGH@!KKK")
+        validate_strong_password(password)
 
-    assert exc_info.value.code == "password_all_uppercase"
+    assert exc_info.value.code == "password_missing_lowercase"
 
 
-def test_validate_strong_password_with_error_only_lowercase_letters() -> None:
-    """Password with only lowercase letters raises password_all_lowercase ValidationError."""
+def test_validate_strong_password_missing_uppercase_raises_error() -> None:
+    """Password with no uppercase letter raises password_missing_uppercase ValidationError."""
     with pytest.raises(ValidationError) as exc_info:
         validate_strong_password("abcdef_.2")
 
-    assert exc_info.value.code == "password_all_lowercase"
+    assert exc_info.value.code == "password_missing_uppercase"
 
 
 def test_validate_strong_password_with_error_no_special_character() -> None:

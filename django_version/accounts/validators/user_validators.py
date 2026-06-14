@@ -102,75 +102,72 @@ def validate_user_name(value: str) -> None:
 
 
 def validate_strong_password(value: str) -> None:
-    """
-    Validate password strength according to security best practices.
+    """Validate password strength according to SkillBridge security rules.
 
     Password requirements:
-        - Minimum length of 8 characters
-        - At least one lowercase letter (a-z)
-        - At least one uppercase letter (A-Z)
-        - At least one special character (non-alphanumeric)
-        - Numbers are optional but recommended
+        - Minimum length of 8 characters.
+        - No whitespace anywhere, including leading or trailing.
+        - At least one lowercase letter (a-z).
+        - At least one uppercase letter (A-Z).
+        - At least one special character (non-alphanumeric).
+        - Digits are allowed but not required.
 
     Args:
-        value: Password to validate
+        value: The raw password to validate. It is never stripped or
+            normalized; any whitespace is rejected outright.
 
     Raises:
-        ValidationError: If password doesn't meet security requirements
+        ValidationError: If the password is shorter than 8 characters,
+            contains any whitespace, lacks a lowercase letter, lacks an
+            uppercase letter, or lacks a special character. Each failure
+            carries a distinct error code.
 
     Examples:
         >>> validate_strong_password("Abc123!@")  # OK
-        >>> validate_strong_password("weak")  # Raises ValidationError
+        >>> validate_strong_password("abc123!@")  # Raises: no uppercase
+        >>> validate_strong_password("ABC123!@")  # Raises: no lowercase
+        >>> validate_strong_password("Abcdefgh")  # Raises: no special char
     """
     logger.debug("Starting password validation")
 
-    # Check minimum length
     if len(value) < 8:
-        logger.debug("Password validation failed: too short")
+        logger.debug("Password validation failed: too short, length=%d", len(value))
         raise ValidationError(
             _("Password must be at least 8 characters long."),
             code="password_too_short",
         )
 
-    # Check withespace
     if re.search(r"\s", value):
-        logger.debug("Password validation failed: spaces or withespace")
+        logger.debug("Password validation failed: contains whitespace")
         raise ValidationError(
             _("Password cannot contain spaces or whitespace characters."),
             code="password_contains_whitespace",
         )
 
-    # Check if only digits
     if value.isdigit():
         logger.debug("Password validation failed: only digits")
         raise ValidationError(
             _(
-                "Password cannot contain only digits, it must include letters and special characters."
+                "Password cannot be only digits. It must include at least one lowercase "
+                "letter, one uppercase letter, and one special character."
             ),
             code="password_only_digits",
         )
 
-    # Check if all uppercase
-    if value.isupper():
-        logger.debug("Password validation failed: only uppercase letters")
+    if not re.search(r"[a-z]", value):
+        logger.debug("Password validation failed: no lowercase letter")
         raise ValidationError(
-            _(
-                "Password cannot be all uppercase, it must contain at least one lowercase letter."
-            ),
-            code="password_all_uppercase",
+            _("Password must contain at least one lowercase letter."),
+            code="password_missing_lowercase",
         )
 
-    # Check if all lowercase
-    if value.islower():
-        logger.debug("Password validation failed: only lowercase letters")
+    if not re.search(r"[A-Z]", value):
+        logger.debug("Password validation failed: no uppercase letter")
         raise ValidationError(
-            _(
-                "Password cannot be all lowercase, it must contain at least one uppercase letter."
-            ),
-            code="password_all_lowercase",
+            _("Password must contain at least one uppercase letter."),
+            code="password_missing_uppercase",
         )
 
-    # Check for special characters
     if not re.search(r"[^a-zA-Z0-9]", value):
         logger.debug("Password validation failed: missing special character")
         raise ValidationError(

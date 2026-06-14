@@ -189,19 +189,25 @@ human-readable message:
 - `password_contains_whitespace` — any whitespace present, **including leading
   or trailing**; the validator does not strip the password (see _User Input
   Normalization — Owned by the Serializer Layer_)
-- `password_only_digits` — no letters or special characters
-- `password_all_uppercase` / `password_all_lowercase` — missing case diversity
-- `password_no_special_char` — caught via `re.search(r"[^a-zA-Z0-9]", value)`
+- `password_only_digits` — input consists solely of digits (no letters or
+  special characters); the message explains all missing requirements at once
+- `password_missing_lowercase` — no lowercase letter present, caught via
+  `re.search(r"[a-z]", value)`
+- `password_missing_uppercase` — no uppercase letter present, caught via
+  `re.search(r"[A-Z]", value)`
+- `password_no_special_char` — no special character present, caught via
+  `re.search(r"[^a-zA-Z0-9]", value)`
 
-Regex is used only for this last check. A single-pattern approach was considered and
-rejected: it would have produced one generic error message regardless of which requirement
-failed, giving the user no actionable feedback. The sequential approach means a user who
-submits `"weakpass"` learns exactly that a special character is missing — not that the
-password is "invalid".
+Regex is used for the last three checks above. A single-pattern approach with
+lookaheads was considered and rejected: it would have produced one generic
+error message regardless of which requirement failed, giving the user no
+actionable feedback. The sequential approach means a user who submits
+`"Weakpass"` learns exactly that a special character is missing — not that
+the password is "invalid".
 
 **Normalization inside validators is validation-local and is being relocated.**
 The `.strip()` calls in `validate_email` and `validate_user_name` exist only to
-make the *validation* whitespace-tolerant; they do not normalize the value that
+make the _validation_ whitespace-tolerant; they do not normalize the value that
 is stored — storage normalization is performed separately by the manager
 (`name.strip()` and Django's `normalize_email`). Per the project's
 layer-ownership rule, normalization belongs to the serializer, not the
@@ -601,8 +607,8 @@ the constraint at their respective validation layers.
 ### Context
 
 User text input such as `email` and `name` carries incidental whitespace.
-Trimming and formatting that input is *normalization* — distinct from
-*validation* (rejecting input that breaks a rule). In the current codebase the
+Trimming and formatting that input is _normalization_ — distinct from
+_validation_ (rejecting input that breaks a rule). In the current codebase the
 strip happens in the wrong places: inside the validators (`validate_email`,
 `validate_user_name`) and inside the `create_user` manager (`name.strip()`,
 alongside Django's `normalize_email`). `conventions.md` is explicit that
@@ -627,8 +633,8 @@ rejects any whitespace — including leading and trailing — with
   Spreading `.strip()` across the validator and the manager duplicates the rule
   and hides where it is owned.
 - **The password bug that forced the issue.** `validate_strong_password`
-  previously stripped a *local copy*, validated the stripped value, and then
-  `create_user` hashed the *original* unstripped password. A password entered
+  previously stripped a _local copy_, validated the stripped value, and then
+  `create_user` hashed the _original_ unstripped password. A password entered
   with edge spaces passed validation but was stored as the hash of a different
   string — the user could never log in, and no error was shown. Stripping a
   password is not normalization; it silently changes the secret. The correct

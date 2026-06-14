@@ -15,19 +15,20 @@ Versions below are pinned in `django_version/requirements.txt`. Do not
 modify versions without explicit approval — version changes are
 architectural decisions, not maintenance updates.
 
-| Technology       | Version pinned in requirements.txt |
-|------------------|------------------------------------|
-| Python           | 3.14                               |
-| Django           | 6.0.6                              |
-| PostgreSQL       | 17 (docker-compose)                |
-| psycopg          | 3.3.4                              |
-| psycopg-binary   | 3.3.4                              |
-| psycopg-pool     | 3.3.1                              |
-| argon2-cffi      | 25.1.0                             |
-| pytest           | 9.0.3                              |
-| pytest-django    | 4.12.0                             |
-| python-dotenv    | 1.2.2                              |
-| pillow           | 12.2.0                             |
+| Technology     | Version pinned in requirements.txt |
+| -------------- | ---------------------------------- |
+| Python         | 3.14                               |
+| Django         | 6.0.6                              |
+| PostgreSQL     | 17 (docker-compose)                |
+| psycopg        | 3.3.4                              |
+| psycopg-binary | 3.3.4                              |
+| psycopg-pool   | 3.3.1                              |
+| argon2-cffi    | 25.1.0                             |
+| pytest         | 9.0.3                              |
+| pytest-django  | 4.12.0                             |
+| python-dotenv  | 1.2.2                              |
+| pillow         | 12.2.0                             |
+
 **Not yet installed — pin exact version on install:**
 
 - DRF (Django REST Framework)
@@ -358,8 +359,8 @@ Established password error codes (do not rename without updating tests):
 - `password_too_short`
 - `password_contains_whitespace`
 - `password_only_digits`
-- `password_all_uppercase`
-- `password_all_lowercase`
+- `password_missing_lowercase`
+- `password_missing_uppercase`
 - `password_no_special_char`
 
 Established email error codes:
