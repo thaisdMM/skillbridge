@@ -238,16 +238,23 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
 
 ### Established invariants (do not modify without approval)
 
-- `BaseUser.clean()`: `is_superuser=True` requires `is_staff=True`.
+- `BaseUser.clean()`: `is_superuser=True` requires `is_staff=True`
+  → code: `superuser_without_staff`
 - `BaseUser.clean()`: non-staff concrete models (`Client`, `Freelancer`)
-  cannot have `is_staff=True` or `is_superuser=True`.
-- `Freelancer.clean()`: `is_active=False` requires `is_available=False`.
+  cannot have `is_staff=True` or `is_superuser=True`
+  → code: `invalid_staff_privileges`
+- `Freelancer.clean()`: `is_active=False` requires `is_available=False`
+→ code: `freelancer_inactive_available`
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
 - `ClientProfile.clean()`: `company_name`, if provided, must be ≥ 2 chars
   after stripping whitespace.
 - `ClientProfile.clean()`: `max_budget`, if provided, must be > 0.
 - `Profile.clean()` (abstract): `bio` stripped of whitespace, max 500 chars.
 - `Skill.clean()`: `name` stripped of whitespace, cannot be empty after strip.
+
+> **Note:** This list is not guaranteed to be exhaustive or fully up to date.
+> If a `clean()` method raises a `code` not listed here, treat the source file
+> as the authority and verify directly — then add the missing entry here.
 
 ---
 
