@@ -110,8 +110,11 @@ A fully custom user model was built from scratch using `AbstractBaseUser` and
 
 The `BaseUserManager` implements:
 
-- `create_user()` — validates email, name, and password using the custom validators before
-  saving; logs only `user.id` (no PII)
+- `create_user()` — validates email, name, and password using the custom validators,
+  hashes the password, then calls `full_clean()` on the unsaved instance before
+  `save()` — enforcing model-level invariants and catching duplicate emails as a
+  `ValidationError` rather than an `IntegrityError` (see _BaseUserManager —
+  `full_clean()` Enforces Invariants at Creation_); logs only `user.id` (no PII)
 - `create_superuser()` — enforces admin permissions (`is_staff`, `is_superuser`)
 - Support for OAuth users via `password=None` using `set_unusable_password()`
 
@@ -403,9 +406,81 @@ principle of least privilege. Granular permission groups are a planned future ex
 Django requires `is_staff=True` to access the admin panel. A superuser
 without staff status can authenticate but cannot reach the admin interface,
 producing an incoherent permission state. Enforcing this at the model level
-via `clean()` protects all concrete models uniformly, regardless of whether
-the save originates from the admin, API, or shell (`full_clean()` must be
-called explicitly in the latter case).
+via `clean()` protects all concrete models uniformly across the admin and the
+manager (`BaseUserManager.create_user()` / `create_superuser()` call
+`full_clean()` explicitly — see _BaseUserManager — `full_clean()` Enforces
+Invariants at Creation_). Code that bypasses the manager entirely — direct
+model instantiation followed by `.save()` — remains unprotected unless
+`full_clean()` is called explicitly.
+
+---
+
+## BaseUserManager — `full_clean()` Enforces Invariants at Creation
+
+### Context
+
+Django does not call `full_clean()` (and therefore `clean()`) automatically on
+`.save()`. Before this decision, `BaseUserManager.create_user()` called the
+custom validators (`validate_email`, `validate_user_name`,
+`validate_strong_password`) explicitly, but never called `full_clean()` or
+`clean()`. As a result, the invariants defined in `BaseUser.clean()` and its
+overrides (e.g. _Superuser Implies Staff_, _Freelancer — Active/Availability_)
+were enforced only through the Django Admin (which calls `full_clean()` via
+`ModelForm`) — not through `create_user()`, `create_superuser()`, the
+`createsuperuser` management command, or scripts using the manager.
+
+### Decision
+
+`BaseUserManager.create_user()` calls `instance.full_clean()` after
+`set_password()` / `set_unusable_password()` and before `save()`. Because
+`create_superuser()` calls `create_user()` internally, this also covers
+superuser creation and the `createsuperuser` command.
+
+The existing explicit calls to `validate_email`, `validate_user_name`, and
+`validate_strong_password` are **kept**, not removed, even though
+`full_clean()` re-runs `clean_fields()` (which re-validates `email` and `name`
+through the same validators). `validate_strong_password` is unaffected either
+way: it is never covered by `full_clean()`, because it is not registered as a
+field `validators=[...]` entry and because by the time `full_clean()` runs,
+`password` holds the Argon2 hash, not the raw value — validating password
+strength against a hash would be meaningless.
+
+### Reasoning
+
+- **Closing the invariant gap.** `full_clean()`'s `clean()` step is what
+  actually runs `BaseUser.clean()` and its subclass overrides. Without it,
+  `createsuperuser` and shell scripts using the manager could create a
+  superuser without staff status, or a `Freelancer` that is inactive and
+  available — exactly the states `clean()` exists to prevent.
+- **Friendlier duplicate-email errors.** `full_clean()`'s `validate_unique()`
+  step turns a duplicate email into a `ValidationError(code="unique")` instead
+  of a raw `IntegrityError` from the database constraint. The database
+  `unique=True` constraint remains the actual integrity guarantee in all
+  cases — `validate_unique()` only improves the error a caller receives
+  before that constraint is reached.
+- **Why the explicit validators were not removed (empirical, not assumed).**
+  Comparing two pytest runs of `test_base.py` — one with the explicit
+  validators removed and `full_clean()` added, one with both kept — showed
+  that `clean_fields()` does not short-circuit: when one field fails, the
+  others are still validated and accumulated into a single error. With the
+  explicit validators removed, an invalid email (or name) no longer stops
+  execution before `set_password()`, so an Argon2 hash is computed for input
+  that is later rejected anyway. With the explicit validators kept,
+  validation fails immediately, before normalization or hashing. The two
+  full test-suite runs measured 2.13s (45 tests, validators removed) versus
+  1.14s (45 tests, validators kept) — consistent with the expected cost of
+  repeatedly computing Argon2 hashes for inputs that fail validation.
+
+### Trade-off accepted
+
+On the success path, `email` and `name` are validated twice — once explicitly
+in `create_user()`, once again inside `full_clean()`'s `clean_fields()`. This
+is accepted: the cost is a cheap regex re-evaluation, and the alternative
+(removing the explicit calls) trades that negligible cost for letting invalid
+input reach password hashing, the most expensive step in the function and one
+whose cost is deliberately high by design (Argon2id).
+
+**Status: decision implemented in `accounts/models/base.py`.**
 
 ---
 
@@ -422,7 +497,12 @@ An inactive freelancer is not visible to clients on the platform. Allowing
 an inactive account to be marked as available would produce corrupted state:
 the freelancer would appear available in availability queries but could not
 receive or respond to proposals. Enforcing this at the model level ensures
-the rule applies across the admin, REST API, and shell.
+the rule applies across the admin and the manager — `Freelancer.clean()`
+calls `super().clean()` before its own check, so the same `full_clean()` call
+that enforces the _Superuser Implies Staff_ invariant also enforces this one
+(see _BaseUserManager — `full_clean()` Enforces Invariants at Creation_).
+Code that bypasses the manager entirely remains unprotected unless
+`full_clean()` is called explicitly.
 
 ---
 
