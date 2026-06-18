@@ -628,6 +628,10 @@ codes raised by `clean()` methods are documented in `conventions.md`
 under "Established invariants". Do not invent new codes without checking
 that one does not already exist for the same condition.
 
+The list in `conventions.md` is a best-effort reference, not an exhaustive
+contract. If a `clean()` method raises a `code` not found there, verify it
+in the model's source file before assuming it is undocumented or new.
+
 ---
 
 ## Docstrings in tests
