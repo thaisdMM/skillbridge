@@ -26,9 +26,6 @@ from accounts.validators.user_validators import (
 logger = logging.getLogger(__name__)
 
 
-# CUSTOM USER MANAGER (Factory for creating users)
-
-
 class BaseUserManager(DjangoBaseUserManager):
     """
     Custom manager for creating and managing BaseUser instances.
@@ -57,46 +54,41 @@ class BaseUserManager(DjangoBaseUserManager):
             BaseUser: The created user instance
 
         Raises:
-            ValidationError: If data doesn't pass custom validators
+            ValidationError: Raised in any of the following cases:
+                - A field fails its custom validator (email, name, or password).
+                - A model invariant fails during full_clean() (e.g. a non-staff
+                  model assigned staff/superuser privileges,
+                  code "invalid_staff_privileges").
+                - The email already exists, surfaced by validate_unique() as a
+                  ValidationError (code "unique") instead of a database
+                  IntegrityError.
         """
 
         logger.info("Starting user creation process")
-
-        # validation
-
         logger.debug("Validating email")
         validate_email(email)
 
         logger.debug("Validating name")
         validate_user_name(name)
 
-        # can create a account using google, github - without password
-        # normalize password first: treat whitespace-only as None
-        if password is not None:
-            password = password.strip() or None
-
         if password:
             logger.debug("Validating password")
             validate_strong_password(password)
-
-        # normalize and create
 
         email = self.normalize_email(email)
         logger.debug("Email normalized successfully")
 
         user = self.model(email=email, name=name.strip(), **extra_fields)
 
-        # hash password
-
         if password:
             logger.debug("Starting hashing password")
             user.set_password(password)
             logger.debug("Password hashed successfully")
-
         else:
             logger.debug("No password provided - setting unusable password")
             user.set_unusable_password()
 
+        user.full_clean()
         user.save(using=self._db)
 
         logger.info("User created successfully: id=%s", user.id)
@@ -125,19 +117,22 @@ class BaseUserManager(DjangoBaseUserManager):
             BaseUser: The created superuser instance
 
         Raises:
-            ValueError: If is_staff or is_superuser are not True
+            ValueError: If is_staff or is_superuser are not True.
+            ValidationError: Propagated from create_user — raised in any of
+                the following cases:
+                - A field fails its custom validator (email, name, or password).
+                - A model invariant fails during full_clean() (e.g. a superuser
+                  without staff status, code "superuser_without_staff").
+                - The email already exists, surfaced by validate_unique() as a
+                  ValidationError (code "unique") instead of a database
+                  IntegrityError.
         """
 
         logger.info("Starting superuser creation process")
 
-        # Force admin permissions
-        # setdefault: sets value only if not already present in extra_fields
-
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
-
-        # Validate that admin flags are correct
 
         if extra_fields.get("is_staff") is not True:
             logger.error("Superuser creation failed - is_staff must be True")
@@ -147,15 +142,10 @@ class BaseUserManager(DjangoBaseUserManager):
             logger.error("Superuser creation failed - is_superuser must be True")
             raise ValueError("Superuser must have is_superuser=True")
 
-        # Create user using create_user (reuse validation logic)
-
         user = self.create_user(email, name, password, **extra_fields)
         logger.info("Superuser created successfully: id=%s", user.id)
 
         return user
-
-
-# Base User Model (abstract foundation for Client and Freelancer)
 
 
 class BaseUser(AbstractBaseUser):
@@ -200,8 +190,6 @@ class BaseUser(AbstractBaseUser):
         help_text="Timestamp when the user account was created",
     )
 
-    # Admin/permission fields
-
     is_active = models.BooleanField(
         default=True,
         verbose_name="Active",
@@ -222,27 +210,17 @@ class BaseUser(AbstractBaseUser):
         "explicitly assigning them",
     )
 
-    # DJANGO REQUIRED SETTINGS
-
-    # Which field is used for login? (instead of 'username')
     USERNAME_FIELD = "email"
 
-    # Which fields are required when creating superuser via CLI?
-    # besides USERNAME_FIELD and password, which are always required
     REQUIRED_FIELDS = ["name"]
 
-    # Connect our custom manager
     objects = BaseUserManager()
-
-    # META OPTIONS
 
     class Meta:
         abstract = True
         verbose_name = "Base User"
         verbose_name_plural = "Base Users"
-        ordering = ["-created_at"]  # Newest users first
-
-    # PROPERTIES (Calculated fields, not stored in database)
+        ordering = ["-created_at"]
 
     @property
     def user_type(self) -> str:
@@ -258,26 +236,19 @@ class BaseUser(AbstractBaseUser):
         """
         String representation of the user.
 
-        This is displayed in Django admin and when you print(user).
-
         Returns:
-            str: String with email and name of the user
+            str: Non-sensitive string representation with class name and database ID.
         """
-        return f"{self.name} ({self.email})"
+        return f"{self.user_type.capitalize()} (id={self.id})"
 
     def __repr__(self) -> str:
         """
         Return detailed string representation for debugging.
 
         Returns:
-            str: Developer-friendly representation with class name, id, email, and name
+            str: Non-sensitive developer-friendly representation with class name and database ID.
         """
-        return (
-            f"{self.__class__.__name__} (id={self.id}), "
-            f"email={self.email!r}, name={self.name!r}"
-        )
-
-    # PERMISSION METHODS (required for Django admin)
+        return f"{self.__class__.__name__} (id={self.id})"
 
     def has_perm(self, perm: str, obj: Any = None) -> bool:
         """
@@ -288,9 +259,9 @@ class BaseUser(AbstractBaseUser):
             obj: Optional object to check permission against
 
         Returns:
-            bool: True if user is superuser, False otherwise
+            bool: True if user is active and superuser, False otherwise
         """
-        return self.is_superuser
+        return self.is_active and self.is_superuser
 
     def has_module_perms(self, app_label: str) -> bool:
         """
@@ -306,18 +277,37 @@ class BaseUser(AbstractBaseUser):
 
     def clean(self) -> None:
         """
-        Enforce invariant: a superuser must always have staff status.
+        Enforce invariant rules for the user instance.
 
-        is_superuser grants full admin access, which requires is_staff=True
-        to enter the Django admin site. Allowing is_superuser=True with
-        is_staff=False produces an incoherent state.
+        Enforces:
+        - A superuser must also have staff status.
+        - Non-staff user models (Client, Freelancer) cannot have staff or superuser privileges.
+
+        Raises:
+            ValidationError: If the user is a superuser but does not have staff status,
+                or if a non-staff user model is assigned staff or superuser privileges.
         """
         super().clean()
+        if self.user_type != "staffuser":
+            if self.is_staff or self.is_superuser:
+                logger.error("Non-staff user type assigned staff/superuser privileges")
+                raise ValidationError(
+                    {
+                        "is_staff": ValidationError(
+                            _(
+                                "Only staff users can have administrative or staff privileges."
+                            ),
+                            code="invalid_staff_privileges",
+                        )
+                    }
+                )
         if self.is_superuser and not self.is_staff:
             logger.error("Superuser without staff status")
             raise ValidationError(
-                {"is_staff": ValidationError(
-                    _("A superuser must also have staff status."),
-                    code="superuser_without_staff",
-                )}
+                {
+                    "is_staff": ValidationError(
+                        _("A superuser must also have staff status."),
+                        code="superuser_without_staff",
+                    )
+                }
             )
