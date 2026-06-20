@@ -110,6 +110,23 @@ def test_create_user_accepts_extra_fields(valid_user_data: dict[str, str]) -> No
     [
         "",
         "   ",
+    ],
+)
+def test_create_user_email_empty_raises_validation_error(
+    valid_user_data: dict[str, str],
+    email: str,
+) -> None:
+    """Empty or whitespace-only email raises empty_email ValidationError."""
+    with pytest.raises(ValidationError) as exc_info:
+        Freelancer.objects.create_user(**{**valid_user_data, "email": email})
+
+    assert exc_info.value.code == "empty_email"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "email",
+    [
         "invalidemail.com",
         "invalid@emailcom",
         "invalid@email..com",
@@ -126,9 +143,11 @@ def test_create_user_invalid_email_raises_validation_error(
     valid_user_data: dict[str, str],
     email: str,
 ) -> None:
-    """Invalid email formats are rejected with a ValidationError."""
-    with pytest.raises(ValidationError):
+    """Malformed email format raises invalid_email ValidationError."""
+    with pytest.raises(ValidationError) as exc_info:
         Freelancer.objects.create_user(**{**valid_user_data, "email": email})
+
+    assert exc_info.value.code == "invalid_email"
 
 
 @pytest.mark.django_db
@@ -352,6 +371,41 @@ def test_clean_method_raises_validation_error_for_non_staff_with_privileges(
 
     with pytest.raises(ValidationError) as exc_info:
         user.full_clean()
+
+    assert "is_staff" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["is_staff"][0].code == "invalid_staff_privileges"
+
+
+@pytest.mark.django_db
+def test_create_user_rejects_superuser_without_staff_status(
+    valid_user_data: dict[str, str],
+) -> None:
+    """create_user() invokes full_clean(), rejecting a superuser without staff status with code superuser_without_staff."""
+    with pytest.raises(ValidationError) as exc_info:
+        StaffUser.objects.create_user(
+            **{
+                **valid_user_data,
+                "is_superuser": True,
+                "is_staff": False,
+            }
+        )
+
+    assert "is_staff" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["is_staff"][0].code == "superuser_without_staff"
+
+
+@pytest.mark.django_db
+def test_create_user_rejects_non_staff_model_with_privileges(
+    valid_user_data: dict[str, str],
+) -> None:
+    """create_user() invokes full_clean(), rejecting a non-staff model granted privileges with code invalid_staff_privileges."""
+    with pytest.raises(ValidationError) as exc_info:
+        Freelancer.objects.create_user(
+            **{
+                **valid_user_data,
+                "is_staff": True,
+            }
+        )
 
     assert "is_staff" in exc_info.value.error_dict
     assert exc_info.value.error_dict["is_staff"][0].code == "invalid_staff_privileges"
