@@ -28,16 +28,7 @@ class Client(BaseUser):
             is_superuser: Full administrative permissions
     """
 
-    class Meta:
+    class Meta(BaseUser.Meta):
         verbose_name = "Client"
         verbose_name_plural = "Clients"
         db_table = "clients"
-
-    def __str__(self) -> str:
-        """
-        Return string representation for admin and shell display.
-
-        Returns:
-            str: User type, name and email
-        """
-        return f"{self.user_type.capitalize()}: {self.name} ({self.email})"
