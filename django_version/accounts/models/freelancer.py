@@ -17,6 +17,7 @@ from accounts.models.base import BaseUser
 
 logger = logging.getLogger(__name__)
 
+
 class Freelancer(BaseUser):
     """
     Concrete user model representing a freelancer in the SkillBridge platform.
@@ -50,9 +51,29 @@ class Freelancer(BaseUser):
         ),
     )
 
+    class Meta(BaseUser.Meta):
+        verbose_name = "Freelancer"
+        verbose_name_plural = "Freelancers"
+        db_table = "freelancers"
+
+    def __repr__(self) -> str:
+        """
+        Return detailed string representation for debugging.
+
+        Returns:
+            str: Class name with id and availability status
+        """
+        return (
+            f"{self.__class__.__name__} (id={self.id}, "
+            f"is_available={self.is_available})"
+        )
+
     def clean(self) -> None:
         """
         Enforce business rule: an inactive freelancer cannot be marked as available.
+
+        Delegates to BaseUser.clean() first - see base class,
+        then enforces the freelancer-specific availability invariant.
 
         An inactive account is not visible to clients. Marking it as available
         would produce corrupted state — the freelancer would appear available
@@ -65,38 +86,13 @@ class Freelancer(BaseUser):
         if not self.is_active and self.is_available:
             logger.error("An inactive freelancer cannot be available.")
             raise ValidationError(
-                {"is_available": ValidationError(
-                    _(
-                        "An inactive freelancer cannot be marked as available. "
-                        "Activate the account first or set availability to unavailable."
-                    ),
-                    code="freelancer_inactive_available",
-                )}
+                {
+                    "is_available": ValidationError(
+                        _(
+                            "An inactive freelancer cannot be marked as available. "
+                            "Activate the account first or set availability to unavailable."
+                        ),
+                        code="freelancer_inactive_available",
+                    )
+                }
             )
-
-    class Meta:
-        verbose_name = "Freelancer"
-        verbose_name_plural = "Freelancers"
-        db_table = "freelancers"
-
-    def __str__(self) -> str:
-        """
-        Return string representation for admin and shell display.
-
-        Returns:
-            str: User type, name and email
-        """
-        return f"{self.user_type.capitalize()}: {self.name} ({self.email})"
-
-    def __repr__(self) -> str:
-        """
-        Return detailed string representation for debugging.
-
-        Returns:
-            str: Class name with id, email and availability status
-        """
-        return (
-            f"{self.__class__.__name__} (id={self.id}, "
-            f"email={self.email!r}, "
-            f"is_available={self.is_available})"
-        )
