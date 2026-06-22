@@ -27,14 +27,17 @@ class StaffUser(BaseUser):
             is_active: Account activation status
             is_superuser: Full administrative permissions
 
-        Overrides the inherited attribute is_staff to set default as True
-            is_staff: Permission to access Django admin site
+        Overrides:
+            is_staff: Permission to access Django admin site (default=True for staff accounts)
     """
 
     is_staff = models.BooleanField(
         default=True,
         verbose_name="Staff Status",
-        help_text="Designates whether the user can log into the Django admin site",
+        help_text=(
+            "Designates whether this staff user can log into the Django admin site. "
+            "Defaults to True for staff accounts."
+        ),
     )
 
     class Meta:
