@@ -55,6 +55,12 @@ class Freelancer(BaseUser):
         verbose_name = "Freelancer"
         verbose_name_plural = "Freelancers"
         db_table = "freelancers"
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(is_active=False, is_available=True),
+                name="freelancer_no_inactive_available",
+            )
+        ]
 
     def __repr__(self) -> str:
         """
