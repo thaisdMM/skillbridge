@@ -7,6 +7,7 @@ functionality from BaseUser, which has its own tests.
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 
 from accounts.models.freelancer import Freelancer
 
@@ -126,3 +127,28 @@ def test_freelancer_clean_passes_if_inactive_and_unavailable(
 def test_freelancer_created_at_is_set_on_creation(freelancer_user: Freelancer) -> None:
     """created_at is populated when the instance is first saved."""
     assert freelancer_user.created_at is not None
+
+
+@pytest.mark.django_db
+def test_check_constraint_rejects_inactive_and_available_via_direct_update(
+    freelancer_user: Freelancer,
+) -> None:
+    """A direct ORM update to is_active=False and is_available=True raises IntegrityError."""
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            Freelancer.objects.filter(pk=freelancer_user.pk).update(
+                is_active=False, is_available=True
+            )
+
+
+@pytest.mark.django_db
+def test_check_constraint_allows_inactive_and_unavailable_via_direct_update(
+    freelancer_user: Freelancer,
+) -> None:
+    """A direct ORM update to is_active=False and is_available=False succeeds and persists."""
+    Freelancer.objects.filter(pk=freelancer_user.pk).update(
+        is_active=False, is_available=False
+    )
+    freelancer_user.refresh_from_db()
+    assert freelancer_user.is_active is False
+    assert freelancer_user.is_available is False
