@@ -5,7 +5,8 @@ Registers Freelancer, Client, and StaffUser models with customized interfaces
 including list_display, search, filters, fieldset grouping, and bulk actions.
 """
 
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
@@ -66,7 +67,7 @@ class FreelancerAdmin(admin.ModelAdmin):
         ),
     )
 
-    actions = ["activate_accounts", "deactivate_accounts", "toggle_availability"]
+    actions = ["activate_accounts", "set_available", "set_unavailable"]
 
     # --- Permission overrides ---
 
@@ -135,35 +136,54 @@ class FreelancerAdmin(admin.ModelAdmin):
             % {"count": updated},
         )
 
-    @admin.action(description=_("Deactivate selected accounts"))
-    def deactivate_accounts(self, request: HttpRequest, queryset: QuerySet) -> None:
-        """Bulk-deactivate all accounts in the queryset with a single UPDATE query."""
-        updated = queryset.update(is_active=False)
+    @admin.action(description=_("Set selected freelancers as available"))
+    def set_available(self, request: HttpRequest, queryset: QuerySet) -> None:
+        """Set is_available=True for each selected freelancer, skipping inactive ones."""
+        updated = 0
+        skipped = 0
+        for obj in queryset:
+            obj.is_available = True
+            try:
+                obj.clean()
+            except ValidationError:
+                skipped += 1
+                continue
+            obj.save(update_fields=["is_available"])
+            updated += 1
+        if updated:
+            self.message_user(
+                request,
+                ngettext(
+                    "%(count)d freelancer set as available.",
+                    "%(count)d freelancers set as available.",
+                    updated,
+                )
+                % {"count": updated},
+            )
+        if skipped:
+            self.message_user(
+                request,
+                ngettext(
+                    "%(count)d freelancer skipped — an inactive freelancer cannot be available.",
+                    "%(count)d freelancers skipped — an inactive freelancer cannot be available.",
+                    skipped,
+                )
+                % {"count": skipped},
+                level=messages.WARNING,
+            )
+
+    @admin.action(description=_("Set selected freelancers as unavailable"))
+    def set_unavailable(self, request: HttpRequest, queryset: QuerySet) -> None:
+        """Set is_available=False for all selected freelancers in a single UPDATE query."""
+        updated = queryset.update(is_available=False)
         self.message_user(
             request,
             ngettext(
-                "Successfully deactivated %(count)d account.",
-                "Successfully deactivated %(count)d accounts.",
+                "%(count)d freelancer set as unavailable.",
+                "%(count)d freelancers set as unavailable.",
                 updated,
             )
             % {"count": updated},
-        )
-
-    @admin.action(description=_("Toggle availability of selected freelancers"))
-    def toggle_availability(self, request: HttpRequest, queryset: QuerySet) -> None:
-        """Invert the is_available flag for each selected freelancer individually."""
-        count = queryset.count()
-        for obj in queryset:
-            obj.is_available = not obj.is_available
-            obj.save(update_fields=["is_available"])
-        self.message_user(
-            request,
-            ngettext(
-                "Toggled availability for %(count)d freelancer.",
-                "Toggled availability for %(count)d freelancers.",
-                count,
-            )
-            % {"count": count},
         )
 
 
@@ -297,7 +317,12 @@ class StaffUserAdmin(admin.ModelAdmin):
     StaffUser represents platform administrators and operators.
     This interface is intentionally minimal and restrictive.
 
-    StaffUser creation is a shell-only operation via createsuperuser.
+    StaffUser creation via the Admin add form is supported — no
+    has_add_permission restriction is applied. However, is_superuser is
+    always readonly in this interface (see get_readonly_fields), so the
+    Admin form cannot create or promote a superuser. Superuser
+    creation and promotion are shell-only operations, performed via
+    the createsuperuser management command or the Django shell.
     """
 
     list_display = (
