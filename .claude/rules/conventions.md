@@ -244,7 +244,12 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
   cannot have `is_staff=True` or `is_superuser=True`
   → code: `invalid_staff_privileges`
 - `Freelancer.clean()`: `is_active=False` requires `is_available=False`
-→ code: `freelancer_inactive_available`
+  → code: `freelancer_inactive_available`
+  → also enforced at the database level by `CheckConstraint`
+    `freelancer_no_inactive_available` on `Freelancer.Meta.constraints`.
+    The constraint is the backstop for ORM paths that bypass `clean()`
+    (direct `.update()`, scripts, shell). `clean()` remains the
+    app-layer path for friendly field-level errors.
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
 - `ClientProfile.clean()`: `company_name`, if provided, must be ≥ 2 chars
   after stripping whitespace.
@@ -319,18 +324,30 @@ step do not belong in the model. Flag them and defer to the correct layer.
 
 ---
 
-## Important: clean() is not called automatically
+## clean() is not called automatically — Django default vs. project decision
 
-Django does not call `clean()` on `.save()`, `.create()`, or `bulk_create()`.
-It is invoked automatically only by `ModelForm` and Django Admin. In all
-other paths (shell, ORM, migrations, bulk operations, signals, services,
-management commands), `full_clean()` must be called explicitly before
-saving if model-level validation is required.
+This is **Django's default behavior**, Django
+does not call `clean()` (or `full_clean()`) on `.save()`, `.create()`, or
+`bulk_create()`. `clean()` runs automatically only through `ModelForm` and
+Django Admin. In every other path (shell, ORM, migrations, bulk operations,
+signals, services, management commands), `full_clean()` must be called
+explicitly before saving if model-level validation is required.
 
-This means `clean()` protects the Admin and DRF (when serializers call it)
-layers — it does **not** protect the database from direct ORM writes.
-Document any deliberate decision to skip `full_clean()` (e.g. in data
-migrations) in `ARCHITECTURE.md`.
+**Project decision layered on top of that default:**
+`BaseUserManager.create_user()` calls `full_clean()` explicitly before
+`save()`, so the manager path enforces `clean()` invariants even though
+Django would not do it on its own. Because `create_superuser()` delegates to
+`create_user()`, this also covers `create_superuser()` and the
+`createsuperuser` management command. Full reasoning in `ARCHITECTURE.md` →
+*BaseUserManager — `full_clean()` Enforces Invariants at Creation*.
+
+So, for the user models, `clean()` invariants are enforced across three
+paths: Django Admin, the DRF serializer layer (when it calls it), **and** the
+`BaseUserManager` creation path. A direct ORM write that bypasses the manager
+(e.g. `Model(...).save()` without `full_clean()`) is still unprotected — the
+database `unique=True` constraint remains the last-resort integrity
+guarantee. Document any deliberate decision to skip `full_clean()` (e.g. in
+data migrations) in `ARCHITECTURE.md`.
 
 **Note on production-code policy:**
 A general rule on when agents must add `full_clean()` before `.save()` in
