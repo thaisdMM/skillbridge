@@ -358,12 +358,19 @@ removal, reducing the risk of orphaned permissions after account suspension.
 
 ---
 
-## Django Admin — Deletion Disabled
+## Django Admin — Deletion Disabled and Deactivation Policy
 
 ### Decision
 
 `has_delete_permission` returns `False` across all three admin classes
 (`FreelancerAdmin`, `ClientAdmin`, `StaffUserAdmin`).
+
+Deactivation is split by account category:
+
+- End-user accounts (`Client`, `Freelancer`) are deactivated **individually**,
+  through the change form. Neither admin exposes a bulk deactivation action.
+- Internal staff accounts (`StaffUser`) may be deactivated **in bulk** via the
+  `deactivate_accounts` action.
 
 ### Reasoning
 
@@ -372,6 +379,8 @@ associated data such as contracts and history. Deactivation via `is_active`
 is the correct lifecycle operation. Disabling deletion in the admin prevents
 accidental data loss and aligns with GDPR requirements around data retention
 and audit trails.
+
+Deactivating an end user removes their access to the platform — a consequential action that warrants per-account deliberation rather than a bulk sweep, so `Client` and `Freelancer` are treated identically: individual deactivation only. `StaffUser` is a different category — internal operators managed by superusers, where batch offboarding is a legitimate operation — so bulk deactivation remains available there. A future bulk-deactivation flow for end users, if the platform scales to need one, is recorded as technical debt and would reintroduce a shared mixin at that point.
 
 ---
 
@@ -391,6 +400,26 @@ Exposing them would allow operators to accidentally or maliciously escalate
 privileges. Promoting a `StaffUser` to superuser is intentionally a
 shell-only operation (`createsuperuser` or Django shell), enforcing the
 principle of least privilege. Granular permission groups are a planned future extension.
+
+---
+
+## Django Admin — Shared Behavior via Base Class and Mixin
+
+### Decision
+
+Behavior shared across `FreelancerAdmin`, `ClientAdmin`, and `StaffUserAdmin` is consolidated in `accounts/admin.py` into one non-registered base class and one opt-in mixin:
+
+- `BaseAccountAdmin(admin.ModelAdmin)` — holds the four members common to all three admins: `has_delete_permission`, `save_model`,`created_at_display`, and the `activate_accounts` bulk action.
+- `StatusBadgeMixin` — holds `status_badge`; composed by `FreelancerAdmin` and `ClientAdmin` only. `StaffUserAdmin` keeps raw `is_active`/`is_staff` columns instead.
+
+Each admin retains its unique members: `FreelancerAdmin` keeps
+`availability_badge`, `set_available`, `set_unavailable`; `StaffUserAdmin`
+keeps `deactivate_accounts` and `get_readonly_fields`. Shared signatures are typed against `BaseUser` / `QuerySet[BaseUser]`, the common abstract parent.
+
+### Reasoning
+
+The four universal members were byte-identical across the three admins, so a single inherited base removes the duplication without changing behavior. The status badge is shared by only two admins, so a mixin lets those opt in
+without forcing it onto `StaffUserAdmin`. Bulk deactivation lives directly on `StaffUserAdmin` rather than in a mixin, because only one admin uses it — a mixin for a single consumer would be indirection without reuse.
 
 ---
 
@@ -488,8 +517,17 @@ whose cost is deliberately high by design (Argon2id).
 
 ### Decision
 
-`Freelancer.clean()` raises `ValidationError` if `is_active=False` and
-`is_available=True`.
+The invariant `is_active=False → is_available=False` is enforced at two
+layers:
+
+- **`Freelancer.clean()`** raises `ValidationError` (code
+  `freelancer_inactive_available`) when `is_active=False` and
+  `is_available=True`. This provides the field-level, user-facing error
+  through the admin form, `create_user()`, and future DRF serializers.
+- **`CheckConstraint` `freelancer_no_inactive_available`** on
+  `Freelancer.Meta.constraints` forbids the same combination at the
+  database level, catching any write that bypasses `clean()` — direct
+  `.update()` calls, scripts, shell, or raw SQL.
 
 ### Reasoning
 
@@ -501,8 +539,15 @@ the rule applies across the admin and the manager — `Freelancer.clean()`
 calls `super().clean()` before its own check, so the same `full_clean()` call
 that enforces the _Superuser Implies Staff_ invariant also enforces this one
 (see _BaseUserManager — `full_clean()` Enforces Invariants at Creation_).
-Code that bypasses the manager entirely remains unprotected unless
-`full_clean()` is called explicitly.
+
+The `CheckConstraint` was added because `clean()` is not called on direct
+`.update()` queries or any ORM path that bypasses the manager. The
+constraint closes this gap for every writer. When `clean()` runs first
+(admin form, `create_user()`), the operator receives a friendly field-level
+`ValidationError`; the constraint sits beneath it as a safety net and
+surfaces only as a raw `IntegrityError` on paths that skip `clean()`
+entirely. The redundancy is intentional — the project is pre-data and the
+database-level guarantee is an explicit enforcement signal.
 
 ---
 

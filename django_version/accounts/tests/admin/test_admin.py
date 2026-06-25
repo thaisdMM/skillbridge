@@ -1,4 +1,4 @@
-"""Tests for FreelancerAdmin bulk availability actions."""
+"""Tests for the accounts admin actions and base/mixin composition."""
 
 import pytest
 from django.contrib import admin as django_admin
@@ -7,8 +7,10 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.http import HttpRequest
 from django.test import RequestFactory
 
-from accounts.admin import FreelancerAdmin
+from accounts.admin import ClientAdmin, FreelancerAdmin, StaffUserAdmin
+from accounts.models.client import Client
 from accounts.models.freelancer import Freelancer
+from accounts.models.staff_user import StaffUser
 
 
 @pytest.fixture
@@ -138,3 +140,49 @@ def test_set_available_updates_active_and_skips_inactive_in_mixed_queryset(
     messages_sent = list(get_messages(admin_request))
     assert len(messages_sent) == 2
     assert sum(1 for message in messages_sent if message.level == WARNING) == 1
+
+
+@pytest.mark.django_db
+def test_activate_accounts_reactivates_account_through_base_admin(
+    admin_request: HttpRequest,
+    valid_client_data: dict[str, str],
+) -> None:
+    """activate_accounts, inherited from BaseAccountAdmin, sets is_active=True on the queryset."""
+    inactive_client = Client.objects.create_user(
+        **{**valid_client_data, "is_active": False}
+    )
+    queryset = Client.objects.filter(pk=inactive_client.pk)
+    admin_instance = ClientAdmin(Client, django_admin.site)
+
+    admin_instance.activate_accounts(admin_request, queryset)
+
+    inactive_client.refresh_from_db()
+    assert inactive_client.is_active is True
+
+
+@pytest.mark.django_db
+def test_deactivate_accounts_deactivates_account_through_staff_user_admin(
+    admin_request: HttpRequest,
+    valid_user_data: dict[str, str],
+) -> None:
+    """deactivate_accounts, defined on StaffUserAdmin, sets is_active=False on the queryset."""
+    active_staff_user = StaffUser.objects.create_user(**valid_user_data)
+    queryset = StaffUser.objects.filter(pk=active_staff_user.pk)
+    admin_instance = StaffUserAdmin(StaffUser, django_admin.site)
+
+    admin_instance.deactivate_accounts(admin_request, queryset)
+
+    active_staff_user.refresh_from_db()
+    assert active_staff_user.is_active is False
+
+
+def test_freelancer_admin_neither_defines_nor_inherits_deactivate_accounts() -> None:
+    """FreelancerAdmin must not expose bulk deactivation, preserving its individual-only removal."""
+    assert "deactivate_accounts" not in FreelancerAdmin.actions
+    assert not hasattr(FreelancerAdmin, "deactivate_accounts")
+
+
+def test_client_admin_neither_defines_nor_inherits_deactivate_accounts() -> None:
+    """ClientAdmin must not expose bulk deactivation, preserving its individual-only removal."""
+    assert "deactivate_accounts" not in ClientAdmin.actions
+    assert not hasattr(ClientAdmin, "deactivate_accounts")
