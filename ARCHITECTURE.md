@@ -409,17 +409,25 @@ principle of least privilege. Granular permission groups are a planned future ex
 
 Behavior shared across `FreelancerAdmin`, `ClientAdmin`, and `StaffUserAdmin` is consolidated in `accounts/admin.py` into one non-registered base class and one opt-in mixin:
 
-- `BaseAccountAdmin(admin.ModelAdmin)` — holds the four members common to all three admins: `has_delete_permission`, `save_model`,`created_at_display`, and the `activate_accounts` bulk action.
+- `BaseAccountAdmin(admin.ModelAdmin)` — holds the three members common to all three admins: `has_delete_permission`, `save_model`, and `created_at_display`.
 - `StatusBadgeMixin` — holds `status_badge`; composed by `FreelancerAdmin` and `ClientAdmin` only. `StaffUserAdmin` keeps raw `is_active`/`is_staff` columns instead.
 
 Each admin retains its unique members: `FreelancerAdmin` keeps
 `availability_badge`, `set_available`, `set_unavailable`; `StaffUserAdmin`
-keeps `deactivate_accounts` and `get_readonly_fields`. Shared signatures are typed against `BaseUser` / `QuerySet[BaseUser]`, the common abstract parent.
+keeps `deactivate_accounts` and `get_readonly_fields`.
+`activate_accounts` is declared per-admin rather than on the base, because the StaffUser activation invariant makes a shared raw .update() unsafe for that one subclass (same principle as deactivate_accounts).
 
 ### Reasoning
 
-The four universal members were byte-identical across the three admins, so a single inherited base removes the duplication without changing behavior. The status badge is shared by only two admins, so a mixin lets those opt in
+The three universal members are byte-identical across the three admins, so a single inherited base removes the duplication without changing behavior. The status badge is shared by only two admins, so a mixin lets those opt in
 without forcing it onto `StaffUserAdmin`. Bulk deactivation lives directly on `StaffUserAdmin` rather than in a mixin, because only one admin uses it — a mixin for a single consumer would be indirection without reuse.
+
+`activate_accounts` originally followed this same reasoning and lived on the
+shared base as a fourth universal member. It was removed once `StaffUser`
+gained an active/staff invariant that made the base's raw implementation
+unsafe for that one subclass — see _StaffUser — Active/Staff Invariant_ and
+_StaffUserAdmin — `activate_accounts` Declared Per Admin, Not Shared_ below
+for the full decision.
 
 ---
 
@@ -548,6 +556,145 @@ constraint closes this gap for every writer. When `clean()` runs first
 surfaces only as a raw `IntegrityError` on paths that skip `clean()`
 entirely. The redundancy is intentional — the project is pre-data and the
 database-level guarantee is an explicit enforcement signal.
+
+---
+
+## StaffUser — Active/Staff Invariant
+
+### Context
+
+Discovered manually via the Django admin: a `StaffUser` could be saved with
+`is_active=True, is_staff=False`. Django accepted the save with no error.
+`has_module_perms` (`base.py`) returns `self.is_active and self.is_staff` →
+`True and False → False`. The account sat in `staff_users` alive but
+permanently locked out of the admin — the only reason `StaffUser` exists.
+
+### Decision
+
+The invariant `is_active=True → is_staff=True` is enforced at two layers,
+mirroring the _Freelancer — Active/Availability Invariant_ pattern exactly:
+
+- **`StaffUser.clean()`** raises `ValidationError` (code
+  `staffuser_active_without_staff`, keyed on `"is_staff"`) when
+  `is_active=True` and `is_staff=False`. It calls `super().clean()` first, so
+  `BaseUser`'s invariants (`superuser_without_staff`,
+  `invalid_staff_privileges`) still apply to `StaffUser`.
+- **`CheckConstraint` `staffuser_active_no_staff_status`** on
+  `StaffUser.Meta.constraints` forbids the same combination at the database
+  level, catching any write that bypasses `clean()` — direct `.update()`,
+  shell, scripts, raw SQL.
+
+### Reasoning
+
+The case for enforcing this at two layers is stronger here than it was for
+`Freelancer`: `StaffUserAdmin`'s bulk `activate_accounts` action can reach
+the forbidden `StaffUser` state directly (setting `is_active=True` on a
+non-staff account), whereas no admin action reaches the equivalent forbidden
+`Freelancer` state. `clean()` alone would close the admin change form and
+`create_user()` path but leave `.update()` and the bulk action's underlying
+write unprotected; the `CheckConstraint` closes that gap at the database
+level, the same way `freelancer_no_inactive_available` does for `Freelancer`.
+
+### Trade-off accepted
+
+Adding the `CheckConstraint` means `StaffUserAdmin.activate_accounts` can no
+longer perform a single raw `queryset.update(is_active=True)` without risking
+an uncaught `IntegrityError` on a mixed selection — see _StaffUserAdmin —
+`activate_accounts` Declared Per Admin, Not Shared_ for how the admin action
+was changed to accommodate this.
+
+---
+
+## StaffUserAdmin — `activate_accounts` Declared Per Admin, Not Shared
+
+### Context
+
+Before the _StaffUser — Active/Staff Invariant_ was added,
+`BaseAccountAdmin.activate_accounts` ran a single raw
+`queryset.update(is_active=True)`, inherited unchanged by `FreelancerAdmin`,
+`ClientAdmin`, and `StaffUserAdmin`. Once the `staffuser_active_no_staff_status`
+constraint exists, running that inherited action on a selection containing an
+`(inactive, non-staff)` `StaffUser` aborts the entire `UPDATE` with an
+uncaught `IntegrityError` — no rows updated, no operator-facing message. The
+base action, safe for `Client` and `Freelancer` (neither has an activation
+invariant), is unsafe specifically for `StaffUser`.
+
+### Options considered
+
+**Option A1 — keep the shared default, `StaffUserAdmin` overrides it.**
+`BaseAccountAdmin` keeps the raw `.update()` as its concrete implementation;
+`StaffUserAdmin` overrides `activate_accounts` with a safe version. Rejected:
+the base class would still hand out an unsafe default to every current and
+future subclass. `StaffUserAdmin` _could_ override it correctly, but the base
+behavior itself remained dangerous for any subclass that forgets to — a
+future admin with its own activation invariant would silently inherit the raw
+`.update()` unless someone remembered to override it. The failure mode is
+silent inheritance of behavior that is wrong for the inheriting class, which
+violates Liskov Substitution: a subtype must be safely usable wherever the
+base type is expected, and here the base's own default is not safe for one of
+its subtypes.
+
+**Option A2 — a mixin for the safe activation logic.**
+Rejected: a mixin is the right tool for identical behavior shared by more
+than one class opting in (as `StatusBadgeMixin` already demonstrates). Here
+the three admins' activation behavior diverges — two need a raw bulk update,
+one needs per-object validation — so there is no shared behavior to extract
+into a mixin.
+
+**Option A3 — remove bulk activation from `StaffUserAdmin` entirely.**
+Only individual activation via the change form (already safe, since
+`ModelForm.is_valid()` calls `full_clean()`). Rejected: it would leave
+`StaffUserAdmin` with bulk `deactivate_accounts` but no bulk
+`activate_accounts` — an unexplained asymmetry — and removes a capability
+(re-onboarding multiple suspended staff at once) without a product reason to
+do so.
+
+**Option A1′ — remove `activate_accounts` from the shared base; each admin
+declares its own** _(chosen)_.
+`BaseAccountAdmin` no longer defines `activate_accounts`. `FreelancerAdmin`
+and `ClientAdmin` each declare the same raw `.update(is_active=True)` body
+directly — a small, accepted duplication. `StaffUserAdmin` declares a
+validate-and-iterate version following the existing
+`FreelancerAdmin.set_available` pattern: it loops the queryset, calls
+`clean()` per object, skips and warns on `ValidationError`, and saves only
+the objects that remain valid.
+
+### Decision
+
+Option A1′.
+
+### Reasoning
+
+The problem with A1 was never whether `StaffUserAdmin` was _capable_ of
+overriding the shared method — it was. The problem was that leaving the raw
+`.update()` as `BaseAccountAdmin`'s own concrete behavior meant every
+subclass inherited an unsafe default silently, by default, unless it
+explicitly opted out. Removing `activate_accounts` from `BaseAccountAdmin`
+entirely means there is no unsafe default left to inherit — every admin,
+including any future one, must declare its own `activate_accounts` and
+consciously decide what "activating this model" means for its own
+invariants. This is consistent with the same principle already applied to
+`deactivate_accounts` (see _Django Admin — Deletion Disabled and Deactivation
+Policy_): behavior that is not uniformly safe across all consumers does not
+belong in the shared base, regardless of how many consumers currently need
+the divergent version.
+
+### Trade-off accepted
+
+`FreelancerAdmin` and `ClientAdmin` now carry identical `activate_accounts`
+bodies instead of inheriting one implementation. This duplication is
+accepted deliberately: the alternative (a shared method with a third class
+overriding it entirely) reintroduces the unsafe-silent-default problem being
+rejected above. The duplication is small and explicit — each occurrence is
+one line of business meaning ("this model's `activate_accounts` is a raw
+update") rather than hidden inheritance.
+
+**Performance trade-off (accepted):** `StaffUserAdmin.activate_accounts`
+replaces one bulk `UPDATE` with an iterate-and-save loop (N queries for N
+selected rows), the same trade-off already accepted in `set_available`.
+Acceptable because `StaffUser` is an internal model with few rows, operated
+by superusers — the bulk-performance concern that motivates `.update()` for
+end-user models does not apply at staff scale.
 
 ---
 
