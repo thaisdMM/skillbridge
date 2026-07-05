@@ -31,10 +31,10 @@ class BaseAccountAdmin(admin.ModelAdmin):
     """
     Base admin holding the behavior shared by all account admins.
 
-    Not registered against any model. Provides the four members common to
+    Not registered against any model. Provides the three members common to
     FreelancerAdmin, ClientAdmin, and StaffUserAdmin: deletion is disabled,
-    the password gap is closed on save, the creation timestamp is formatted
-    for display, and accounts can be bulk-activated.
+    the password gap is closed on save, and the creation timestamp is
+    formatted for display.
 
     All shared signatures are typed against BaseUser, the common abstract
     parent of the three concrete models, because every field these methods
@@ -65,22 +65,6 @@ class BaseAccountAdmin(admin.ModelAdmin):
     def created_at_display(self, obj: BaseUser) -> str:
         """Format the creation timestamp as YYYY-MM-DD HH:MM for list display."""
         return obj.created_at.strftime("%Y-%m-%d %H:%M")
-
-    @admin.action(description=_("Activate selected accounts"))
-    def activate_accounts(
-        self, request: HttpRequest, queryset: QuerySet[BaseUser]
-    ) -> None:
-        """Bulk-activate all accounts in the queryset with a single UPDATE query."""
-        updated = queryset.update(is_active=True)
-        self.message_user(
-            request,
-            ngettext(
-                "Successfully activated %(count)d account.",
-                "Successfully activated %(count)d accounts.",
-                updated,
-            )
-            % {"count": updated},
-        )
 
 
 class StatusBadgeMixin:
@@ -175,7 +159,9 @@ class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
         )
 
     @admin.action(description=_("Set selected freelancers as available"))
-    def set_available(self, request: HttpRequest, queryset: QuerySet) -> None:
+    def set_available(
+        self, request: HttpRequest, queryset: QuerySet[Freelancer]
+    ) -> None:
         """Set is_available=True for each selected freelancer, skipping inactive ones."""
         updated = 0
         skipped = 0
@@ -211,7 +197,9 @@ class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
             )
 
     @admin.action(description=_("Set selected freelancers as unavailable"))
-    def set_unavailable(self, request: HttpRequest, queryset: QuerySet) -> None:
+    def set_unavailable(
+        self, request: HttpRequest, queryset: QuerySet[Freelancer]
+    ) -> None:
         """Set is_available=False for all selected freelancers in a single UPDATE query."""
         updated = queryset.update(is_available=False)
         self.message_user(
@@ -219,6 +207,22 @@ class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
             ngettext(
                 "%(count)d freelancer set as unavailable.",
                 "%(count)d freelancers set as unavailable.",
+                updated,
+            )
+            % {"count": updated},
+        )
+
+    @admin.action(description=_("Activate selected accounts"))
+    def activate_accounts(
+        self, request: HttpRequest, queryset: QuerySet[Freelancer]
+    ) -> None:
+        """Bulk-activate all accounts in the queryset with a single UPDATE query."""
+        updated = queryset.update(is_active=True)
+        self.message_user(
+            request,
+            ngettext(
+                "Successfully activated %(count)d account.",
+                "Successfully activated %(count)d accounts.",
                 updated,
             )
             % {"count": updated},
@@ -272,6 +276,22 @@ class ClientAdmin(StatusBadgeMixin, BaseAccountAdmin):
     )
 
     actions = ["activate_accounts"]
+
+    @admin.action(description=_("Activate selected accounts"))
+    def activate_accounts(
+        self, request: HttpRequest, queryset: QuerySet[Client]
+    ) -> None:
+        """Bulk-activate all accounts in the queryset with a single UPDATE query."""
+        updated = queryset.update(is_active=True)
+        self.message_user(
+            request,
+            ngettext(
+                "Successfully activated %(count)d account.",
+                "Successfully activated %(count)d accounts.",
+                updated,
+            )
+            % {"count": updated},
+        )
 
 
 @admin.register(StaffUser)
@@ -349,6 +369,48 @@ class StaffUserAdmin(BaseAccountAdmin):
             )
             % {"count": updated},
         )
+
+    @admin.action(description=_("Activate selected accounts"))
+    def activate_accounts(
+        self, request: HttpRequest, queryset: QuerySet[StaffUser]
+    ) -> None:
+        """Activate each selected staff account, skipping those without staff status."""
+        updated = 0
+        skipped = 0
+        for obj in queryset:
+            obj.is_active = True
+            try:
+                obj.clean()
+            except ValidationError:
+                skipped += 1
+                continue
+            obj.save(update_fields=["is_active"])
+            updated += 1
+        if updated:
+            self.message_user(
+                request,
+                ngettext(
+                    "Successfully activated %(count)d account.",
+                    "Successfully activated %(count)d accounts.",
+                    updated,
+                )
+                % {"count": updated},
+            )
+        if skipped:
+            self.message_user(
+                request,
+                ngettext(
+                    "%(count)d account skipped — an active staff account requires"
+                    " staff status. Grant is_staff before activating, or leave the"
+                    " account inactive.",
+                    "%(count)d accounts skipped — an active staff account requires"
+                    " staff status. Grant is_staff before activating, or leave the"
+                    " accounts inactive.",
+                    skipped,
+                )
+                % {"count": skipped},
+                level=messages.WARNING,
+            )
 
     def get_readonly_fields(
         self, request: HttpRequest, obj: StaffUser | None = None
