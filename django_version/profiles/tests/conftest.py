@@ -2,6 +2,8 @@
 
 import pytest
 
+from decimal import Decimal
+
 from profiles.models.base import Profile
 from profiles.models.freelancer_profile import FreelancerProfile
 from accounts.models.freelancer import Freelancer
@@ -115,7 +117,6 @@ def valid_freelancer_profile_data(freelancer_user: Freelancer) -> dict:
     Returns:
         dict: Valid FreelancerProfile field values.
     """
-    from decimal import Decimal
     return {
         "user": freelancer_user,
         "hourly_rate": Decimal("50.00"),
