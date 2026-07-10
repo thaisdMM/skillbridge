@@ -54,9 +54,10 @@ class Skill(models.Model):
         max_length=100,
         unique=True,
         verbose_name=_("Name"),
-        help_text=_("Skill name as it appears on the platform (e.g. 'Python'). "
-        "Skills are managed by admins — freelancers select from this list."
-    ),
+        help_text=_(
+            "Skill name as it appears on the platform (e.g. 'Python'). "
+            "Skills are managed by admins — freelancers select from this list."
+        ),
     )
     category = models.CharField(
         max_length=20,
@@ -103,9 +104,9 @@ class Skill(models.Model):
         Raises:
             ValidationError: If name is empty or only whitespace.
         """
-        logger.debug("Starting skill name validation")
         super().clean()
 
+        logger.debug("Starting skill name validation")
         if self.name is not None:
             self.name = self.name.strip()
 
@@ -113,7 +114,7 @@ class Skill(models.Model):
                 logger.error("Skill name validation failed - name is empty after strip")
                 raise ValidationError(
                     {
-                        "skill": ValidationError(
+                        "name": ValidationError(
                             _("Skill name cannot be empty or only whitespace."),
                             code="skill_name_empty",
                         )
