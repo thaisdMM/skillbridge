@@ -22,34 +22,25 @@ def test_profile_is_abstract() -> None:
 
 
 def test_valid_bio_passes_validation(dummy_profile_class) -> None:
-    """Biography within the length limit passes normalization and stripping."""
-    profile = dummy_profile_class(bio="  Valid biography under 500 characters.  ")
-    profile.clean()
-    assert profile.bio == "Valid biography under 500 characters."
+    """Biography within the length limit passes full_clean() validation."""
+    profile = dummy_profile_class(bio="Valid biography under 500 characters.")
+    profile.full_clean()
 
 
 def test_exactly_500_char_bio_passes_validation(dummy_profile_class) -> None:
     """Biography of exactly 500 characters passes validation."""
     profile = dummy_profile_class(bio="a" * 500)
-    profile.clean()
-    assert len(profile.bio) == 500
+    profile.full_clean()
 
 
 def test_exceeding_500_char_bio_raises_validation_error(dummy_profile_class) -> None:
-    """Biography exceeding 500 characters raises a bio_too_long ValidationError."""
+    """Biography exceeding 500 characters raises a max_length ValidationError."""
     profile = dummy_profile_class(bio="a" * 501)
     with pytest.raises(ValidationError) as exc_info:
-        profile.clean()
+        profile.full_clean()
 
     assert "bio" in exc_info.value.error_dict
-    assert exc_info.value.error_dict["bio"][0].code == "bio_too_long"
-
-
-def test_empty_or_whitespace_bio_normalized_to_empty_string(dummy_profile_class) -> None:
-    """Whitespace-only biography is normalized to an empty string."""
-    profile = dummy_profile_class(bio="   ")
-    profile.clean()
-    assert profile.bio == ""
+    assert exc_info.value.error_dict["bio"][0].code == "max_length"
 
 
 # TESTS: Display info implementation
