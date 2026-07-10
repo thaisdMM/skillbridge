@@ -8,8 +8,8 @@ and functionality.
 
 import logging
 
+from django.core.validators import MaxLengthValidator
 from django.db import models
-from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ class Profile(models.Model):
     bio = models.TextField(
         max_length=500,
         blank=True,
+        validators=[MaxLengthValidator(500)],
         verbose_name=_("Biography"),
         help_text=_("Short user biography (max 500 characters)"),
     )
@@ -65,7 +66,7 @@ class Profile(models.Model):
         Returns:
             str: Profile identity representation.
         """
-        return f"Profile (id={self.id})"
+        return f"{self.__class__.__name__} (id={self.id})"
 
     def __repr__(self) -> str:
         """
@@ -75,35 +76,6 @@ class Profile(models.Model):
             str: Developer-friendly representation with class name and id.
         """
         return f"{self.__class__.__name__} (id={self.id})"
-
-    def clean(self) -> None:
-        """
-        Enforce profile validation invariants.
-
-        Normalizes the biography by removing leading and trailing whitespace.
-        Ensures the biography does not exceed the maximum allowed length.
-
-        Raises:
-            ValidationError: If biography length exceeds 500 characters.
-        """
-        logger.debug("Starting bio validation")
-        super().clean()
-
-        if self.bio is not None:
-            self.bio = self.bio.strip()
-
-            if len(self.bio) > 500:
-                logger.error("Bio validation failed - too long: %d", len(self.bio))
-                raise ValidationError(
-                    {
-                        "bio": ValidationError(
-                            _("Biography cannot exceed 500 characters."),
-                            code="bio_too_long",
-                        )
-                    }
-                )
-
-            logger.debug("Bio validation successful")
 
     def get_display_info(self) -> dict:
         """
@@ -117,5 +89,7 @@ class Profile(models.Model):
         Raises:
             NotImplementedError: If the subclass does not implement this method.
         """
-        logger.error("get_display_info called on abstract Profile or unimplemented subclass")
+        logger.error(
+            "get_display_info called on abstract Profile or unimplemented subclass"
+        )
         raise NotImplementedError(_("Subclasses must implement get_display_info()."))
