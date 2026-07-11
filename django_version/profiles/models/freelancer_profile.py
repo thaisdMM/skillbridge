@@ -54,6 +54,8 @@ class FreelancerProfile(Profile):
     hourly_rate = models.DecimalField(
         max_digits=8,
         decimal_places=2,
+        null=True,
+        blank=True,
         verbose_name=_("Hourly Rate"),
         help_text=_("Hourly rate of the freelancer in the platform's base currency."),
     )
@@ -62,13 +64,15 @@ class FreelancerProfile(Profile):
         Skill,
         blank=True,
         verbose_name=_("Skills"),
-        help_text=_("Skills associated with this freelancer. At least one is required."),
+        help_text=_("Skills associated with this freelancer."),
     )
 
     portfolio_url = models.URLField(
         blank=True,
         verbose_name=_("Portfolio URL"),
-        help_text=_("Link to the freelancer's external portfolio site. Optional, but cannot be blank if provided."),
+        help_text=_(
+            "Link to the freelancer's external portfolio site. Optional; must be a valid URL if provided."
+        ),
     )
 
     years_of_experience = models.PositiveIntegerField(
@@ -77,19 +81,10 @@ class FreelancerProfile(Profile):
         help_text=_("Number of years of professional experience the freelancer has."),
     )
 
-    class Meta:
+    class Meta(Profile.Meta):
         verbose_name = _("Freelancer Profile")
         verbose_name_plural = _("Freelancer Profiles")
         db_table = "freelancer_profiles"
-
-    def __str__(self) -> str:
-        """
-        Return a friendly string representation of the freelancer profile.
-
-        Returns:
-            str: Representation with freelancer's name and email.
-        """
-        return f"Freelancer Profile: {self.user.name} ({self.user.email})"
 
     def __repr__(self) -> str:
         """
@@ -100,7 +95,7 @@ class FreelancerProfile(Profile):
         """
         return (
             f"{self.__class__.__name__} (profile_id={self.id}, "
-            f"user_id={self.user.id}, "
+            f"user_id={self.user_id}, "
             f"hourly_rate={self.hourly_rate})"
         )
 
@@ -110,7 +105,6 @@ class FreelancerProfile(Profile):
 
         Validates:
         - hourly_rate must be strictly greater than zero.
-        - portfolio_url, if provided, cannot be an empty string.
 
         Note:
             ManyToManyField (skills) cannot be validated here because the
@@ -120,43 +114,22 @@ class FreelancerProfile(Profile):
 
         Raises:
             ValidationError: If hourly_rate is zero or negative.
-            ValidationError: If portfolio_url is an empty string.
         """
         super().clean()
 
-        logger.debug("Starting hourly_rate validation - profile_id=%s", self.id)
-
-        if self.hourly_rate is not None and self.hourly_rate <= Decimal("0.00"):
-            logger.error(
-                "Hourly rate validation failed - rate must be positive: hourly_rate=%s",
-                self.hourly_rate,
-            )
-            raise ValidationError(
-                {
-                    "hourly_rate": ValidationError(
-                        _("Hourly rate must be greater than zero."),
-                        code="hourly_rate_not_positive",
-                    )
-                }
-            )
-
-        logger.debug("Hourly rate validation successful")
-
-        logger.debug("Starting portfolio_url validation - profile_id=%s", self.id)
-
-        if self.portfolio_url is not None and self.portfolio_url.strip() == "":
-            logger.error(
-                "Portfolio URL validation failed - empty string provided")
-            raise ValidationError(
-                {
-                    "portfolio_url": ValidationError(
-                        _("Portfolio URL cannot be an empty string. Leave the field blank or provide a valid URL."),
-                        code="portfolio_url_empty_string",
-                    )
-                }
-            )
-
-        logger.debug("Portfolio URL validation successful")
+        if self.hourly_rate is not None:
+            logger.debug("Starting hourly_rate validation - profile_id=%s", self.id)
+            if self.hourly_rate <= Decimal("0.00"):
+                logger.error("Hourly rate validation failed - rate must be positive.")
+                raise ValidationError(
+                    {
+                        "hourly_rate": ValidationError(
+                            _("Hourly rate must be greater than zero."),
+                            code="hourly_rate_not_positive",
+                        )
+                    }
+                )
+            logger.debug("Hourly rate validation successful")
 
     def get_display_info(self) -> dict:
         """
@@ -166,12 +139,16 @@ class FreelancerProfile(Profile):
         added yet, an empty list is returned.
 
         Returns:
-            dict: Dictionary containing name, email, hourly_rate,
+            dict: Dictionary containing name, hourly_rate,
                 years_of_experience, portfolio_url, bio, and skills.
+
+        Raises:
+            ValueError: If called on an unsaved instance. The `skills`
+                many-to-many relation has no join rows until the instance
+                has been persisted to the database.
         """
         return {
             "name": self.user.name,
-            "email": self.user.email,
             "hourly_rate": self.hourly_rate,
             "years_of_experience": self.years_of_experience,
             "portfolio_url": self.portfolio_url,
