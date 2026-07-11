@@ -6,11 +6,9 @@ Verifies skill model attributes, validations, and database constraints.
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 
 from profiles.models.skill import Skill
-
-
-# TESTS: Representation (No Database Required)
 
 
 def test_skill_str_representation() -> None:
@@ -20,18 +18,24 @@ def test_skill_str_representation() -> None:
 
 
 def test_skill_repr_representation() -> None:
-    """Skill __repr__ method returns a detailed, formatted debug representation.
-
-    Note: When the instance is unsaved, Django preserves the TextChoices object
-    on the category attribute, so repr() renders Skill.Category.TECHNOLOGY
-    without quotes. Once saved and reloaded from the database, the attribute
-    becomes the plain string 'TECHNOLOGY'.
-    """
+    """Skill __repr__ on an unsaved instance renders category as the TextChoices enum."""
     skill = Skill(name="Python", category=Skill.Category.TECHNOLOGY)
-    assert repr(skill) == f"Skill (id=None, name={skill.name!r}, category={skill.category!r})"
+    assert (
+        repr(skill)
+        == f"Skill (id=None, name={skill.name!r}, category={skill.category!r})"
+    )
 
 
-# TESTS: Validation & Normalization via clean() (No Database Required)
+@pytest.mark.django_db
+def test_skill_repr_representation_after_reload() -> None:
+    """Skill __repr__ after save and reload renders category as a plain string."""
+    skill = Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
+    reloaded_skill = Skill.objects.get(id=skill.id)
+    assert repr(reloaded_skill) == (
+        f"Skill (id={reloaded_skill.id}, "
+        f"name={reloaded_skill.name!r}, "
+        f"category={reloaded_skill.category!r})"
+    )
 
 
 def test_skill_clean_strips_whitespace() -> None:
@@ -54,18 +58,28 @@ def test_skill_clean_empty_name_raises_validation_error(invalid_name: str) -> No
     with pytest.raises(ValidationError) as exc_info:
         skill.clean()
 
-    assert "skill" in exc_info.value.error_dict
-    assert exc_info.value.error_dict["skill"][0].code == "skill_name_empty"
+    assert "name" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["name"][0].code == "skill_name_empty"
 
 
-# TESTS: Database Constraints (Database Required)
+def test_skill_clean_none_name_passes_validation() -> None:
+    """Skill clean() leaves a None name untouched and raises no ValidationError."""
+    skill = Skill(name=None, category=Skill.Category.TECHNOLOGY)
+    skill.clean()
+    assert skill.name is None
 
 
 @pytest.mark.django_db
-def test_skill_creation_and_saving() -> None:
-    """Skill instance is successfully created and saved to the database."""
+def test_skill_creation_assigns_id() -> None:
+    """Creating a Skill assigns a database primary key."""
     skill = Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
     assert skill.id is not None
+
+
+@pytest.mark.django_db
+def test_skill_is_persisted_and_retrievable() -> None:
+    """A created Skill is persisted and retrievable with its correct fields."""
+    skill = Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
 
     saved_skill = Skill.objects.get(id=skill.id)
     assert saved_skill.name == "Python"
@@ -83,6 +97,16 @@ def test_skill_name_uniqueness() -> None:
 
     assert "name" in exc_info.value.error_dict
     assert exc_info.value.error_dict["name"][0].code == "unique"
+
+
+@pytest.mark.django_db
+def test_skill_name_uniqueness_enforced_at_database_level() -> None:
+    """Duplicate skill name inserted without validation raises IntegrityError."""
+    Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
 
 
 @pytest.mark.django_db
