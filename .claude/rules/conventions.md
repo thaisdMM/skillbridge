@@ -251,6 +251,7 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
     (direct `.update()`, scripts, shell). `clean()` remains the
     app-layer path for friendly field-level errors.
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
+  → code: `hourly_rate_not_positive`
 - `ClientProfile.clean()`: `company_name`, if provided, must be ≥ 2 chars
   after stripping whitespace.
 - `ClientProfile.clean()`: `max_budget`, if provided, must be > 0.
