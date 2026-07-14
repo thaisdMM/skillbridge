@@ -145,6 +145,31 @@ def valid_freelancer_data(valid_user_data: dict[str, str]) -> dict[str, str | bo
     }
 ```
 
+### Exception — no override consumers
+
+Composing a `valid_<related_model>_data` dict fixture (and the entity that
+depends on it) is required only when at least one test actually needs to
+override a field on that related model via
+`{**valid_<related_model>_data, "field": value}`.
+
+If no test in the app overrides any field of the related model, hardcoding
+the literal values inline in the dependent fixture is acceptable and
+preferred over adding a dict fixture with zero consumers. A dict fixture
+with no override consumer is dead flexibility, not a composition gain.
+
+Example: `profiles/tests/conftest.py`'s `freelancer_user` fixture hardcodes
+its `Freelancer.objects.create_user(...)` call instead of composing
+`valid_user_data` → `valid_freelancer_data`, as `accounts/tests/conftest.py`
+does. This is correct: no test in `profiles/tests/` overrides an email,
+name, password, or `is_available` value — every override in that app
+targets profile fields (`hourly_rate`, `bio`, `portfolio_url`), never
+freelancer fields. Adding `valid_user_data` and `valid_freelancer_data`
+there would introduce two fixtures with no override consumer.
+
+This exception stops applying the moment a test needs to override a field
+on the related model — at that point, compose the dict fixtures per the
+rule above.
+
 ### Merging and overriding in tests
 
 When testing invalid inputs, edge cases, or boundary conditions, use
@@ -303,6 +328,49 @@ def dummy_profile_class() -> type[DummyProfile]:
 Never define dummy subclasses inside a test file — they belong in
 `conftest.py` for reuse.
 
+### Second exception — deliberately incomplete dummy, testing enforcement
+
+The exception above covers a dummy that stands in for a concrete subclass
+before one exists, and it implements the abstract contract. A second,
+independent exception applies even after concrete subclasses exist:
+
+A dummy concrete subclass that deliberately does **not** implement an
+abstract method is permitted in `conftest.py` specifically to test item 3
+of "What to test in an abstract base model" — **Abstract method
+enforcement**, i.e. that `NotImplementedError` is raised on an
+unimplemented subclass. No concrete subclass can exercise this case, since
+every concrete subclass is, by definition, complete.
+
+```python
+# profiles/tests/conftest.py
+
+class UnimplementedProfile(Profile):
+    """Concrete dummy subclass of Profile that does not implement get_display_info.
+
+    Used to test that NotImplementedError is raised appropriately on incomplete subclasses.
+    """
+
+    class Meta:
+        app_label = "profiles"
+
+
+@pytest.fixture(scope="function")
+def unimplemented_profile() -> UnimplementedProfile:
+    """Provide an unsaved instance of UnimplementedProfile."""
+    return UnimplementedProfile()
+```
+
+This dummy is named for what it deliberately does _not_ do
+(`UnimplementedProfile`), distinct from `DummyProfile` above, which
+implements the contract. Do not remove this class or its instance fixture
+on the grounds that a concrete subclass (e.g. `FreelancerProfile`) already
+exists — that condition governs the first exception only, not this one.
+
+Do not add a fixture that returns the class itself (e.g.
+`unimplemented_profile_class`) unless a test actually consumes the class
+directly. If a test needs the class only for a type hint, import it
+directly from `conftest.py` instead of adding a fixture indirection.
+
 ---
 
 ## Database access in tests
@@ -453,7 +521,7 @@ name needs "and", "with", or "also" to stay accurate, the test is
 doing too much; split it.
 
 This is independent of `parametrize`. Granularity is about how many
-*behaviors* a test covers; `parametrize` is about how many *inputs*
+_behaviors_ a test covers; `parametrize` is about how many _inputs_
 exercise the same behavior with the same assertion. A parametrized
 test still verifies one behavior.
 
@@ -557,7 +625,7 @@ framework or the field type, not your code.
 The most common form is asserting a rule that the field type already
 enforces. A `clean()` check for whitespace in a `URLField` is
 unreachable — the field rejects malformed URLs first — so a test that
-feeds a whitespace URL and expects *your* `clean()` to fail is really
+feeds a whitespace URL and expects _your_ `clean()` to fail is really
 testing Django's `URLField`, not your invariant. Before writing the
 test, apply the Field-to-validation contract from `conventions.md`: if
 the condition under test can never be triggered, there is nothing to
@@ -653,12 +721,12 @@ docstrings (when classes are used) follow the same rule.
 
 ## Fixtures — scope guidelines
 
-| Fixture type                       | Recommended scope                       |
-|------------------------------------|-----------------------------------------|
-| Data dicts (no DB)                 | `function` (default)                    |
-| Unsaved model instances            | `function`                              |
-| Model classes (dummy subclasses)   | `function` (safe default) or `session`  |
-| Saved DB instances                 | `function` — each test gets clean state |
+| Fixture type                     | Recommended scope                       |
+| -------------------------------- | --------------------------------------- |
+| Data dicts (no DB)               | `function` (default)                    |
+| Unsaved model instances          | `function`                              |
+| Model classes (dummy subclasses) | `function` (safe default) or `session`  |
+| Saved DB instances               | `function` — each test gets clean state |
 
 `function` is the default scope and the safe choice. Wider scopes
 (`session`, `module`, `class`) introduce cross-test coupling and should
@@ -710,22 +778,21 @@ from accounts.models.freelancer import Freelancer
 
 ## Common mistakes to avoid
 
-| Mistake                                                                          | Correct approach                                                                            |
-|----------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
-| Instantiating an abstract model directly                                         | Use the most complete concrete subclass; fall back to a dummy in `conftest.py` if no concrete exists |
-| Applying `@pytest.mark.django_db` to every test                                  | Use only when the test touches the DB (see "When you need database access")                 |
-| Omitting `@pytest.mark.django_db` from tests that call `full_clean()` on a model with `unique=True` | The marker is required — `validate_unique()` queries the database                           |
-| Annotating pytest-django built-in fixtures (`db`, `settings`, etc.)              | Leave them unannotated — the plugin provides the typing                                     |
-| Defining dummy subclasses inside the test file                                   | Define them in `conftest.py` for reuse                                                      |
-| Writing one test per invalid value                                               | Use `@pytest.mark.parametrize` with same assertion, different inputs                        |
-| Skipping `conftest.py` and duplicating fixtures across test files                | Always create `conftest.py` before writing test files                                       |
-| Testing abstract model timestamps or `.id`                                       | Defer to concrete model test files                                                          |
-| Returning saved objects from baseline data fixtures                              | Return raw dictionaries and unpack them at the test site                                    |
-| Omitting type hints in tests or fixtures (except for built-in fixtures)          | Use `-> None` on tests, explicit return types on fixtures                                   |
-| Asserting on `error_dict[field][0].code` without first asserting the field key   | Assert the key exists in `error_dict` first to avoid cryptic `KeyError` tracebacks          |
-| Asserting on a `ValidationError` message string                                  | Assert the field key exists in `error_dict`, then assert the `code` — messages are not the contract |
-| Asserting on a `NotImplementedError` message string                              | Assert only the exception type — the message uses `gettext_lazy` and there is no `code`     |
-| Assuming data migrations have run in the test database                           | `--no-migrations` skips them — create needed seed data explicitly in tests or fixtures      |
-| Using `@pytest.mark.django_db(transaction=True)` by default                      | Use the default transactional rollback mode unless testing real commit behavior             |
-| Writing a test whose assertion still passes with the production logic removed    | A test must fail when the behavior is deleted — drop tautological checks (see the Field-to-validation contract in `conventions.md`) |
-
+| Mistake                                                                                             | Correct approach                                                                                                                    |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Instantiating an abstract model directly                                                            | Use the most complete concrete subclass; fall back to a dummy in `conftest.py` if no concrete exists                                |
+| Applying `@pytest.mark.django_db` to every test                                                     | Use only when the test touches the DB (see "When you need database access")                                                         |
+| Omitting `@pytest.mark.django_db` from tests that call `full_clean()` on a model with `unique=True` | The marker is required — `validate_unique()` queries the database                                                                   |
+| Annotating pytest-django built-in fixtures (`db`, `settings`, etc.)                                 | Leave them unannotated — the plugin provides the typing                                                                             |
+| Defining dummy subclasses inside the test file                                                      | Define them in `conftest.py` for reuse                                                                                              |
+| Writing one test per invalid value                                                                  | Use `@pytest.mark.parametrize` with same assertion, different inputs                                                                |
+| Skipping `conftest.py` and duplicating fixtures across test files                                   | Always create `conftest.py` before writing test files                                                                               |
+| Testing abstract model timestamps or `.id`                                                          | Defer to concrete model test files                                                                                                  |
+| Returning saved objects from baseline data fixtures                                                 | Return raw dictionaries and unpack them at the test site                                                                            |
+| Omitting type hints in tests or fixtures (except for built-in fixtures)                             | Use `-> None` on tests, explicit return types on fixtures                                                                           |
+| Asserting on `error_dict[field][0].code` without first asserting the field key                      | Assert the key exists in `error_dict` first to avoid cryptic `KeyError` tracebacks                                                  |
+| Asserting on a `ValidationError` message string                                                     | Assert the field key exists in `error_dict`, then assert the `code` — messages are not the contract                                 |
+| Asserting on a `NotImplementedError` message string                                                 | Assert only the exception type — the message uses `gettext_lazy` and there is no `code`                                             |
+| Assuming data migrations have run in the test database                                              | `--no-migrations` skips them — create needed seed data explicitly in tests or fixtures                                              |
+| Using `@pytest.mark.django_db(transaction=True)` by default                                         | Use the default transactional rollback mode unless testing real commit behavior                                                     |
+| Writing a test whose assertion still passes with the production logic removed                       | A test must fail when the behavior is deleted — drop tautological checks (see the Field-to-validation contract in `conventions.md`) |
