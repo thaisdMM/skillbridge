@@ -99,6 +99,31 @@ class FreelancerProfile(Profile):
             f"hourly_rate={self.hourly_rate})"
         )
 
+    def get_display_info(self) -> dict:
+        """
+        Return dictionary with display information for the freelancer profile.
+
+        Skills are returned as a list of skill names. If no skills have been
+        added yet, an empty list is returned.
+
+        Returns:
+            dict: Dictionary containing name, hourly_rate,
+                years_of_experience, portfolio_url, bio, and skills.
+
+        Raises:
+            ValueError: If called on an unsaved instance. The `skills`
+                many-to-many relation has no join rows until the instance
+                has been persisted to the database.
+        """
+        return {
+            "name": self.user.name,
+            "hourly_rate": self.hourly_rate,
+            "years_of_experience": self.years_of_experience,
+            "portfolio_url": self.portfolio_url,
+            "bio": self.bio,
+            "skills": list(self.skills.values_list("name", flat=True)),
+        }
+
     def clean(self) -> None:
         """
         Enforce FreelancerProfile validation invariants.
@@ -130,28 +155,3 @@ class FreelancerProfile(Profile):
                     }
                 )
             logger.debug("Hourly rate validation successful")
-
-    def get_display_info(self) -> dict:
-        """
-        Return dictionary with display information for the freelancer profile.
-
-        Skills are returned as a list of skill names. If no skills have been
-        added yet, an empty list is returned.
-
-        Returns:
-            dict: Dictionary containing name, hourly_rate,
-                years_of_experience, portfolio_url, bio, and skills.
-
-        Raises:
-            ValueError: If called on an unsaved instance. The `skills`
-                many-to-many relation has no join rows until the instance
-                has been persisted to the database.
-        """
-        return {
-            "name": self.user.name,
-            "hourly_rate": self.hourly_rate,
-            "years_of_experience": self.years_of_experience,
-            "portfolio_url": self.portfolio_url,
-            "bio": self.bio,
-            "skills": list(self.skills.values_list("name", flat=True)),
-        }
