@@ -246,16 +246,15 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
 - `Freelancer.clean()`: `is_active=False` requires `is_available=False`
   → code: `freelancer_inactive_available`
   → also enforced at the database level by `CheckConstraint`
-    `freelancer_no_inactive_available` on `Freelancer.Meta.constraints`.
-    The constraint is the backstop for ORM paths that bypass `clean()`
-    (direct `.update()`, scripts, shell). `clean()` remains the
-    app-layer path for friendly field-level errors.
+  `freelancer_no_inactive_available` on `Freelancer.Meta.constraints`.
+  The constraint is the backstop for ORM paths that bypass `clean()`
+  (direct `.update()`, scripts, shell). `clean()` remains the
+  app-layer path for friendly field-level errors.
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
   → code: `hourly_rate_not_positive`
 - `ClientProfile.clean()`: `company_name`, if provided, must be ≥ 2 chars
   after stripping whitespace.
 - `ClientProfile.clean()`: `max_budget`, if provided, must be > 0.
-- `Profile.clean()` (abstract): `bio` stripped of whitespace, max 500 chars.
 - `Skill.clean()`: `name` stripped of whitespace, cannot be empty after strip.
 
 > **Note:** This list is not guaranteed to be exhaustive or fully up to date.
@@ -340,7 +339,7 @@ explicitly before saving if model-level validation is required.
 Django would not do it on its own. Because `create_superuser()` delegates to
 `create_user()`, this also covers `create_superuser()` and the
 `createsuperuser` management command. Full reasoning in `ARCHITECTURE.md` →
-*BaseUserManager — `full_clean()` Enforces Invariants at Creation*.
+_BaseUserManager — `full_clean()` Enforces Invariants at Creation_.
 
 So, for the user models, `clean()` invariants are enforced across three
 paths: Django Admin, the DRF serializer layer (when it calls it), **and** the
