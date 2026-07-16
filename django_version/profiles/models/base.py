@@ -66,7 +66,7 @@ class Profile(models.Model):
         Returns:
             str: Profile identity representation.
         """
-        return f"{self.__class__.__name__} (id={self.id})"
+        return f"{self.__class__.__name__} (profile_id={self.id})"
 
     def __repr__(self) -> str:
         """
@@ -75,7 +75,7 @@ class Profile(models.Model):
         Returns:
             str: Developer-friendly representation with class name and id.
         """
-        return f"{self.__class__.__name__} (id={self.id})"
+        return f"{self.__class__.__name__} (profile_id={self.id})"
 
     def get_display_info(self) -> dict:
         """
