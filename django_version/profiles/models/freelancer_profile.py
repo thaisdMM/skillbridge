@@ -112,8 +112,8 @@ class FreelancerProfile(Profile):
 
         Raises:
             ValueError: If called on an unsaved instance. The `skills`
-                many-to-many relation has no join rows until the instance
-                has been persisted to the database.
+                many-to-many relation cannot be used before the instance
+                has a primary key.
         """
         return {
             "name": self.user.name,
