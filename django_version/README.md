@@ -1,8 +1,8 @@
 # SkillBridge
 
-[![CI](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml)
+[![CI](https://github.com/thaisdMM/skillbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/thaisdMM/skillbridge/actionsZ/workflows/ci.yml)
 
-A freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market, demonstrating clean Django architecture, REST API design, automated testing, and GDPR awareness.
+A freelancer marketplace platform connecting clients and freelancers. Built as a professional portfolio project targeting the European job market, demonstrating clean Django architecture, REST API design, automated testing, and GDPR-compliant design from day one.
 
 > Architecture decisions and trade-offs documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
@@ -10,16 +10,16 @@ A freelancer marketplace platform connecting clients and freelancers. Built as a
 
 ## Tech Stack
 
-| Layer            | Technology                            |
-| ---------------- | ------------------------------------- |
-| Language         | Python 3.14                           |
-| Framework        | Django 6.0.3                          |
-| Database         | PostgreSQL 17                         |
-| Auth             | Custom user model (email-based login) |
-| Password hashing | Argon2id                              |
-| Testing          | pytest · pytest-django                |
-| Containerization | Docker · docker-compose               |
-| CI               | GitHub Actions                        |
+| Layer            | Technology                                                              |
+| ---------------- | ----------------------------------------------------------------------- |
+| Language         | Python 3.14                                                             |
+| Framework        | Django 6.0.3                                                            |
+| Database         | PostgreSQL 17                                                           |
+| Auth             | Custom user model (`StaffUser` as `AUTH_USER_MODEL`, email-based login) |
+| Password hashing | Argon2id                                                                |
+| Testing          | pytest · pytest-django                                                  |
+| Containerization | Docker · docker-compose                                                 |
+| CI               | GitHub Actions                                                          |
 
 ---
 
@@ -42,33 +42,53 @@ docker-compose exec web pytest
 
 ---
 
-## Project Status
+## Architecture
 
-**django_version** — active development
+Key decisions documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-- [x] Custom user model (`AbstractBaseUser` + `BaseUserManager`, email login)
-- [x] `Client` and `Freelancer` models with Abstract Base Class pattern
-- [x] Custom validators (name, email, password) ported from pure Python
-- [x] PostgreSQL integration (psycopg3 + connection pooling)
-- [x] 65 tests passing
-- [x] Docker + docker-compose
-- [x] GitHub Actions CI
-- [ ] `profiles/` app
-- [ ] `jobs/` app
-- [ ] Django REST Framework + JWT
-- [ ] OpenAPI documentation (drf-spectacular)
-- [ ] Deployment (Railway or Render)
+### User model hierarchy
+
+The platform uses three independent user tables backed by an abstract base class:
+
+```
+BaseUser (abstract — no table)
+  ├── Freelancer    → freelancers table
+  ├── Client        → clients table
+  └── StaffUser     → staff_users table  ← AUTH_USER_MODEL
+```
+
+`StaffUser` is the Django `AUTH_USER_MODEL`. `Client` and `Freelancer` are the
+platform's business-domain user types. All three share `email` as the primary
+identifier (`USERNAME_FIELD = "email"`).
+
+### Key decisions
+
+- **Abstract Base Classes over Multi-Table Inheritance** — independent tables, no
+  implicit JOINs
+- **Custom validators over Django built-ins** — specific error codes and
+  human-readable messages per failure case
+- **Argon2id** — primary password hasher; PBKDF2 as legacy fallback only
+- **GDPR-aligned logging from day one** — no PII in any log call; `user.id` is
+  the only user identifier ever logged
+- **Monorepo structure** — `django_version` is the production phase of a
+  deliberate learning progression from a pure Python `oop_version`
 
 ---
 
-## Architecture
+## Foundation
 
-Key decisions documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
+The `accounts/` app is fully implemented and tested:
 
-- **Abstract Base Classes over Multi-Table Inheritance** — two independent tables, no unnecessary JOINs
-- **Custom user model** — email as `USERNAME_FIELD`, built from `AbstractBaseUser`
-- **Custom validators over Django built-ins** — specific error codes and human-readable messages per failure case
-- **Monorepo structure** — `django_version` is the production phase of a deliberate learning progression
+- Custom user model (`AbstractBaseUser` + `BaseUserManager`, email login)
+- `Client`, `Freelancer`, and `StaffUser` with Abstract Base Class pattern
+- Custom validators (name, email, password) with specific error codes per failure case
+- PostgreSQL integration (psycopg3 + connection pooling)
+- GDPR-aligned logging — no PII in any log output
+- Docker + docker-compose
+- GitHub Actions CI
+
+The platform is in active development. The full feature roadmap is maintained
+separately in `ROADMAP.md`.
 
 ---
 
