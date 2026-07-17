@@ -252,10 +252,13 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
   app-layer path for friendly field-level errors.
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
   → code: `hourly_rate_not_positive`
-- `ClientProfile.clean()`: `company_name`, if provided, must be ≥ 2 chars
+- `ClientProfile.clean()`: `company_name`, if provided, must not be empty
   after stripping whitespace.
+  → code: `company_name_empty`
 - `ClientProfile.clean()`: `max_budget`, if provided, must be > 0.
+  → code: `max_budget_not_positive`
 - `Skill.clean()`: `name` stripped of whitespace, cannot be empty after strip.
+  → code: `skill_name_empty`
 
 > **Note:** This list is not guaranteed to be exhaustive or fully up to date.
 > If a `clean()` method raises a `code` not listed here, treat the source file
