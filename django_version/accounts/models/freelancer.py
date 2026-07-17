@@ -6,11 +6,16 @@ and identification functionality from BaseUser and adding freelancer-specific
 account fields.
 """
 
-from __future__ import annotations
+import logging
 
 from django.db import models
 
-from accounts.models.base import BaseUser, BaseUserManager
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+
+from accounts.models.base import BaseUser
+
+logger = logging.getLogger(__name__)
 
 
 class Freelancer(BaseUser):
@@ -46,31 +51,54 @@ class Freelancer(BaseUser):
         ),
     )
 
-    objects = BaseUserManager()
-
-    class Meta:
+    class Meta(BaseUser.Meta):
         verbose_name = "Freelancer"
         verbose_name_plural = "Freelancers"
         db_table = "freelancers"
-
-    def __str__(self) -> str:
-        """
-        Return string representation for admin and shell display.
-
-        Returns:
-            str: User type, name and email
-        """
-        return f"Freelancer: {self.name} ({self.email})"
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(is_active=False, is_available=True),
+                name="freelancer_no_inactive_available",
+            )
+        ]
 
     def __repr__(self) -> str:
         """
         Return detailed string representation for debugging.
 
         Returns:
-            str: Class name with id, email and availability status
+            str: Class name with id and availability status
         """
         return (
-            f"{self.__class__.__name__}(id={self.id}, "
-            f"email='{self.email}', "
+            f"{self.__class__.__name__} (id={self.id}, "
             f"is_available={self.is_available})"
         )
+
+    def clean(self) -> None:
+        """
+        Enforce business rule: an inactive freelancer cannot be marked as available.
+
+        Delegates to BaseUser.clean() first - see base class,
+        then enforces the freelancer-specific availability invariant.
+
+        An inactive account is not visible to clients. Marking it as available
+        would produce corrupted state — the freelancer would appear available
+        but could not receive proposals.
+
+        Raises:
+            ValidationError: If is_active is False and is_available is True.
+        """
+        super().clean()
+        if not self.is_active and self.is_available:
+            logger.error("An inactive freelancer cannot be available.")
+            raise ValidationError(
+                {
+                    "is_available": ValidationError(
+                        _(
+                            "An inactive freelancer cannot be marked as available. "
+                            "Activate the account first or set availability to unavailable."
+                        ),
+                        code="freelancer_inactive_available",
+                    )
+                }
+            )

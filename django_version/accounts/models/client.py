@@ -5,8 +5,7 @@ This module defines the concrete Client user model, inheriting authentication
 and identification functionality from BaseUser.
 """
 
-from __future__ import annotations
-from accounts.models.base import BaseUser, BaseUserManager
+from accounts.models.base import BaseUser
 
 
 class Client(BaseUser):
@@ -15,7 +14,7 @@ class Client(BaseUser):
 
     Inherits all authentication and identification functionality from BaseUser.
 
-    This model creates the 'client' table in the database, containing
+    This model creates the 'clients' table in the database, containing
     inherited BaseUser columns.
 
     Attributes:
@@ -29,18 +28,7 @@ class Client(BaseUser):
             is_superuser: Full administrative permissions
     """
 
-    objects = BaseUserManager()
-
-    class Meta:
+    class Meta(BaseUser.Meta):
         verbose_name = "Client"
         verbose_name_plural = "Clients"
         db_table = "clients"
-
-    def __str__(self) -> str:
-        """
-        Return string representation for admin and shell display.
-
-        Returns:
-            str: User type, name and email
-        """
-        return f"Client: {self.name} ({self.email})"

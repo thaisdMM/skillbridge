@@ -10,9 +10,9 @@ This repository is structured as a monorepo documenting the full technical evolu
 
 ## Repository Structure
 
-| Directory | Description |
-|---|---|
-| [`oop_version/`](./oop_version/) | Pure Python implementation — OOP foundations, 100 tests |
+| Directory                              | Description                                                  |
+| -------------------------------------- | ------------------------------------------------------------ |
+| [`oop_version/`](./oop_version/)       | Pure Python implementation — OOP foundations, 100 tests      |
 | [`django_version/`](./django_version/) | Django application — production-oriented, active development |
 
 Each directory contains its own `README.md` with setup instructions and technical details.

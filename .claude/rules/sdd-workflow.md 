@@ -1,0 +1,238 @@
+# SkillBridge — SDD Workflow Rules
+
+This file defines the Spec-Driven Development (SDD) workflow for the
+project. It is loaded on every session where work involves a `feat`
+change as defined in `CLAUDE.md` Rule 13.
+
+This file states operationally what the agent must do. For absolute
+behavior rules (no inference, read files, approval gates, English only,
+etc.), see `CLAUDE.md`. For code conventions, see `conventions.md`. For
+testing, see `testing.md`. For architectural decisions, see
+`ARCHITECTURE.md`.
+
+If any rule in this file appears to conflict with `CLAUDE.md`,
+`CLAUDE.md` wins.
+
+---
+
+## When this workflow applies
+
+This workflow is triggered by any `feat` change that adds or modifies
+domain behavior (see Rule 13 in `CLAUDE.md`).
+
+It is skipped for `fix`, `chore`, `refactor`, `docs`, `test`, and
+`style` changes, unless they touch domain invariants — validators,
+model `clean()`, manager logic, `on_delete` policies, `AUTH_USER_MODEL`,
+or GDPR-related code paths.
+
+When in doubt, treat the change as requiring a spec and ask.
+
+---
+
+## Spec location and naming
+
+Spec artifacts live at the monorepo root in `specs/<NNN-slug>/`.
+
+- Three-digit sequential numbering: `001`, `002`, … (expands beyond
+  three digits if needed).
+- Kebab-case semantic slug: short (3-5 words), in English, describing
+  the feature by its domain meaning — not by file or task.
+
+Each spec folder contains three files:
+
+- `spec.md` — what and why (no implementation detail)
+- `plan.md` — how, including technical decisions
+- `tasks.md` — numbered, atomic, individually approvable steps
+
+Specs sit at the monorepo root because they describe domain features
+independently of the implementation. Commands triggered by a spec
+(tests, migrations, code) still execute via Docker per `CLAUDE.md`
+Rule 12.
+
+Examples of valid slugs:
+- `001-status-history`
+- `002-job-posting`
+- `003-proposal-submission`
+
+Examples of invalid slugs (do not use):
+- `001-add-status-history-model` (describes the task, not the feature)
+- `001-statushistory` (no hyphens)
+- `001-models-jobs` (describes files, not feature)
+
+---
+
+## The 9-stage workflow
+
+### Stage 0 — Conceptual learning
+
+If the task requires Python or Django concepts the user has not yet
+mastered, the agent explains them in isolation first. Examples in
+this stage may come from any domain since the concept exists
+independently of the project.
+
+No design decisions are made in this stage.
+
+Skip this stage if the user already knows the concepts involved.
+
+### Stage 1 — Brainstorm of options
+
+The agent presents the design decisions required by the task. For
+each decision, it lists the available options with their consequences.
+
+Examples in this stage MUST come from comparable marketplace platforms
+(freelancer-client platforms, two-sided marketplaces) paired with
+explicit comparison to SkillBridge's architectural constraints:
+
+- ABC over MTI
+- `AUTH_USER_MODEL = StaffUser`
+- `on_delete=PROTECT` default
+- GDPR by design
+- No deletion — only deactivation via `is_active=False`
+
+The agent DOES NOT recommend an option unless the user explicitly asks
+for a recommendation. The user chooses each option and articulates
+why. The agent's role is to make the trade-offs visible, not to make
+the choice.
+
+When the user requests a real-platform benchmark (Upwork, Malt, Fiverr,
+Toptal), the agent searches actual sources — never invents how a real
+platform behaves.
+
+### Stage 1.5 — Clarify interview (conditional)
+
+Trigger this stage when the feature satisfies at least one of:
+
+- Touches multiple models
+- Involves signals, async behavior, or automatic triggers
+- Touches personal data or GDPR-relevant code paths
+- Introduces audit trail, soft delete, or data retention rules
+- Crosses Django apps (e.g., `jobs` + `profiles` + `accounts`)
+- Adds a new public endpoint
+
+If none apply, skip Stage 1.5 and proceed to Stage 2.
+
+When triggered, the agent asks structured questions to surface edge
+cases, cross-feature interactions, and ambiguities that were not
+resolved in Stage 1. Questions follow the selectable-input format
+(see Rule B below).
+
+Each answer either becomes a requirement in the spec or is recorded
+as an explicit out-of-scope item.
+
+### Stage 2 — User writes spec draft
+
+The user writes the first version of the spec in Portuguese. The
+agent does not write this draft. The agent waits.
+
+If the user gets stuck or lacks vocabulary for a specific point, the
+user asks a focused question. The agent answers that specific question
+without writing the surrounding spec content.
+
+### Stage 3 — Spec review
+
+The agent reads the user's draft in full and identifies:
+
+- Gaps — requirements implied but not written
+- Ambiguities — phrasings that could be interpreted multiple ways
+- Non-actionable parts — items that cannot be tested or implemented
+- Scope creep — items that belong in a future spec
+
+The agent does not rewrite the spec. It points out issues; the user
+revises. Iterate until the user explicitly approves.
+
+### Stage 3.5 — Translation to English
+
+Once the Portuguese spec is approved, the agent translates it to
+English. The user reads the translation and validates the technical
+terms (model names, field names, validator codes, status states,
+GDPR-related phrasing).
+
+The English version is saved to `specs/<NNN-slug>/spec.md`. The
+Portuguese draft is not committed.
+
+### Stage 4 — Plan
+
+The agent and user define the technical plan together. Since the
+domain decisions were the user's in Stage 1, the agent may be more
+propositive at this stage about technical choices (file structure,
+where validation lives, signal vs explicit call, on_delete semantics,
+serializer vs form for cross-field rules, etc.).
+
+The agent still presents options when more than one is reasonable
+(per `CLAUDE.md` Rule 5). The plan is saved to
+`specs/<NNN-slug>/plan.md`.
+
+### Stage 5 — Tasks
+
+The plan is broken into numbered atomic tasks. Each task must be:
+
+- Individually shippable
+- Individually reviewable
+- Small enough to be approved in one user turn
+
+The task list is saved to `specs/<NNN-slug>/tasks.md`.
+
+### Stage 6 — Implementation
+
+One task at a time. Approval gate per task. The user reads, comments,
+and explicitly approves before the next task starts. `CLAUDE.md`
+Rules 3 (explain before write) and 5 (ask before assuming) apply.
+
+### Stage 7 — Spec compliance audit
+
+After all tasks are implemented and tested, the user opens a new
+conversation with the Auditor persona.
+
+The Auditor receives only:
+- The spec artifacts (`spec.md`, `plan.md`, `tasks.md`)
+- The final code
+
+The Auditor receives NO access to the implementation conversation
+context. Its task: verify the delivered code matches what the spec
+required, reading the code itself rather than trusting any commit
+message or summary.
+
+This stage is mandatory, not optional.
+
+---
+
+## Cross-stage rules
+
+### Rule A — Examples
+
+For design discussions (Stage 1 onwards), examples must come from
+comparable marketplace platforms paired with explicit SkillBridge
+comparison.
+
+Pure conceptual learning (Stage 0 only) may use examples from any
+domain, since the concept exists independently of the project.
+
+### Rule B — Selectable inputs
+
+Whenever the agent asks a question that has bounded alternatives, the
+question must present options as:
+
+- A) Option one with its consequence
+- B) Option two with its consequence
+- C) Option three with its consequence
+- D) Other (open input)
+
+Free-form questions are used only when the option space is genuinely
+unbounded (e.g., naming a concept, drafting prose).
+
+### Rule C — User writes first
+
+In every stage where a user-owned artifact is produced (design
+decisions in Stage 1, draft in Stage 2, choices in Stage 4-5), the
+user produces the first version. The agent's role is to critique,
+surface gaps, and refine — not to generate the artifact.
+
+Exception: the user may explicitly delegate (e.g. "write the first
+draft and I'll review"). Without explicit delegation, the user writes.
+
+### Rule D — One stage at a time
+
+The agent does not produce content for a later stage until the
+previous stage is closed by explicit user approval. The user may
+abort, rewind, or branch at any stage; the agent does not assume
+forward motion.
