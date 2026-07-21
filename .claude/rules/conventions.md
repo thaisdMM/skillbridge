@@ -18,16 +18,16 @@ architectural decisions, not maintenance updates.
 | Technology     | Version pinned in requirements.txt |
 | -------------- | ---------------------------------- |
 | Python         | 3.14                               |
-| Django         | 6.0.6                              |
+| Django         | 6.0.7                              |
 | PostgreSQL     | 17 (docker-compose)                |
 | psycopg        | 3.3.4                              |
 | psycopg-binary | 3.3.4                              |
 | psycopg-pool   | 3.3.1                              |
 | argon2-cffi    | 25.1.0                             |
-| pytest         | 9.0.3                              |
+| pytest         | 9.1.1                              |
 | pytest-django  | 4.12.0                             |
 | python-dotenv  | 1.2.2                              |
-| pillow         | 12.2.0                             |
+| pillow         | 12.3.0                             |
 
 **Not yet installed — pin exact version on install:**
 
