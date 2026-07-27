@@ -515,5 +515,4 @@ covered here, ask the user before proceeding. Apply Rule 1 from
 
 For historical context on why a decision was made, consult
 `ARCHITECTURE.md`. For testing strategy, consult `testing.md`. For
-behavior rules and persona definitions, consult `CLAUDE.md` and
-`AGENT_FULL_CONTEXT.md` respectively.
+behavior rules and persona definitions, consult `CLAUDE.md`
