@@ -132,7 +132,7 @@ Specific checks to apply on every audit:
   format normalization in `clean()` (belongs in serializer/form).
 - GDPR / PII EXPOSURE: no emails, names, passwords, or any user identifier
   other than `user.id` may appear in `logger` calls, `__str__`, `__repr__`,
-  error messages, or admin `list_display`. When a validator logs something
+  error messages. When a validator logs something
   about input, it must log a derived non-sensitive property (length,
   presence, type) — never the value.
 - DOCSTRINGS AND TYPE HINTS: Google Style docstrings on every class,
