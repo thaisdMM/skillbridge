@@ -6,7 +6,9 @@ import pytest
 
 from profiles.models.base import Profile
 from profiles.models.freelancer_profile import FreelancerProfile
+from profiles.models.client_profile import ClientProfile
 from accounts.models.freelancer import Freelancer
+from accounts.models.client import Client
 
 
 class UnimplementedProfile(Profile):
@@ -83,3 +85,55 @@ def freelancer_profile(db, valid_freelancer_profile_data: dict) -> FreelancerPro
         FreelancerProfile: A saved FreelancerProfile instance.
     """
     return FreelancerProfile.objects.create(**valid_freelancer_profile_data)
+
+
+@pytest.fixture
+def client_user(db) -> Client:
+    """
+    Create and return a Client instance saved in the test database.
+
+    Returns:
+        Client: A saved Client user instance.
+    """
+    return Client.objects.create_user(
+        email="client@example.com",
+        name="Client User",
+        password="Secure!Pass@123",
+    )
+
+
+@pytest.fixture
+def valid_client_profile_data(client_user: Client) -> dict:
+    """
+    Valid data to create a ClientProfile instance.
+
+    Returns dict (not object) for flexibility in test creation.
+    Allows unpacking: ClientProfile(**valid_client_profile_data)
+
+    Args:
+        client_user: A saved Client instance to associate with the profile.
+
+    Returns:
+        dict: Valid ClientProfile field values.
+    """
+    return {
+        "user": client_user,
+        "max_budget": Decimal("500.00"),
+        "company_name": "Client Company",
+        "website_url": "https://portfolio.example.com",
+        "bio": "Company looking for Python developer collaboration",
+    }
+
+
+@pytest.fixture
+def client_profile(db, valid_client_profile_data: dict) -> ClientProfile:
+    """
+    Create and return a saved ClientProfile instance.
+
+    Args:
+        valid_client_profile_data: Valid field values for ClientProfile creation.
+
+    Returns:
+        ClientProfile: A saved ClientProfile instance.
+    """
+    return ClientProfile.objects.create(**valid_client_profile_data)
