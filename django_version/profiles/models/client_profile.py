@@ -8,7 +8,7 @@ the base Profile model with client-specific attributes like company name, max bu
 from decimal import Decimal
 import logging
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -132,10 +132,14 @@ class ClientProfile(Profile):
         Validates:
         - company_name must not be empty after stripping whitespace, if provided.
         - max_budget must be strictly greater than zero.
+        - a profile cannot be created for an account that is inactive in the
+          state being saved.
 
         Raises:
             ValidationError: If company_name is empty after stripping whitespace.
             ValidationError: If max_budget is zero or negative.
+            ValidationError: If the profile is being created for an inactive
+                client account.
         """
         super().clean()
 
@@ -167,3 +171,37 @@ class ClientProfile(Profile):
                     }
                 )
             logger.debug("Max budget validation successful")
+
+        if self.pk is None:
+            logger.debug("Starting account status validation on profile creation")
+            account = self._get_account()
+            if account is not None and not account.is_active:
+                logger.error("Profile creation refused - account is inactive.")
+                raise ValidationError(
+                    {
+                        "user": ValidationError(
+                            _("A profile cannot be created for an inactive account."),
+                            code="profile_for_inactive_account",
+                        )
+                    }
+                )
+            logger.debug("Account status validation successful")
+
+    def _get_account(self) -> Client | None:
+        """
+        Return the client account attached to this profile, or None.
+
+        Reads the in-memory instance rather than re-reading the database, so
+        the status evaluated is the one being saved. During an admin save the
+        inline formset sets the parent account on this instance before
+        full_clean() runs, and that parent carries the submitted is_active
+        value even when it has not been written yet.
+
+        Returns:
+            Client | None: The attached account, or None when no account is
+                attached.
+        """
+        try:
+            return self.user
+        except ObjectDoesNotExist:
+            return None

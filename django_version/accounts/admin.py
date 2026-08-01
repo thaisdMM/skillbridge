@@ -9,6 +9,10 @@ Shared admin behavior is consolidated into a non-registered base class
 registered admin composes exactly the members it needs without duplicating
 method bodies. Bulk deactivation lives on StaffUserAdmin, the only admin
 that exposes it.
+
+Profiles are administered inside the account screen they belong to rather than
+on screens of their own, so the profile inlines live here beside the account
+admins that own them. This module imports profiles.models, never profiles.admin.
 """
 
 from django.contrib import admin, messages
@@ -65,6 +69,30 @@ class BaseAccountAdmin(admin.ModelAdmin):
     def created_at_display(self, obj: BaseUser) -> str:
         """Format the creation timestamp as YYYY-MM-DD HH:MM for list display."""
         return obj.created_at.strftime("%Y-%m-%d %H:%M")
+
+
+class BaseProfileInline(admin.StackedInline):
+    """
+    Base inline holding the behavior shared by both profile sections.
+
+    Not attached to any model. Provides the members common to
+    FreelancerProfileInline and ClientProfileInline: the section presents at
+    most one profile and offers no way to add a second, no removal control is
+    rendered, and the timestamps are shown read-only.
+
+    Subclasses supply the model and the fieldsets.
+    """
+
+    extra = 1
+    max_num = 1
+    can_delete = False
+    readonly_fields = ("created_at", "updated_at")
+
+    def has_delete_permission(
+        self, request: HttpRequest, obj: BaseUser | None = None
+    ) -> bool:
+        """Disable deletion for all profiles. A profile is retired with its account, never deleted."""
+        return False
 
 
 class StatusBadgeMixin:

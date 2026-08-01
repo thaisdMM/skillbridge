@@ -281,3 +281,59 @@ def test_client_profile_max_budget_accepts_null_at_database_level(
 def test_client_profile_ordering() -> None:
     """ClientProfile inherits ordering by -created_at from Profile.Meta."""
     assert ClientProfile._meta.ordering == ["-created_at"]
+
+
+@pytest.mark.django_db
+def test_client_profile_creation_refused_for_inactive_account(
+    client_user: Client,
+    valid_client_profile_data: dict,
+) -> None:
+    """Creating a profile for an inactive account raises a 'profile_for_inactive_account' ValidationError."""
+    inactive_client = client_user
+    inactive_client.is_active = False
+    profile = ClientProfile(
+        **{
+            **valid_client_profile_data,
+            "user": inactive_client,
+        }
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        profile.full_clean()
+
+    assert "user" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["user"][0].code == "profile_for_inactive_account"
+
+
+@pytest.mark.django_db
+def test_client_profile_creation_accepted_for_active_account(
+    valid_client_profile_data: dict,
+) -> None:
+    """Creating a profile for an active account passes full_clean()."""
+    profile = ClientProfile(**valid_client_profile_data)
+
+    profile.full_clean()
+
+
+@pytest.mark.django_db
+def test_client_profile_edit_accepted_on_deactivated_account(
+    client_profile: ClientProfile,
+) -> None:
+    """An existing profile stays editable once its account is deactivated (FR-030)."""
+    client_profile.user.is_active = False
+    client_profile.user.save()
+
+    client_profile.bio = "Updated while the account is deactivated"
+    client_profile.full_clean()
+    client_profile.save()
+
+    client_profile.refresh_from_db()
+    assert client_profile.bio == "Updated while the account is deactivated"
+
+
+@pytest.mark.django_db
+def test_client_profile_clean_does_not_raise_when_no_account_attached() -> None:
+    """clean() raises no RelatedObjectDoesNotExist when no account is attached."""
+    profile = ClientProfile()
+
+    profile.clean()

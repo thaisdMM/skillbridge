@@ -277,3 +277,61 @@ def test_freelancer_profile_user_uniqueness_enforced_at_database_level(
 def test_freelancer_profile_ordering() -> None:
     """FreelancerProfile inherits ordering by -created_at from Profile.Meta."""
     assert FreelancerProfile._meta.ordering == ["-created_at"]
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_creation_refused_for_inactive_account(
+    freelancer_user: Freelancer,
+    valid_freelancer_profile_data: dict,
+) -> None:
+    """Creating a profile for an inactive account raises a 'profile_for_inactive_account' ValidationError."""
+    inactive_freelancer = freelancer_user
+    inactive_freelancer.is_active = False
+    inactive_freelancer.is_available = False
+    profile = FreelancerProfile(
+        **{
+            **valid_freelancer_profile_data,
+            "user": inactive_freelancer,
+        }
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        profile.full_clean()
+
+    assert "user" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["user"][0].code == "profile_for_inactive_account"
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_creation_accepted_for_active_account(
+    valid_freelancer_profile_data: dict,
+) -> None:
+    """Creating a profile for an active account passes full_clean()."""
+    profile = FreelancerProfile(**valid_freelancer_profile_data)
+
+    profile.full_clean()
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_edit_accepted_on_deactivated_account(
+    freelancer_profile: FreelancerProfile,
+) -> None:
+    """An existing profile stays editable once its account is deactivated (FR-030)."""
+    freelancer_profile.user.is_available = False
+    freelancer_profile.user.is_active = False
+    freelancer_profile.user.save()
+
+    freelancer_profile.bio = "Updated while the account is deactivated"
+    freelancer_profile.full_clean()
+    freelancer_profile.save()
+
+    freelancer_profile.refresh_from_db()
+    assert freelancer_profile.bio == "Updated while the account is deactivated"
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_clean_does_not_raise_when_no_account_attached() -> None:
+    """clean() raises no RelatedObjectDoesNotExist when no account is attached."""
+    profile = FreelancerProfile()
+
+    profile.clean()
