@@ -68,11 +68,51 @@ Shared base for the two inlines (FR-022), sitting alongside the existing
 | Attribute | Value | Requirement |
 |---|---|---|
 | base class | `admin.StackedInline` | FR-021 (supports `fieldsets`) |
+| `form` | `ProfileInlineForm` | FR-020, SC-004 |
 | `extra` | `1` | FR-032, FR-036 |
 | `max_num` | `1` | FR-007, FR-014 |
 | `can_delete` | `False` | FR-023 |
 | `has_delete_permission()` | returns `False` | FR-023, SC-006 |
 | `readonly_fields` | `("created_at", "updated_at")` | FR-021 |
+| `formfield_for_dbfield()` | clears `can_add_related` on every related field | FR-010, FR-022 |
+
+### `ProfileInlineForm` — the form both sections use
+
+Relocates errors raised against fields the section renders hidden to the form
+level, so the section displays them. Each error keeps its original `code`; only
+where it is displayed changes.
+
+Without it, an error keyed to `user` — the key FR-029 uses — reaches the page
+and is rendered nowhere: `admin/edit_inline/stacked.html` renders
+`formset.non_form_errors`, `form.non_field_errors` and the per-field errors of
+the fields named in the fieldsets, and `user` is in none of them. The
+administrator would see only the generic "Please correct the error below". See
+[research.md](../research.md) R-003, *Correction, 2026-08-01*.
+
+**No vocabulary-management control of any kind** is offered on a profile
+section — not only no ➕. Inside an account screen an administrator may attach
+and detach existing skills; creating, renaming and deleting vocabulary happens
+exclusively on the `Skill` screen (decision, 2026-08-01).
+
+The suppression lives on `BaseProfileInline`, not on each inline, so both
+sections inherit one definition (FR-022). It is applied in
+`formfield_for_dbfield()` rather than `formfield_for_manytomany()`: on Django
+6.0.7 the `RelatedFieldWidgetWrapper` that carries the flags is constructed in
+`formfield_for_dbfield()` *after* `formfield_for_manytomany()` has returned, so
+setting them in the latter has no effect on the rendered page (verified against
+the pinned version, 2026-08-01).
+
+Only `can_add_related` is set. `RelatedFieldWidgetWrapper.__init__` gates
+`can_change_related` and `can_delete_related` behind
+`supported = not widget.allow_multiple_selected and isinstance(widget, Select)`,
+which is `False` for any multi-select widget — the ✏️ and 🗑️ controls cannot
+render on a skills or interests widget regardless of configuration.
+
+**Note on `max_num`.** `inlineformset_factory` forces `max_num = 1` whenever the
+FK to the parent is unique (`django/forms/models.py`, `if fk.unique: max_num = 1`).
+Both profile links are `OneToOneField`, so the declared `max_num = 1` is a
+contract attribute rather than the mechanism — the one-profile-per-account
+guarantee comes from the relation itself.
 
 Behavior fixed by `extra=1, max_num=1` (R-005):
 
@@ -95,9 +135,15 @@ Fieldsets (FR-006, FR-021):
 | `Biography` | `bio` |
 | `Important Dates` (collapsed) | `created_at`, `updated_at` |
 
-`skills` is a multi-select over existing skills only. The widget MUST NOT offer
-an add-related "+" control — FR-010 forbids creating vocabulary from the profile
-section.
+`skills` is a multi-select over existing skills only, presented through
+`filter_horizontal = ("skills",)` — a two-column available/chosen selector with
+a search box (decision, 2026-08-01). The widget offers no vocabulary-management
+control, per `BaseProfileInline` above.
+
+`filter_horizontal` renders every option into the page, which suits the
+vocabulary size the spec caps at (spec.md:352). Should the vocabulary ever reach
+thousands, the replacement is `autocomplete_fields`, already viable because
+`SkillAdmin` declares `search_fields = ("name",)`.
 
 ### `ClientProfileInline(BaseProfileInline)`
 
@@ -110,7 +156,9 @@ section.
 | `Biography` | `bio` |
 | `Important Dates` (collapsed) | `created_at`, `updated_at` |
 
-Same FR-010 constraint on `interests`.
+Same FR-010 constraint on `interests`, and `filter_horizontal = ("interests",)`
+for the same reason. The add-related suppression is inherited from
+`BaseProfileInline` and needs no code on this class.
 
 ### Attachment
 
@@ -175,6 +223,11 @@ failure page (FR-020, SC-004). Per `testing.md`, tests assert on the **code**.
 | `company_name` empty after strip | `company_name` | `company_name_empty` | existing |
 | `bio` over 500 characters | `bio` | `max_length` | existing (Django) |
 | Profile created for an account inactive in the state being saved | `user` | `profile_for_inactive_account` | **new** |
+
+`profile_for_inactive_account` is raised against `user`, which the profile
+section renders hidden. `ProfileInlineForm` (§2) moves it to the form level so
+it is displayed above the section's fields. The key and code the model raises
+are unchanged, and tests continue to assert the code.
 
 `profile_for_inactive_account` is the only new code this feature introduces. It
 must be added to the *Established invariants* list in

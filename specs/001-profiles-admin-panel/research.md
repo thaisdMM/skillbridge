@@ -126,10 +126,34 @@ if self.pk is None and the related account is not active:
   existing profile stays editable on a deactivated account.
 
 **Error-dict key**: `"user"`. The rule is about the related account, so `user` is
-the field it concerns. The inline renders `user` as a hidden field, so Django
-surfaces the message at the top of the profile section labelled with the field
-name rather than beside a visible input. Per `testing.md`, tests assert on the
-`code`, which is unaffected by rendering.
+the field it concerns. Per `testing.md`, tests assert on the `code`, which is
+unaffected by rendering.
+
+**Correction, 2026-08-01 — the original display claim was wrong.** This entry
+previously stated that because the inline renders `user` as a hidden field,
+"Django surfaces the message at the top of the profile section labelled with the
+field name". That is the behavior of Django's **default form rendering**, which
+folds hidden-field errors into the top errors as `(Hidden field user) …`. The
+**admin's** inline templates do not do this: `admin/edit_inline/stacked.html`
+renders `formset.non_form_errors` (line 17) and `form.non_field_errors`
+(line 25), plus per-field errors for the fields named in the fieldsets. `user`
+is in none of those, so its error reached the page and was rendered **nowhere** —
+the administrator saw only the generic "Please correct the error below".
+
+Measured on the rendered response before the fix: the error was present in
+`formset.errors` as `{'user': [...]}`, `form.non_field_errors()` was empty, and
+the message string did not appear in the HTML at all. This violated FR-020 and
+SC-004.
+
+**Resolution** (decision, 2026-08-01): the model keeps raising with the `user`
+key and the `profile_for_inactive_account` code — the contract in
+`contracts/admin-surface.md` §4 is unchanged. The display problem is fixed in
+the admin layer by `ProfileInlineForm` on `BaseProfileInline`, which relocates
+errors raised against hidden fields to the form level, where the section renders
+them. Alternatives rejected: attaching the error to a visible field such as
+`bio` (lies about which field is wrong, already rejected above), and raising
+`NON_FIELD_ERRORS` from the model (puts a presentation decision in the model
+layer, against Principle VIII).
 
 **Alternatives considered**:
 

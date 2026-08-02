@@ -15,8 +15,13 @@ on screens of their own, so the profile inlines live here beside the account
 admins that own them. This module imports profiles.models, never profiles.admin.
 """
 
+from typing import Any
+
+from django import forms
 from django.contrib import admin, messages
+from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
@@ -29,6 +34,7 @@ from accounts.models.base import BaseUser
 from accounts.models.client import Client
 from accounts.models.freelancer import Freelancer
 from accounts.models.staff_user import StaffUser
+from profiles.models.freelancer_profile import FreelancerProfile
 
 
 class BaseAccountAdmin(admin.ModelAdmin):
@@ -71,6 +77,30 @@ class BaseAccountAdmin(admin.ModelAdmin):
         return obj.created_at.strftime("%Y-%m-%d %H:%M")
 
 
+class ProfileInlineForm(forms.ModelForm):
+    """
+    Form used by both profile sections.
+
+    Presents errors raised against fields the section renders hidden, which
+    would otherwise reach the page with no place to be displayed. The profile
+    section shows them above its fields.
+    """
+
+    def full_clean(self) -> None:
+        """
+        Validate the form and move errors raised against hidden fields.
+
+        Each error keeps its original code; only where it is displayed changes.
+        """
+        super().full_clean()
+        hidden_fields_with_errors = {
+            name for name, field in self.fields.items() if field.widget.is_hidden
+        } & set(self._errors)
+        for name in hidden_fields_with_errors:
+            for error in self._errors.pop(name).as_data():
+                self.add_error(None, error)
+
+
 class BaseProfileInline(admin.StackedInline):
     """
     Base inline holding the behavior shared by both profile sections.
@@ -78,11 +108,14 @@ class BaseProfileInline(admin.StackedInline):
     Not attached to any model. Provides the members common to
     FreelancerProfileInline and ClientProfileInline: the section presents at
     most one profile and offers no way to add a second, no removal control is
-    rendered, and the timestamps are shown read-only.
+    rendered, the timestamps are shown read-only, no related field offers a
+    control that creates a record on the other side of the relation, and every
+    error reaches the page where it can be read.
 
     Subclasses supply the model and the fieldsets.
     """
 
+    form = ProfileInlineForm
     extra = 1
     max_num = 1
     can_delete = False
@@ -93,6 +126,25 @@ class BaseProfileInline(admin.StackedInline):
     ) -> bool:
         """Disable deletion for all profiles. A profile is retired with its account, never deleted."""
         return False
+
+    def formfield_for_dbfield(
+        self, db_field: models.Field, request: HttpRequest, **kwargs: Any
+    ) -> forms.Field:
+        """
+        Strip the add-related control from every related field on the section.
+
+        Args:
+            db_field: The model field the form field is being built for.
+            request: The current admin request.
+
+        Returns:
+            forms.Field: The form field, carrying no add-related control when
+                it renders a related field.
+        """
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if isinstance(formfield.widget, RelatedFieldWidgetWrapper):
+            formfield.widget.can_add_related = False
+        return formfield
 
 
 class StatusBadgeMixin:
@@ -120,14 +172,55 @@ class StatusBadgeMixin:
         )
 
 
+class FreelancerProfileInline(BaseProfileInline):
+    """
+    Profile section rendered inside the freelancer account screen.
+
+    Presents the rate, experience, portfolio link, skills and biography of the
+    freelancer whose account screen holds it. Skills are attached and detached
+    through a two-column selector listing the existing vocabulary.
+    """
+
+    model = FreelancerProfile
+    filter_horizontal = ("skills",)
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": ("hourly_rate", "years_of_experience", "portfolio_url"),
+            },
+        ),
+        (
+            _("Skills"),
+            {
+                "fields": ("skills",),
+            },
+        ),
+        (
+            _("Biography"),
+            {
+                "fields": ("bio",),
+            },
+        ),
+        (
+            _("Important Dates"),
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
 @admin.register(Freelancer)
 class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
     """
     Admin interface for the Freelancer model.
 
     Provides list display with status and availability badges, fieldset
-    grouping, search and filter controls, bulk account activation, and bulk
-    availability management.
+    grouping, search and filter controls, bulk account activation, bulk
+    availability management, and the freelancer profile section.
     """
 
     list_display = (
@@ -167,6 +260,8 @@ class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
             },
         ),
     )
+
+    inlines = (FreelancerProfileInline,)
 
     actions = ["activate_accounts", "set_available", "set_unavailable"]
 
