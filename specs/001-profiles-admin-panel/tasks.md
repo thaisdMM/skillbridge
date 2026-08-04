@@ -173,17 +173,28 @@ one shared-file note below.
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Add `ClientProfileInline(BaseProfileInline)` to `django_version/accounts/admin.py` with `model = ClientProfile`, importing from `profiles.models.client_profile`
-- [ ] T033 [US3] Define the `ClientProfileInline` fieldsets in `django_version/accounts/admin.py`: unnamed `("company_name", "max_budget", "website_url")`, `Interests` → `("interests",)`, `Biography` → `("bio",)`, `Important Dates` (collapsed) → `("created_at", "updated_at")` (FR-013, FR-021)
-- [ ] T034 [US3] Configure the `interests` widget on `ClientProfileInline` in `django_version/accounts/admin.py` so no add-related "+" control is rendered (FR-010)
-- [ ] T035 [US3] Attach `inlines = (ClientProfileInline,)` to `ClientAdmin` in `django_version/accounts/admin.py`, changing nothing else on that class (FR-024)
+- [X] T032 [US3] Add `ClientProfileInline(BaseProfileInline)` to `django_version/accounts/admin.py` with `model = ClientProfile`, importing from `profiles.models.client_profile`
+- [X] T033 [US3] Define the `ClientProfileInline` fieldsets in `django_version/accounts/admin.py`: unnamed `("company_name", "max_budget", "website_url")`, `Interests` → `("interests",)`, `Biography` → `("bio",)`, `Important Dates` (collapsed) → `("created_at", "updated_at")` (FR-013, FR-021)
+- [X] T034 [US3] Configure the `interests` widget on `ClientProfileInline` in `django_version/accounts/admin.py` so no add-related "+" control is rendered (FR-010). **Satisfied by inheritance, 2026-08-04 — no widget code written.** The suppression is the `formfield_for_dbfield()` override placed on `BaseProfileInline` by T024, which `ClientProfileInline` inherits unchanged (FR-022). Verified load-bearing rather than assumed: deleting the assignment on the base fails `test_interests_widget_offers_no_add_related_control` and `test_rendered_interests_widget_carries_no_add_related_link`. Only `filter_horizontal = ("interests",)` was added on the inline (decision D2)
+- [X] T035 [US3] Attach `inlines = (ClientProfileInline,)` to `ClientAdmin` in `django_version/accounts/admin.py`, changing nothing else on that class (FR-024)
 
 ### Tests for User Story 3
 
-- [ ] T036 [US3] In `django_version/accounts/tests/admin/test_profile_inlines.py`, assert `ClientProfileInline` is attached to `ClientAdmin` and carries the `BaseProfileInline` contract (FR-014, FR-023)
-- [ ] T037 [US3] In `django_version/accounts/tests/admin/test_profile_inlines.py`, assert the `ClientProfileInline` fieldsets match contracts/admin-surface.md §2 exactly (FR-013, FR-021)
-- [ ] T038 [US3] In `django_version/accounts/tests/admin/test_profile_inlines.py`, assert the client rules surface through the inline with their established codes: `max_budget_not_positive` on `max_budget`, and `company_name_empty` on `company_name` for a whitespace-only name (FR-015, FR-016, US3 scenarios 3 and 4)
-- [ ] T039 [US3] In `django_version/accounts/tests/admin/test_profile_inlines.py`, assert the client formset behaves as US2's does — one form when a profile exists, one blank form when none, nothing created from an untouched section — and that FR-029 is enforced through the client inline (FR-014, FR-032, FR-036)
+> **Test file split, 2026-08-04, by human decision.** `test_profile_inlines.py`
+> had grown too large to absorb a second inline's tests. It was renamed
+> (`git mv`, history preserved) to
+> `django_version/accounts/tests/admin/test_freelancer_profile_inline.py`, and
+> T036–T039 landed in a new sibling
+> `django_version/accounts/tests/admin/test_client_profile_inline.py`. One file
+> per inline matches the one-to-one source-mirroring rule in `testing.md`, and it
+> removes the fixture-name ambiguity a merged file would have created — each file
+> now owns an unqualified `valid_profile_section_data` meaning its own model. The
+> task paths below are superseded by these two files.
+
+- [X] T036 [US3] In `django_version/accounts/tests/admin/test_client_profile_inline.py`, assert `ClientProfileInline` is attached to `ClientAdmin` and carries the `BaseProfileInline` contract (FR-014, FR-023)
+- [X] T037 [US3] In `django_version/accounts/tests/admin/test_client_profile_inline.py`, assert the `ClientProfileInline` fieldsets match contracts/admin-surface.md §2 exactly (FR-013, FR-021)
+- [X] T038 [US3] In `django_version/accounts/tests/admin/test_client_profile_inline.py`, assert the client rules surface through the inline with their established codes: `max_budget_not_positive` on `max_budget`, and `company_name_empty` on `company_name` for a whitespace-only name (FR-015, FR-016, US3 scenarios 3 and 4). **Delivered in part, 2026-08-04 — the `company_name_empty` half is unreachable through the inline and was deliberately not written.** Django's form `CharField` carries `strip=True`, so `"   "` is cleaned to `""` before `ClientProfile.clean()` runs; `if self.company_name:` is then False and the branch never fires. Verified against the pinned 6.0.7 both at the field (`formfield().clean("   ")` returns `""`) and end-to-end through the bound formset, which reports **valid with no errors**. Per `testing.md` *A test must fail if the behavior under test is removed*, a test asserting the code here would simply fail, and one asserting the acceptance would pass with the model branch deleted — tautological, testing Django's `strip`, not our code. The invariant remains covered at its own layer by `profiles/tests/models/test_client_profile.py:86`. `max_budget_not_positive` is reachable and is asserted
+- [X] T039 [US3] In `django_version/accounts/tests/admin/test_client_profile_inline.py`, assert the client formset behaves as US2's does — one form when a profile exists, one blank form when none, nothing created from an untouched section — and that FR-029 is enforced through the client inline (FR-014, FR-032, FR-036). FR-029 asserted under the `__all__` key, not `user` — `ProfileInlineForm` relocates it to the form level. Both the refusal and the relocation were mutation-checked
 
 **Checkpoint**: Both profile types are managed from their account screens.
 Validate with quickstart.md section C.
@@ -285,7 +296,7 @@ quickstart.md rows D5–D9.
 
 - [ ] T060 [P] Add `profile_for_inactive_account` to the *Established invariants* list in `.claude/rules/conventions.md`, following the existing entry format (plan.md:234-235; quickstart.md "Done when")
 - [ ] T061 [P] Record two decisions in `ARCHITECTURE.md`: the FR-021 narrowing for the skill screens (no timestamps on `Skill`, ordering by category then name — research.md R-002) and the FR-028 mechanism (`get_deleted_objects()`, because `on_delete=PROTECT` does not protect a many-to-many — research.md R-004)
-- [ ] T062 [P] Add one entry to `docs/tech_debt.md`: the deferred standalone profile screens and the inline/ModelAdmin split they will create across `accounts` and `profiles` (research.md R-001). **Revised 2026-07-31**: the second entry this task originally asked for — `ClientProfile`'s untested rules — is dropped; the human closed that gap before implementation (research.md R-009)
+- [ ] T062 [P] Add one file to `docs/tech_debt/` (one decision per file, ADR-style — the directory replaced the single `tech_debt.md` on 2026-08-04): the deferred standalone profile screens and the inline/ModelAdmin split they will create across `accounts` and `profiles` (research.md R-001). **Revised 2026-07-31**: the second entry this task originally asked for — `ClientProfile`'s untested rules — is dropped; the human closed that gap before implementation (research.md R-009)
 - [ ] T063 Review `django_version/accounts/admin.py` and `django_version/profiles/admin.py` against `.claude/rules/conventions.md` *Code standards*: Google-style docstrings on every class and method, type hints on every signature, no inline comments, English only
 - [ ] T064 Confirm no PII appears in the new `logger.error` calls in `django_version/profiles/models/freelancer_profile.py` and `django_version/profiles/models/client_profile.py` — no email, no name, no account-holder id (Principle VII)
 - [ ] T065 Run the full suite: `docker-compose exec web pytest` from `django_version/`. Compare the passing count against the T004 baseline; every previously passing test must still pass (SC-009)

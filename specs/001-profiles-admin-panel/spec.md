@@ -277,6 +277,7 @@ list with an area of interest.
 - **FR-014**: The system MUST enforce at most one profile per client account, reporting a violation as a field-level error rather than a server failure.
 - **FR-015**: The system MUST reject a maximum budget that is zero or negative, reporting the error against the budget field, and MUST accept a profile with no budget recorded.
 - **FR-016**: The system MUST reject a company name that is empty once surrounding whitespace is removed, reporting the error against the company name field, and MUST accept a profile with no company name recorded.
+  > **Partially delivered, deferred 2026-08-04.** The second half holds: a profile with no company name is accepted. The first half does **not** surface in the admin — the form's `strip=True` reduces a whitespace-only name to `""` before `ClientProfile.clean()` runs, so `company_name_empty` never fires there. The rule still holds on paths that bypass the form. The stored outcome is correct (`"   "` becomes `""`, i.e. "no company name recorded"); only the message is missing. Deferred to the serializer phase rather than duplicated in the admin form — reasoning, verification and reversal criteria in `docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`. This is also the one exception to FR-020 below.
 - **FR-017**: Administrators MUST be able to attach any number of existing skills as a client's areas of interest, and to detach them.
 
 **Profile lifecycle and account status**
@@ -299,6 +300,7 @@ list with an area of interest.
 **Shared behavior and consistency with account administration**
 
 - **FR-020**: Every rule already enforced on the underlying profile and skill data MUST surface in the administration screens as a message attached to the offending field, never as an unhandled failure.
+  > **One recorded exception, 2026-08-04:** `company_name_empty` does not surface in the admin. See the note on FR-016 and `docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`. Every other rule in the error contract does surface.
 - **FR-021**: The skill screens MUST present the same interaction conventions already established for account administration: grouped field sections, collapsed timestamp sections, a fixed number of rows per page, most-recent-first ordering, and read-only creation and update timestamps. The profile section MUST present the same conventions as the account screen that contains it, including grouped fields and read-only creation and update timestamps.
 - **FR-022**: Behavior shared between the profile section, the skill screens and the account screens MUST be defined once and reused, not duplicated per screen.
 - **FR-023**: The system MUST NOT permit a profile to be permanently destroyed through these screens, by any route. A profile is retired by deactivating the account it belongs to, never by removal. Any removal control that would otherwise appear on the profile section MUST be suppressed.

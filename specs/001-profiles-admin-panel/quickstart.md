@@ -124,8 +124,21 @@ Repeat section B against a client account, substituting: `max_budget` for
 
 | # | Do this | Expect | Scenario |
 |---|---|---|---|
-| C1 | Set `company_name` to `"   "`, save | Refused, message on the company name field | US3-4 |
+| C1 | Set `company_name` to three spaces, save | ⏳ **Deferred — currently accepted and stored empty.** Intended: refused, message on the company name field | US3-4 |
 | C2 | Leave `company_name` empty, save | Accepted | FR-016 |
+
+**On C1** — this row does **not** pass today, and that is a recorded decision,
+not a regression. The admin form strips the value to `""` before
+`ClientProfile.clean()` sees it, so `company_name_empty` never fires; the value
+is stored empty, which is the correct outcome for an optional field, but no
+message is shown. Full reasoning, verification against Django 6.0.7 and the
+criteria that would reverse the decision are in
+`docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`. It is
+scheduled in `docs/ROADMAP_SKILLBRIDGE.md` → SPRINT 3.2.
+
+Note the values in this table are written as bare descriptions, not quoted
+literals — type **three spaces**, not `"   "` with the quotation marks. Quotes
+typed into the field are ordinary characters and are stored as such.
 
 ### D. Account lists — User Stories 5 and 6
 

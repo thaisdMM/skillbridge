@@ -225,13 +225,13 @@ are governed by `.claude/rules/testing.md` — notably: assert on the
 | `list_filter` path may not resolve on 6.0.7 | Step 8 blocked | Fallback `SimpleListFilter` recorded (R-007) |
 | Profile badge resolved per row | 25 extra queries per changelist page | `Exists()` annotation in `get_queryset()`; quickstart D1 checks the SQL log |
 | `accounts/admin.py` grows past ~600 lines | Readability | Accepted; composition mirrors the existing documented pattern |
-| Inline and future standalone profile admin split across apps | Rework when deferred screens land | Accepted trade, recorded in research.md R-001; add to `docs/tech_debt.md` |
+| Inline and future standalone profile admin split across apps | Rework when deferred screens land | Accepted trade, recorded in research.md R-001; add to `docs/tech_debt/` |
 
 ## Follow-ups to record outside this feature
 
-- `docs/tech_debt.md` — the deferred standalone profile screens and the
+- `docs/tech_debt/` — the deferred standalone profile screens and the
   inline/ModelAdmin split they will create (research.md R-001).
-- `docs/tech_debt.md` — `ClientProfile` has no test module (research.md R-009).
+- `docs/tech_debt/` — `ClientProfile` has no test module (research.md R-009).
 - `.claude/rules/conventions.md` — add `profile_for_inactive_account` to
   *Established invariants* once implemented.
 - `ARCHITECTURE.md` — record the FR-021 narrowing and the FR-028 mechanism, since
