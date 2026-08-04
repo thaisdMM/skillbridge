@@ -83,5 +83,5 @@ GitHub Spec Kit is installed at `.specify/`.
 | `docs/ROADMAP_SKILLBRIDGE.md` | The project roadmap.                          |
 | `docs/ROADMAP_STACK_TRIAGE.md`| Stack-refactor triage feeding the roadmap.    |
 | `docs/SYSTEM_OVERVIEW.md`     | System overview.                              |
-| `docs/tech_debt.md`           | Known technical debt.                         |
+| `docs/tech_debt/`             | Known technical debt, one file per decision.  |
 | `docs/adr/`                   | Architecture Decision Records.                |

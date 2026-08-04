@@ -1381,6 +1381,21 @@ rejects `max_budget=-5` returns `is_valid() == True` for that input.
 - [ ] Relocate normalization here: `company_name.strip()`, `bio`, and the strips
       still living in `validate_email` / `validate_user_name` / `create_user`
       (`ARCHITECTURE.md` → _User Input Normalization_).
+- [ ] Close the admin-layer gap recorded in
+      `docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`: the
+      form's `strip=True` reduces a whitespace-only `company_name` to `""`
+      before `clean()` runs, so `company_name_empty` never fires in the admin
+      (FR-016, FR-020 of `001-profiles-admin-panel`). Deferred to here rather
+      than patched in the admin form, to avoid duplicating the rule in a layer
+      this task replaces.
+- [ ] **Set `trim_whitespace` explicitly on every serializer `CharField`.** DRF
+      defaults it to `True`, which reproduces the gap above at the API layer —
+      whitespace-only input arrives at `clean()` already reduced to `""`, and
+      the invariant never fires. Not yet verified against a pinned version;
+      DRF is not installed.
+- [ ] Keep the `company_name` branch in `ClientProfile.clean()` — it is the
+      backstop for shell, scripts and data migrations, and it is what
+      `full_clean()` invokes from the serializer.
 - [ ] Pin the exact DRF version in `conventions.md` on install.
 
 ---
