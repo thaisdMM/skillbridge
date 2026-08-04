@@ -34,6 +34,7 @@ from accounts.models.base import BaseUser
 from accounts.models.client import Client
 from accounts.models.freelancer import Freelancer
 from accounts.models.staff_user import StaffUser
+from profiles.models.client_profile import ClientProfile
 from profiles.models.freelancer_profile import FreelancerProfile
 
 
@@ -352,6 +353,47 @@ class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
         )
 
 
+class ClientProfileInline(BaseProfileInline):
+    """
+    Profile section rendered inside the client account screen.
+
+    Presents the company, budget, website, interests and biography of the
+    client whose account screen holds it. Interests are attached and detached
+    through a two-column selector listing the existing vocabulary.
+    """
+
+    model = ClientProfile
+    filter_horizontal = ("interests",)
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": ("company_name", "max_budget", "website_url"),
+            },
+        ),
+        (
+            _("Interests"),
+            {
+                "fields": ("interests",),
+            },
+        ),
+        (
+            _("Biography"),
+            {
+                "fields": ("bio",),
+            },
+        ),
+        (
+            _("Important Dates"),
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
 @admin.register(Client)
 class ClientAdmin(StatusBadgeMixin, BaseAccountAdmin):
     """
@@ -397,6 +439,8 @@ class ClientAdmin(StatusBadgeMixin, BaseAccountAdmin):
             },
         ),
     )
+
+    inlines = (ClientProfileInline,)
 
     actions = ["activate_accounts"]
 

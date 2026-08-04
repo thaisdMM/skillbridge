@@ -1,4 +1,4 @@
-"""Tests for the profile sections rendered inside the account screens."""
+"""Tests for the profile section rendered inside the freelancer account screen."""
 
 import pytest
 from django.contrib import admin as django_admin
