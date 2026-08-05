@@ -7,6 +7,14 @@ This file carries the state and the decisions that are **not** recoverable from
 `tasks.md`, `plan.md` or the code alone. Read it before starting, then follow
 `tasks.md` as the authority on what to build.
 
+> **⚠️ SPENT — historical snapshot. Superseded 2026-08-05.** Phase 5 (T032–T039)
+> is complete. This file records the state as of 2026-08-01 and is kept for its
+> decision record only. **Two statements below are no longer true:** the test
+> baseline has moved on, and *"this feature generates no migration"* was
+> overtaken by the FR-002 clarification of 2026-08-04, which adds exactly one
+> `AddConstraint` migration on `Skill` (tasks.md T074/T075). Do not take the
+> `makemigrations` guidance below as current — see the amended T066.
+
 ---
 
 ## 1. Where the feature stands

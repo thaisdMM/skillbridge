@@ -259,6 +259,20 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
   → code: `max_budget_not_positive`
 - `Skill.clean()`: `name` stripped of whitespace, cannot be empty after strip.
   → code: `skill_name_empty`
+- `Skill.clean()`: `name` must not duplicate an existing skill's `name`,
+  compared ignoring letter case. Storage is never normalized — the name is
+  stored as entered, trimmed only. The lookup excludes the row being saved, so
+  recasing a skill in place stays permitted.
+  → code: `skill_name_duplicate`
+  → also enforced at the database level by `UniqueConstraint(Lower("name"))`
+  `skill_unique_name_case_insensitive` on `Skill.Meta.constraints`.
+  The constraint is the backstop for ORM paths that bypass `clean()`
+  (`.create()`, `.update()`, `bulk_create()`, shell). `clean()` remains the
+  app-layer path for the friendly field-level error and owns it alone — the
+  constraint cannot report against `name`. Reasoning:
+  `docs/adr/case-insensitive-skill-name-uniqueness.md`.
+  → this `clean()` issues a queryset lookup, so a test calling `Skill.clean()`
+  or `Skill.full_clean()` needs `@pytest.mark.django_db`.
 
 > **Note:** This list is not guaranteed to be exhaustive or fully up to date.
 > If a `clean()` method raises a `code` not listed here, treat the source file
@@ -473,8 +487,14 @@ Established conventions for the Django admin layer:
 - Password fields are hidden in all admin classes.
 - `save_model` calls `set_unusable_password()` when the password field is
   empty on save (closes the Django default-behavior gap).
-- `has_delete_permission` returns `False` on all admin classes. Use
-  `is_active=False` for deactivation.
+- `has_delete_permission` returns `False` on every admin class except
+  `SkillAdmin`. Use `is_active=False` for deactivation.
+- `SkillAdmin` permits deletion, and is the only admin class that does.
+  `Skill` is curated vocabulary with no `is_active` field, so deactivation is
+  not available to it. Removal is refused while any profile still refers to
+  the skill, enforced in `SkillAdmin.get_deleted_objects()` — `on_delete` has
+  no effect on a `ManyToManyField`. Do not suppress `has_delete_permission`
+  on `SkillAdmin`; see `docs/adr/skill-is-the-only-deletable-record.md`.
 - `has_module_perms` requires `is_active=True` AND `is_staff=True` to
   grant admin access.
 - `Client` and `Freelancer` admin classes never expose `is_staff` or
@@ -485,6 +505,26 @@ Established conventions for the Django admin layer:
 - Promoting a `StaffUser` to superuser is a shell-only operation
   (`createsuperuser` or Django shell). It is intentionally not exposed
   in any admin form.
+
+---
+
+## Recording decisions
+
+- Architectural decisions, and significant code or documentation decisions, go
+  to `docs/adr/` — one decision per file, in **MADR short form**: title,
+  `Date` / `Status` / `Applies to`, *Context and Problem Statement*,
+  *Considered Options*, *Decision Outcome*, *Consequences*.
+- **Keep an ADR under ~60 lines.** A long ADR is not what the MADR template is
+  for, and it costs context on every session that reads one. Record the
+  decision, the options rejected, and the reasoning that constrains future
+  work. Do not walk through framework behavior — state the verified fact and
+  move on.
+- `ARCHITECTURE.md` is **closed to new entries** and will be refactored into
+  `docs/adr/`. Add new decisions as ADRs, never to that file.
+- Known technical debt goes to `docs/tech_debt/`, one decision per file.
+- ADRs and convention files reference code, behavior and pinned versions —
+  never requirement IDs, task IDs, spec paths, or roadmap items. Those are
+  transient and rot when a feature directory is archived.
 
 ---
 

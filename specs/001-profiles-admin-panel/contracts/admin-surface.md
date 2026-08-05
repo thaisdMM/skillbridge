@@ -39,8 +39,22 @@ Signature per `ModelAdmin.get_deleted_objects(objs, request)`, returning
 
 Contract:
 
-- For each skill in `objs`, count referring profiles as
-  `skill.freelancerprofile_set.count() + skill.clientprofile_set.count()`.
+- Count the **distinct profiles** referring to any skill in `objs`. A freelancer
+  profile and a client profile are separate records, so the total is
+  `FreelancerProfile.objects.filter(skills__in=objs).distinct().count()` plus
+  `ClientProfile.objects.filter(interests__in=objs).distinct().count()` — two
+  aggregate queries, whatever the size of the selection.
+
+  > **Revised 2026-08-05 (findings F-4 and F-6).** This clause previously
+  > prescribed `skill.freelancerprofile_set.count() + skill.clientprofile_set.count()`
+  > summed over `objs`. That counts **references**, not profiles. The two are
+  > identical for a single skill — the join table holds each `(profile, skill)`
+  > pair at most once — and diverge on a bulk selection, where one profile
+  > referring to three selected skills contributes three. Measured against the
+  > development database on 2026-08-05, selecting the five skills currently in
+  > use reported **7** where **3** profiles were affected. The old form also
+  > issued one `COUNT` per profile model per skill (60 queries for a 30-skill
+  > selection); the two-aggregate form above is fixed at two.
 - When the total across `objs` is greater than zero, `protected` MUST contain a
   **single summary string** stating that the skill is still in use and how many
   profiles refer to it.
@@ -216,8 +230,8 @@ failure page (FR-020, SC-004). Per `testing.md`, tests assert on the **code**.
 
 | Trigger | Field key | Code | Status |
 |---|---|---|---|
-| Skill name empty after strip | `name` | `skill_name_empty` | existing |
-| Skill name duplicates an existing one | `name` | `unique` | existing (Django) |
+| Skill name empty after strip | `name` | `required` **and** `skill_name_empty` — both, see below | existing |
+| Skill name duplicates an existing one, **ignoring letter case** | `name` | `skill_name_duplicate` | **new** (FR-002, amended 2026-08-04) |
 | `hourly_rate` ≤ 0 | `hourly_rate` | `hourly_rate_not_positive` | existing |
 | `max_budget` ≤ 0 | `max_budget` | `max_budget_not_positive` | existing |
 | `company_name` empty after strip | `company_name` | `company_name_empty` | existing |
@@ -229,9 +243,36 @@ section renders hidden. `ProfileInlineForm` (§2) moves it to the form level so
 it is displayed above the section's fields. The key and code the model raises
 are unchanged, and tests continue to assert the code.
 
-`profile_for_inactive_account` is the only new code this feature introduces. It
-must be added to the *Established invariants* list in
-`.claude/rules/conventions.md`.
+**Why the whitespace-only name carries two codes** *(corrected 2026-08-05,
+finding F-2b — the row previously listed `skill_name_empty` alone).* For the
+input `"   "` the admin raises both, on the same `name` key:
+
+- `required` — the form's `CharField` has `strip=True`, so the value reaches the
+  form as `""`, and `name` is a required form field;
+- `skill_name_empty` — `name` then enters `_get_validation_exclusions()` because
+  it carries a form error, but that exclusion only suppresses `clean_fields()`
+  and `validate_unique()`. `Model.clean()` is called regardless, receives `""`,
+  and raises.
+
+Verified against the pinned Django 6.0.7 through the bound `SkillAdmin` form on
+2026-08-05: `errors.as_data()` returns `{'name': ['required', 'skill_name_empty']}`.
+FR-003 holds either way; a test asserting that `name` carries exactly one error
+would fail.
+
+**Two new codes, not one** *(revised 2026-08-05)*. This feature introduces
+`profile_for_inactive_account` (FR-029) and `skill_name_duplicate` (FR-002, as
+amended on 2026-08-04). **Both** must be added to the *Established invariants*
+list in `.claude/rules/conventions.md`.
+
+`skill_name_duplicate` **replaces** `unique` on this surface rather than joining
+it. Once `Skill.clean()` refuses duplicates, the `name` key already carries an
+error by the time `validate_unique()` runs, and `Model.full_clean()` excludes
+any field that already failed — Django's own comment: *"Run unique checks, but
+only for fields that passed validation."* The admin form reaches the same
+outcome through `BaseModelForm._get_validation_exclusions()`. So no input can
+produce `unique` on a path that runs `clean()`. Verified against the pinned
+6.0.7 on 2026-08-05: an exact duplicate returns `['unique']` today and
+`['skill_name_duplicate']` with the rule in place.
 
 Removing an in-use skill is **not** in this table: it is refused through
 `get_deleted_objects()`'s `protected` collection, which Django renders on the
@@ -255,4 +296,7 @@ only.
 - No profile search by `company_name`. The account search covers `name` and
   `email` only; this loss is recorded in spec.md:312.
 - No API, serializer or schema. DRF and drf-spectacular are not installed.
-- No new dependency, no model field, no migration.
+- No new dependency and no model field. **One migration**, added by the FR-002
+  amendment of 2026-08-04: the `UniqueConstraint(Lower("name"))` on `Skill.Meta`
+  (`skill_unique_name_case_insensitive`). This bullet previously read "no
+  migration"; revised 2026-08-05.

@@ -70,7 +70,14 @@ the spec explicitly defers.
 the model carries those fields. `SkillAdmin` keeps `Skill.Meta.ordering`
 (`["category", "name"]`), has no timestamp fieldset, and honours every other
 clause of FR-021: grouped fieldsets, `list_per_page = 25`, search, and filters.
-No model field is added and no migration is generated.
+No model field is added.
+
+> **Amended 2026-08-05.** This decision originally closed with *"No model field
+> is added and no migration is generated."* The first half stands. The second no
+> longer does, for an unrelated reason: the FR-002 clarification of 2026-08-04
+> adds one `AddConstraint` migration to `Skill` — see R-010. R-002 itself is
+> unchanged: no timestamp field was added to `Skill`, and the FR-021 narrowing
+> holds exactly as decided on 2026-07-28.
 
 **Rationale**: `profiles/models/skill.py` declares exactly two fields, `name` and
 `category` (skill.py:53-67). There is no `created_at` and no `updated_at`, and
@@ -340,13 +347,40 @@ pre-existing rules) and commit `e4f7719` extended
 
 ---
 
-## R-010: No new dependencies, no migrations
+## R-010: No new dependencies, exactly one migration
 
-**Decision**: this feature is admin-layer plus two `clean()` branches. It adds
-no package to `requirements.txt` and generates no migration.
+**Decision**: this feature is admin-layer plus three `clean()` branches. It adds
+no package to `requirements.txt` and generates **exactly one** migration, scoped
+to `Skill`.
 
 **Rationale**: everything needed is in `django.contrib.admin`, already in
 `INSTALLED_APPS` (config/settings.py:29). DRF and drf-spectacular are not
 installed and are not required — the deliverable is Django admin screens, not an
-API. R-002 removed the only candidate model change. Adding a `clean()` branch
-alters no field and no database schema, so `makemigrations` produces nothing.
+API. R-002 removed the only candidate model change at the time. Adding a
+`clean()` branch alters no field and no database schema, so `makemigrations`
+produces nothing for the FR-029 work.
+
+> **Amended 2026-08-05.** This decision originally read *"No new dependencies,
+> no migrations"* and asserted that the feature "generates no migration". The
+> FR-002 clarification of 2026-08-04 made skill-name uniqueness
+> **case-insensitive**, which the existing `unique=True` cannot express: a btree
+> unique index over raw text is case-sensitive on PostgreSQL. The agreed
+> mechanism therefore adds `UniqueConstraint(Lower("name"),
+> name="skill_unique_name_case_insensitive")` to `Skill.Meta`, carried by a
+> single `AddConstraint` migration (tasks.md T074, T075).
+>
+> Scope of the exception: **`Skill` only, one migration, no field added or
+> altered.** `unique=True` deliberately stays on the field, so the migration
+> contains no `AlterField`. Every other model in this feature remains under the
+> original no-migration constraint, and `makemigrations --check --dry-run` must
+> still report "No changes detected" once that one migration is applied
+> (tasks.md T066, amended).
+>
+> A constraint alone cannot satisfy FR-002, which requires the conflict to be
+> reported *against the name field*: Django files expression-based constraint
+> violations under `NON_FIELD_ERRORS`. So `Skill.clean()` owns the message and
+> the constraint is the backstop for the ORM paths that never call it. Full
+> verification against the pinned 6.0.7 is recorded in tasks.md Phase 10.
+>
+> Recorded as T082. Origin: `docs/skill-admin-findings-2026-08-04.md` finding
+> F-1 and the `/speckit-clarify` session of 2026-08-04.

@@ -61,7 +61,7 @@ That last command is the SC-009 gate: every existing account-administration test
 must still pass. The only permitted changes are those FR-024 names as intended —
 the profile section, the profile indicator and its filter, and the skill filter.
 
-Confirm no schema drift (FR: no migration in this feature):
+Confirm no **unintended** schema drift:
 
 ```bash
 docker-compose exec web python manage.py makemigrations --check --dry-run
@@ -69,6 +69,14 @@ docker-compose exec web python manage.py makemigrations --check --dry-run
 
 Expect "No changes detected". A non-empty result means a model change slipped in
 and must be raised before going further (Principle IV).
+
+> **Amended 2026-08-05.** This line previously read *"no migration in this
+> feature"*. The FR-002 clarification of 2026-08-04 introduces **exactly one**
+> intentional migration — the `UniqueConstraint(Lower("name"))` on `Skill.Meta`
+> (`skill_unique_name_case_insensitive`), tasks.md T074/T075. Run this check
+> **after** that migration is generated and applied; "No changes detected" is
+> then the correct expectation. Any pending change beyond that one migration
+> still means something slipped in. See research.md R-010, amended.
 
 ---
 
@@ -186,8 +194,13 @@ see [research.md](./research.md) R-002. It is not a discrepancy.
 ## Done when
 
 - [ ] `docker-compose exec web pytest` passes in full.
-- [ ] `makemigrations --check --dry-run` reports no changes.
+- [ ] The one intended migration — `skill_unique_name_case_insensitive` on
+      `Skill` (FR-002) — exists, is committed, and is **applied**; and
+      `makemigrations --check --dry-run` reports no changes **afterwards**.
+      Amended 2026-08-05; this line previously read simply "reports no changes".
 - [ ] Every row in sections A–F behaves as stated.
 - [ ] `accounts/tests/admin/test_admin.py` passes unchanged (SC-009).
-- [ ] `profile_for_inactive_account` is added to the *Established invariants*
-      list in `.claude/rules/conventions.md`.
+- [ ] `profile_for_inactive_account` **and** `skill_name_duplicate` are both in
+      the *Established invariants* list in `.claude/rules/conventions.md`.
+- [ ] *Admin conventions* in `.claude/rules/conventions.md` records the
+      `SkillAdmin` deletion exception (finding F-7, T085).

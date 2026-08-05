@@ -4,10 +4,18 @@
 
 **Input**: [spec.md](./spec.md), [research.md](./research.md)
 
-This feature introduces **no new model, no new field, and no migration**. Every
-entity below already exists in `django_version/`. This document records what the
-admin layer binds to, which rules are already enforced and where, and the single
-model-layer change the feature makes.
+This feature introduces **no new model and no new field**. Every entity below
+already exists in `django_version/`. It does introduce **exactly one
+migration**, added by the FR-002 amendment of 2026-08-04: the case-insensitive
+uniqueness constraint on `Skill.name`. This document records what the admin
+layer binds to, which rules are already enforced and where, and the two
+model-layer changes the feature makes.
+
+> **Amended 2026-08-05.** The original wording of this paragraph read *"no new
+> model, no new field, and no migration"*. The FR-002 clarification of
+> 2026-08-04 made skill-name uniqueness case-insensitive, which the existing
+> `unique=True` cannot express, so one `AddConstraint` migration is now in
+> scope. Nothing else about the "no schema drift" posture changes.
 
 ---
 
@@ -20,8 +28,13 @@ Table `skills`. The controlled platform-wide vocabulary (spec Key Entities).
 | Field | Type | Constraints |
 |---|---|---|
 | `id` | auto pk | — |
-| `name` | `CharField(max_length=100)` | `unique=True` |
+| `name` | `CharField(max_length=100)` | `unique=True`, **plus** `UniqueConstraint(Lower("name"), name="skill_unique_name_case_insensitive")` in `Meta.constraints` (FR-002, added 2026-08-05) |
 | `category` | `CharField(max_length=20)` | `choices=Category.choices` |
+
+`unique=True` is deliberately kept alongside the expression constraint. It costs
+nothing to keep, and removing it would mean an `AlterField` in the same
+migration for no behavioural gain — the `Lower("name")` index already refuses
+every exact duplicate the plain unique index refuses.
 
 `Category` is a `TextChoices` with exactly four members: `TECHNOLOGY`, `DESIGN`,
 `WRITING`, `MARKETING`. `Meta.ordering = ["category", "name"]`.
@@ -106,7 +119,6 @@ Per Principle VIII, every rule names exactly one owning layer.
 | Rule | Code | Layer | Requirement |
 |---|---|---|---|
 | Skill name trimmed; not empty after strip | `skill_name_empty` | `Skill.clean()` | FR-003 |
-| Skill name unique | `unique` (Django) | DB + `validate_unique()` | FR-002 |
 | `hourly_rate > 0` when provided | `hourly_rate_not_positive` | `FreelancerProfile.clean()` | FR-008 |
 | `company_name` not empty after strip | `company_name_empty` | `ClientProfile.clean()` | FR-016 |
 | `max_budget > 0` when provided | `max_budget_not_positive` | `ClientProfile.clean()` | FR-015 |
@@ -118,13 +130,43 @@ The admin surfaces all of these as field-level messages by calling
 `full_clean()` through `ModelForm._post_clean` — Django's normal admin path. No
 new validation code is written for them (FR-020).
 
-### New — the one model change this feature makes
+> **Amended 2026-08-05.** Skill-name uniqueness used to sit in this table, as
+> *"Skill name unique | `unique` (Django) | DB + `validate_unique()` | FR-002"*.
+> It no longer belongs here: the FR-002 clarification of 2026-08-04 changed the
+> rule itself — comparison ignores letter case — so it is a rule this feature
+> introduces, not a pre-existing one it merely surfaces. It moved to the next
+> table.
+
+### New — the model changes this feature makes
 
 | Rule | Code | Layer | Requirement |
 |---|---|---|---|
 | A profile cannot be **created** for an account that is inactive in the state being saved | `profile_for_inactive_account` | `FreelancerProfile.clean()` and `ClientProfile.clean()` | FR-029 |
+| A skill name must not duplicate an existing one, **compared ignoring letter case**; storage is not normalized | `skill_name_duplicate` | `Skill.clean()`, backed by `UniqueConstraint(Lower("name"))` in `Skill.Meta` | FR-002 (amended 2026-08-04) |
 
-Shape, per `conventions.md`:
+Notes that govern the `skill_name_duplicate` implementation:
+
+- **FR-003 runs first, FR-002 second.** `clean()` strips the name, refuses it if
+  empty, and only then compares it against the vocabulary — so `"  python  "` is
+  refused as a duplicate of `Python` (spec.md, *Skills* edge cases).
+- **The instance never conflicts with itself.** The lookup excludes the row
+  being saved, or editing a skill without touching its name would refuse itself.
+  Recasing a skill in place (`Python` → `python` on that same row) stays
+  permitted — that is FR-005, correcting a vocabulary entry. What FR-002 forbids
+  is a *new* entry rewriting an existing one's casing.
+- **Storage is never normalized.** The name is stored exactly as typed, trimmed
+  only. On a conflict the existing skill keeps its stored name.
+- **`clean()` issues a database query**, unlike every other `clean()` in this
+  codebase. Any test that calls `Skill.clean()` or `Skill.full_clean()` needs
+  `@pytest.mark.django_db`, or pytest-django's blocker raises
+  `RuntimeError: Database access not allowed`.
+- **The constraint is the backstop, not the messenger.** Django surfaces
+  expression-based constraint violations under `NON_FIELD_ERRORS`, not against
+  `name`, so it cannot satisfy FR-002's "reporting the conflict against the name
+  field" on its own. `clean()` owns the message; the constraint covers the ORM
+  paths that never call it (`.create()`, `.update()`, `bulk_create()`, shell).
+
+Shape of the `profile_for_inactive_account` branch, per `conventions.md`:
 
 ```python
 def clean(self) -> None:
@@ -142,7 +184,7 @@ def clean(self) -> None:
         )
 ```
 
-Notes that govern the implementation:
+Notes that govern the `profile_for_inactive_account` implementation:
 
 - `self.pk is None` scopes the rule to creation. Editing an existing profile on a
   deactivated account stays allowed (FR-030), and deactivating an account never

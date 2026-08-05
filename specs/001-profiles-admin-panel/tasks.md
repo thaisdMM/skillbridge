@@ -33,8 +33,17 @@ implemented, tested and demonstrated independently.
 
 ## Constraints that govern every task
 
-- **No new dependency, no model field, no migration** (research.md R-010).
-  `makemigrations --check --dry-run` must stay clean throughout.
+- **No new dependency, no model field, and exactly one migration** (research.md
+  R-010, amended 2026-08-05). That one migration is the
+  `UniqueConstraint(Lower("name"))` on `Skill.Meta` required by FR-002 (T074,
+  T075) — **scoped to `Skill` only**. Every other model stays under the original
+  no-migration constraint. `makemigrations --check --dry-run` must report "No
+  changes detected" at every point *except* between T074 and T075, and must
+  report it again once T075 has been applied. See the *Migration exception* in
+  Phase 10 and the amended T066.
+  > This bullet previously read *"no model field, no migration … must stay clean
+  > throughout"*. Corrected 2026-08-05 (T084): Phase 10 declared the exception
+  > but this governing block, which is read first, was left contradicting it.
 - **No PII** in any log line or error message (Principle VII).
 - Tests follow `.claude/rules/testing.md`: assert the `ValidationError`
   **code**, never the message; assert the field key is in `error_dict` first;
@@ -97,7 +106,7 @@ profile work in place.
 
 - [X] T011 [US1] Rewrite the stub `django_version/profiles/admin.py` as `SkillAdmin` registered against `profiles.models.skill.Skill`, with `list_display = ("name", "category")`, `list_display_links = ("name",)`, `list_filter = ("category",)`, `search_fields = ("name",)`, `ordering = ("category", "name")`, `list_per_page = 25`, and one unnamed fieldset `("name", "category")` — exactly the table in contracts/admin-surface.md §1
 - [X] T012 [US1] Confirm `SkillAdmin` in `django_version/profiles/admin.py` does **not** inherit `BaseAccountAdmin` and does not suppress `has_delete_permission` — `Skill` is the one record this feature permits an administrator to permanently remove (FR-027, SC-006)
-- [X] T013 [US1] Add the `get_deleted_objects(objs, request)` override to `SkillAdmin` in `django_version/profiles/admin.py`: count referring profiles as `skill.freelancerprofile_set.count() + skill.clientprofile_set.count()` across `objs`, and when the total is greater than zero return a `protected` collection holding a **single summary string** carrying the count — never one entry per profile (FR-028, research.md R-004)
+- [X] T013 [US1] Add the `get_deleted_objects(objs, request)` override to `SkillAdmin` in `django_version/profiles/admin.py`: count referring profiles as `skill.freelancerprofile_set.count() + skill.clientprofile_set.count()` across `objs`, and when the total is greater than zero return a `protected` collection holding a **single summary string** carrying the count — never one entry per profile (FR-028, research.md R-004). **⚠️ Counting method SUPERSEDED 2026-08-05 by T076 — do not implement the expression above.** It sums **references**, not distinct profiles: one profile referring to three selected skills contributes three, so a bulk selection over-reports (finding F-4), and it issues one `COUNT` per profile model per skill (finding F-6). Measured on the development database 2026-08-05: reported **7** where **3** profiles were affected. T076 replaces it with two aggregates over `FreelancerProfile` / `ClientProfile` filtered by the selection. **Still valid from this task**: the single-summary-string rule and the no-enumeration clause of FR-028, which T076 does not change. The `[X]` records that the override was built as specified at the time; the counting method is now wrong
 
 ### Tests for User Story 1
 
@@ -201,6 +210,46 @@ Validate with quickstart.md section C.
 
 ---
 
+## Phase 5.1: Artifact repairs — align the spec set before Phase 10 (added 2026-08-05)
+
+**Origin**: the cross-artifact analysis of 2026-08-05, run after the FR-002
+amendment of 2026-08-04 had been propagated into `spec.md`, `data-model.md`,
+`contracts/admin-surface.md`, `.claude/rules/conventions.md` and `tasks.md`
+(T068–T072). That propagation **stopped short of three artifacts**, and the
+audit's finding F-7 was never closed at all.
+
+**Goal**: no artifact contradicts another before any Phase 10 code is written.
+
+**Why this blocks Phase 10, and why it is not "respecting a wrong spec".**
+Principle XII says *"neither the document nor the code may be silently assumed
+correct"* — so an implementer who opens `plan.md`, reads "no migration", and then
+reaches T074 **must stop and report**. Three of these repairs remove exactly that
+stop-work condition. They do not overrule any decision: the decision (FR-002
+case-insensitive, one migration) was made by the human on 2026-08-04 and is
+recorded in `spec.md` *Clarifications*. These files are simply **stale**.
+Finishing the propagation is bookkeeping, not a change of direction.
+
+T083 is different in kind: it puts a rule into the spec that T073 already
+implements but that no requirement stated. That one is a genuine gap, and the
+spec is the right place for it under Principle XII.
+
+**Depends on**: nothing. **Blocks**: Phase 10 (T073–T080).
+
+- [X] T081 [P] Amend `specs/001-profiles-admin-panel/plan.md` for the one intended migration and the Principle X exception: the Summary's "no dependency, no field and no migration"; **Technical Context → Storage** ("Schema unchanged"); **Technical Context → Constraints** ("No model field and no migration"); the **Constitution Check row IV** verdict, which reads "PASS — feature generates no migration at all" and is a false PASS on a NON-NEGOTIABLE gate; **row X**, which records the FR-027 deletion exception as a plain PASS without noting it is absent from the constitution; the source tree, which omits `profiles/models/skill.py`, `profiles/migrations/` and `test_skill.py`; and *Follow-ups*, which omits F-7 and `skill_name_duplicate`. Add a dated amendment note in the shape used by `data-model.md:14-18`. **This is the highest-value repair in the phase** — plan.md is one of the three core artifacts and the only one still asserting the opposite of the approved decision
+- [X] T082 [P] Amend `specs/001-profiles-admin-panel/research.md`: **R-010** ("No new dependencies, no migrations" → exactly one, scoped to `Skill`; *"alters no field and no database schema, so `makemigrations` produces nothing"*), and the closing line of **R-002** (*"No model field is added and no migration is generated"* — the first half stands, the second does not). Both are cited by `tasks.md` as the authority for the constraint Phase 10 supersedes, so leaving them unamended points the exception back at an unamended source. R-002's substance — the FR-021 narrowing, no timestamp field on `Skill` — is unchanged and must stay so
+- [X] T083 [P] Add the **self-conflict rule** to `specs/001-profiles-admin-panel/spec.md`, which currently states it nowhere: FR-002's closing clause (*"an existing name MUST NOT be silently rewritten to the casing just submitted"*) reads on its own as forbidding `Python` → `python` on the same record, yet T073's self-exclusion, T077's fourth bullet and `data-model.md:153-156` all depend on it being permitted, attributing it to FR-005. Add the clause to FR-002, a pointer on FR-005, US1 acceptance scenarios for recasing-in-place and for saving unchanged, and a *Skills* edge case. **Blocks T073** — without it, T073 implements a rule the spec does not carry
+- [X] T084 [P] Repair `specs/001-profiles-admin-panel/tasks.md` itself: annotate **T013** as superseded by T076 (it prescribes the reference-summing count T076 forbids, is marked `[X]`, and carries no revision note — unlike T008, T024, T034, T038 and T066, which all do); correct the **Constraints that govern every task** block, which still says "no migration … must stay clean throughout"; give **T065** and **T067** the ordering amendment only T066 received; rewrite **Dependencies & Execution Order**, which stopped at Phase 9 and never mentioned Phase 10; add Phase 5.1 and Phase 10 to **Incremental Delivery**; and fix **T078**'s positional `[0].code` assertion, which cannot reach the two codes its own whitespace bullet requires
+- [X] T085 [P] Close finding **F-7** in `.claude/rules/conventions.md` *Admin conventions*, which still states `has_delete_permission` returns `False` on **all** admin classes — false since T012, and the audit recorded that the unqualified rule "invites a future session to 'fix' `SkillAdmin` back and break FR-027". Record the `SkillAdmin` exception in **two terse bullets**: the rule now reads "every admin class except `SkillAdmin`", and a second bullet states that `SkillAdmin` permits deletion, why (`Skill` has no `is_active` field), what guards it (`get_deleted_objects()`; `on_delete` has no effect on a `ManyToManyField`), the standing instruction not to suppress it, and a pointer to `docs/adr/skill-is-the-only-deletable-record.md`. Also drop the `skill_name_duplicate` entry's claim to be *"the only `clean()` that queries the database"* being the whole story — `FreelancerProfile.clean()` and `ClientProfile.clean()` dereference `self.user` via `_get_account()`, which issues a `SELECT` when the relation is not cached; that nuance belongs in the ADR, not here.
+  > **Constraint on this task, set by the human 2026-08-05.** `conventions.md` is auto-loaded into every session and records **architecture and code/documentation conventions only**. It MUST NOT mention requirement IDs, task IDs, finding IDs, spec paths, phases, user stories, or the roadmap: those are transient, they rot when a feature directory is archived, and they cost context on every session. State the rule; put the reasoning and the audit trail in an ADR and link it. The first version of this task's output violated this and was rewritten. Verify with: `grep -nE "FR-[0-9]|SC-[0-9]|T0[0-9][0-9]|F-[0-9]|specs/|Phase [0-9]|US[0-9]" .claude/rules/conventions.md` — must return nothing
+- [X] T087 [P] Record the two substantive decisions behind this feature's `Skill` work as ADRs in `docs/adr/`, following the MADR shape of the two existing files (`**Date:** / **Status:** / **Applies to:**`, *Context and Problem Statement*, *Considered Options*, *Decision Outcome*, a forward-looking constraint in a blockquote, and `* Good/Bad, because …` consequences): `skill-is-the-only-deletable-record.md` — why `Skill` is exempt from deactivate-never-delete, why `get_deleted_objects()` is the guard, why it counts distinct profiles over two aggregates, and the two standing constraints that must not be reverted; and `case-insensitive-skill-name-uniqueness.md` — why `clean()` plus `UniqueConstraint(Lower("name"))` rather than either alone, why a case-insensitive collation was rejected, why `unique=True` stays, why storage is never normalized, and why the `unique` code becomes unreachable. **Like the ADRs already in that directory, these reference code and behavior only — no requirement, task or finding IDs.** One decision per file, matching the `docs/tech_debt/` rule in `CLAUDE.md`. These absorb the reasoning removed from `conventions.md` by T071/T085 and the `get_deleted_objects()` half formerly assigned to `ARCHITECTURE.md` by T061
+- [ ] T086 Close the **Principle X** gap in `.specify/memory/constitution.md`: it states *"Deletion is disabled in the admin"*, which FR-027, SC-006 and `SkillAdmin` contradict by design. **Requires explicit human approval and a version bump** — Governance mandates that amendments be *"recorded in the Sync Impact Report at the top of this file"* and carry a bump, and that a contradiction be *"raised with the human and resolved explicitly — never silently"*. An inline note would be that silent resolution, so this is the one repair in the phase that must **not** be applied unilaterally. Route: `/speckit-constitution`. Principle X's own closing sentence already permits the exception (*"Introducing physical deletion requires revisiting this policy explicitly and documenting it"*), and the human approved it on 2026-07-28 (plan.md), so this records a decision already taken rather than making a new one. **Do before T081's row X edit**, so the plan can cite the amended principle
+
+**Checkpoint**: every artifact tells the same story. `grep -rn "no migration"`
+across `specs/001-profiles-admin-panel/` and `plan.md` returns only amended,
+dated notes. Phase 10 can start without a Principle XII stop-work.
+
+---
+
 ## Phase 6: User Story 4 - Profile and account on one screen, without regressing account administration (Priority: P4)
 
 **Goal**: Verify the combined screen as a whole — profile visible and editable
@@ -213,6 +262,13 @@ the existing account-administration checks and confirm nothing regressed.
 
 **Depends on**: Phases 4 and 5. This story is verification of the whole and
 adds no production code unless a regression is found.
+
+> **⚠️ Execution order, 2026-08-05: Phase 5.1 and Phase 10 run before this
+> phase.** Phase 10 changes `profiles/models/skill.py` and `profiles/admin.py`
+> and repairs two tests; running the verification gates here and in Phase 9
+> first means running them twice. See *Dependencies & Execution Order*, which is
+> authoritative. Phase 6 itself is unaffected by Phase 10's changes — the file
+> sets are disjoint — so the two may also run in parallel.
 
 - [ ] T040 [US4] Run `docker-compose exec web pytest accounts/tests/admin/test_admin.py -v` from `django_version/` and confirm every test passes **unchanged** — this is the SC-009 gate. If any test needs modification, stop and report: only the three additions FR-024 names as intended are permitted to change behavior (Principle XII)
 - [ ] T041 [US4] In `django_version/accounts/tests/admin/test_profile_inlines.py`, assert a profile rule violation raised from the account screen surfaces as a field-level error inside the profile section and never as an unhandled failure (FR-020, US4 scenario 4, SC-004). **Partly delivered in Phase 4, 2026-08-01**: manual validation found that `profile_for_inactive_account`, keyed to the hidden `user` field, was rendered nowhere — the screen showed only "Please correct the error below". Fixed by `ProfileInlineForm` on `BaseProfileInline`, covered by three tests in that module. What remains for T041 is the client-side equivalent and the "never an unhandled failure" half. See research.md R-003, *Correction, 2026-08-01*
@@ -295,17 +351,49 @@ quickstart.md rows D5–D9.
 **Purpose**: Documentation the plan commits to, and the full validation gate.
 
 - [ ] T060 [P] Add `profile_for_inactive_account` to the *Established invariants* list in `.claude/rules/conventions.md`, following the existing entry format (plan.md:234-235; quickstart.md "Done when")
-- [ ] T061 [P] Record two decisions in `ARCHITECTURE.md`: the FR-021 narrowing for the skill screens (no timestamps on `Skill`, ordering by category then name — research.md R-002) and the FR-028 mechanism (`get_deleted_objects()`, because `on_delete=PROTECT` does not protect a many-to-many — research.md R-004)
+- [ ] T061 [P] Record the FR-021 narrowing for the skill screens as an **ADR in `docs/adr/`** — no timestamps on `Skill`, so the timestamp and most-recent-first clauses are narrowed to apply only where the model carries those fields; ordering stays `("category", "name")` (research.md R-002). MADR short form, under ~60 lines, referencing code and behavior only — see *Recording decisions* in `conventions.md`. **Retargeted twice on 2026-08-05.** It originally asked for two decisions in `ARCHITECTURE.md`: (1) this FR-021 narrowing and (2) the FR-028 `get_deleted_objects()` mechanism. The second is already written as `docs/adr/skill-is-the-only-deletable-record.md` (T087) — do **not** duplicate it. The first moved out of `ARCHITECTURE.md` because that file is now **closed to new entries** by human decision and will itself be refactored into `docs/adr/`; all new architectural decisions are ADRs from now on
 - [ ] T062 [P] Add one file to `docs/tech_debt/` (one decision per file, ADR-style — the directory replaced the single `tech_debt.md` on 2026-08-04): the deferred standalone profile screens and the inline/ModelAdmin split they will create across `accounts` and `profiles` (research.md R-001). **Revised 2026-07-31**: the second entry this task originally asked for — `ClientProfile`'s untested rules — is dropped; the human closed that gap before implementation (research.md R-009)
 - [ ] T063 Review `django_version/accounts/admin.py` and `django_version/profiles/admin.py` against `.claude/rules/conventions.md` *Code standards*: Google-style docstrings on every class and method, type hints on every signature, no inline comments, English only
 - [ ] T064 Confirm no PII appears in the new `logger.error` calls in `django_version/profiles/models/freelancer_profile.py` and `django_version/profiles/models/client_profile.py` — no email, no name, no account-holder id (Principle VII)
-- [ ] T065 Run the full suite: `docker-compose exec web pytest` from `django_version/`. Compare the passing count against the T004 baseline; every previously passing test must still pass (SC-009)
-- [ ] T066 Run `docker-compose exec web python manage.py makemigrations --check --dry-run` from `django_version/` and confirm "No changes detected" — a non-empty result means a model change slipped in and must be raised before going further (Principle IV, research.md R-010)
-- [ ] T067 Walk the full quickstart.md manual validation, sections A–F, and confirm every row behaves as stated — including section F's single intended exception, the absent timestamp section on the skill screens
+- [ ] T065 Run the full suite: `docker-compose exec web pytest` from `django_version/`. Compare the passing count against the T004 baseline; every previously passing test must still pass (SC-009). **Amended 2026-08-05: run this after Phase 10, never between T073 and T077.** T073 makes `test_skill.py`'s `test_skill_name_uniqueness` assertion (`code == "unique"`) unreachable and `test_skill_clean_strips_whitespace` hit pytest-django's DB blocker; T077 repairs both. Running T065 in that window reports failures that are expected and already accounted for, which would be misread as an SC-009 regression
+- [ ] T066 Run `docker-compose exec web python manage.py makemigrations --check --dry-run` from `django_version/` and confirm "No changes detected" — a non-empty result means a model change slipped in and must be raised before going further (Principle IV, research.md R-010). **Amended 2026-08-05:** the FR-002 clarification of 2026-08-04 introduces **exactly one intentional migration** in `profiles/` — the `UniqueConstraint(Lower("name"))` on `Skill.Meta` (T074), generated and applied by T075. This gate now means: that migration exists, is committed **and is applied**, and the check reports "No changes detected" **afterwards**. Run this task after Phase 10, never before it. Any pending change beyond that one migration still means a model change slipped in and must be raised before going further
+- [ ] T067 Walk the full quickstart.md manual validation, sections A–F, and confirm every row behaves as stated — including section F's single intended exception, the absent timestamp section on the skill screens. **Amended 2026-08-05: requires T080 first, and must run after Phase 10.** T080 adds rows A10 and A11, which are the only manual coverage of the amended FR-002; walking section A before T080 exercises the old rule and silently proves nothing about the new one. The schema-drift step and the *Done when* checklist in quickstart.md were corrected on 2026-08-05 to expect the one intended migration
 
 ---
 
 ## Dependencies & Execution Order
+
+> **This section is the authoritative execution order.** Where a phase's
+> physical position in this file differs from its position here, **this section
+> wins**. Phase 5.1 and Phase 10 were both added after the original phases were
+> written, and Phase 10's body sits at the end of the file for reference
+> stability (it is cross-referenced by ID from T066, T065, T067 and from
+> `docs/skill-admin-findings-2026-08-04.md`), not because it runs last.
+> Rewritten 2026-08-05 (T084) — the previous version stopped at Phase 9 and
+> never mentioned Phase 10, which is why T066 needed a hand-written "run this
+> after Phase 10" note to compensate.
+
+### Authoritative order
+
+```text
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
+       → Phase 5.1  (artifact repairs — BLOCKING, see below)
+       → Phase 10   (FR-002 + audit follow-up: code, tests, migration)
+       → Phase 6 → Phase 7 → Phase 8 → Phase 9
+```
+
+**Why Phase 10 moved ahead of Phases 6–9** *(decision 2026-08-05)*: Phases 6
+and 9 are almost entirely whole-system verification gates (T040, T063, T065,
+T066, T067), and Phase 10 changes the code and tests those gates measure.
+Running the gates first means running them twice, and T065 in particular
+**fails** if run between T073 and T077. The governing rule is: **every code and
+test change lands before every whole-system verification gate.**
+
+Phase 10 is safe to move because its file set —
+`profiles/models/skill.py`, `profiles/admin.py`, `profiles/tests/models/test_skill.py`,
+`profiles/tests/admin/test_skill_admin.py` — is **disjoint** from the file set of
+Phases 6–8 (`accounts/admin.py`, `accounts/tests/admin/`). The two could even run
+in parallel; sequential is simpler.
 
 ### Phase Dependencies
 
@@ -316,13 +404,22 @@ quickstart.md rows D5–D9.
 - **Phase 4 (US2, P2)**: Depends on Phase 2.
 - **Phase 5 (US3, P3)**: Depends on Phase 2. Independent of US2, but shares two
   files with it — see the file-sharing note in Phase 5.
+- **Phase 5.1 (Artifact repairs)**: Depends on nothing but must complete
+  **before Phase 10**. T081/T082/T083 remove Principle XII stop-work conditions
+  that would otherwise halt T073–T075; T083 supplies the FR-005 self-conflict
+  rule T073 implements. **Blocks Phase 10.**
+- **Phase 10 (FR-002 + audit follow-up)**: Depends on Phase 3 (complete) and
+  Phase 5.1. **Blocks T063, T065, T066 and T067** in Phase 9. Independent of
+  Phases 6, 7 and 8 — disjoint file sets.
 - **Phase 6 (US4, P4)**: Depends on Phases 4 and 5. It is verification of the
   combined screen, so both inlines must exist.
 - **Phase 7 (US5, P5)**: Depends on Phase 2; meaningful data requires Phases
   4–5.
 - **Phase 8 (US6, P6)**: Depends on Phase 2; shares both `list_filter` tuples
   with US5, so deliver alongside it.
-- **Phase 9 (Polish)**: Depends on every story that is being shipped.
+- **Phase 9 (Polish)**: Depends on every story that is being shipped **and on
+  Phase 10**. T063 reviews `profiles/admin.py`, which T076 rewrites; T065, T066
+  and T067 are the final gates and must see the finished state.
 
 ### User Story Dependencies
 
@@ -406,10 +503,18 @@ Phase 2 is **not** required for the MVP. It is required for everything after.
 3. Foundational → FR-029 enforced, shared inline base in place.
 4. **US2** → freelancer profiles on the account screen → demo.
 5. **US3** → client profiles on the account screen → demo.
-6. **US4** → regression pass; the combined screen is proven.
-7. **US5 + US6 together** → both account lists gain the badge and both filters
+6. **Phase 5.1** → the spec artifacts agree with each other again; Principle XII
+   stop-work conditions cleared.
+7. **Phase 10** → FR-002 case-insensitive uniqueness (+ migration), the F-4/F-6
+   count correction, and the F-3 admin tests → demo the refusal of `python`
+   against `Python`.
+8. **US4** → regression pass; the combined screen is proven.
+9. **US5 + US6 together** → both account lists gain the badge and both filters
    → demo.
-8. Polish → documentation, full suite, migration check, manual walkthrough.
+10. Polish → documentation, full suite, migration check, manual walkthrough.
+
+> Steps 6 and 7 were inserted on 2026-08-05. They were previously numbered
+> Phase 10 and listed nowhere in this sequence, which implied Polish was last.
 
 ### Parallel Team Strategy
 
@@ -438,3 +543,119 @@ With two developers, after Phase 1:
 - If the code is found to diverge from spec.md, plan.md or this file, **stop and
   report** — neither the document nor the code may be silently assumed correct
   (Principle XII).
+
+---
+
+## Phase 10: FR-002 case-insensitive skill-name uniqueness, and the skill-admin audit follow-up (added 2026-08-05)
+
+**Origin**: the read-only audit in `docs/skill-admin-findings-2026-08-04.md`
+(findings F-1, F-2, F-3, F-4, F-5, F-6) and the `/speckit-clarify` session of
+2026-08-04, whose two answers are recorded under *Clarifications* in
+[spec.md](./spec.md) and rewrote FR-002.
+
+**Goal**: `python` is refused while `Python` exists, reported against the name
+field, with the stored spelling never rewritten — enforced in `Skill.clean()`
+and backed by a database constraint. Plus the three smaller corrections the same
+audit produced: the missing admin tests (F-3), the inflated in-use count (F-4)
+and the per-skill query count (F-6).
+
+**Depends on**: Phase 3 (User Story 1), which is complete, **and Phase 5.1**,
+which clears the Principle XII stop-work conditions in `plan.md` and
+`research.md` and supplies the FR-005 self-conflict rule T073 implements. This
+phase amends what T011–T021 built.
+
+**Position in the execution order**: this phase runs **after Phase 5.1 and
+before Phase 6** — not last, despite sitting at the end of this file. Its body
+stays here for reference stability (it is cross-referenced by ID from T065,
+T066, T067 and from `docs/skill-admin-findings-2026-08-04.md`). *Dependencies &
+Execution Order* is authoritative. It **blocks** T063, T065, T066 and T067.
+
+**Decisions already taken — do not reopen** (human, 2026-08-04 / 2026-08-05):
+
+- Uniqueness is **case-insensitive**; storage is **not** normalized. The name is
+  stored exactly as entered, trimmed only; on a conflict the existing skill
+  keeps its spelling (spec.md *Clarifications*, FR-002).
+- Mechanism: a case-insensitive check in `Skill.clean()` raising a new code on
+  `name`, **plus** `UniqueConstraint(Lower("name"))` in `Skill.Meta` as the
+  database backstop. This mirrors `freelancer_no_inactive_available`
+  (`ARCHITECTURE.md`, *Freelancer — Active/Availability Invariant*). A
+  constraint alone is not viable: Django reports expression-based constraint
+  violations under `NON_FIELD_ERRORS`, which fails FR-002's "reporting the
+  conflict against the name field". Verified against the pinned 6.0.7 on
+  2026-08-05: `UniqueConstraint.validate()` raises with no field key;
+  `Model.validate_constraints()` routes to a field only when the code is
+  `unique` **and** the constraint declares exactly one `fields` entry, which an
+  expression constraint does not; so `ValidationError.update_error_dict()` files
+  it under `NON_FIELD_ERRORS`.
+- Error code: `skill_name_duplicate`. Constraint name:
+  `skill_unique_name_case_insensitive`.
+- `unique=True` **stays** on the field. Removing it would add an `AlterField` to
+  the migration for no behavioural gain.
+- Recasing a skill **in place** (`Python` → `python` on that same row) stays
+  permitted — that is FR-005. The lookup must exclude the row being saved.
+- **F-5 does not become a constraint.** Recorded as technical debt instead —
+  `docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md`.
+
+**Migration exception — scoped to this phase.** The constraint at the top of
+this file (*"No new dependency, no model field, no migration"*, research.md
+R-010) is superseded **for `Skill` only** by the FR-002 amendment. This phase
+adds exactly **one** migration and no field. Every other model stays under the
+original constraint, and T066 is amended accordingly.
+
+**Migration pre-condition — closed.** A read-only query on 2026-08-05 returned
+32 skills and **0** colliding groups on `LOWER(name)` in the development
+database. The migration will not abort on existing data. Re-run the check
+against any other environment before migrating it.
+
+### Artifact amendments (applied 2026-08-05 during planning)
+
+- [X] T068 [P] [US1] Propagate the FR-002 amendment into `specs/001-profiles-admin-panel/data-model.md`: the "no migration" claim in the opening paragraph, the `name` row of the `Skill` table, the removal of the `unique` (Django) row from *Already enforced*, and the new `skill_name_duplicate` row in *New — the model changes this feature makes* with the notes governing its implementation
+- [X] T069 [P] [US1] Revise `specs/001-profiles-admin-panel/contracts/admin-surface.md` §4: the duplicate-name row is **revised in place** to `skill_name_duplicate` (not complemented — `unique` becomes unreachable on any path that runs `clean()`, so two rows for one trigger would document an impossible outcome); the whitespace row is corrected to `required` **and** `skill_name_empty` (finding F-2b, verified through the bound form on 6.0.7); the "only new code this feature introduces" paragraph now names both codes; §6 drops "no migration"
+- [X] T070 [P] [US1] Revise `specs/001-profiles-admin-panel/contracts/admin-surface.md` §1: the `get_deleted_objects()` contract now prescribes **distinct profiles** over two aggregate queries instead of summing `freelancerprofile_set.count() + clientprofile_set.count()` per skill (findings F-4 and F-6). Measured on the development database, 2026-08-05: the old prescription reported 7 where 3 profiles were affected
+- [X] T071 [P] [US1] Add `skill_name_duplicate` to the *Established invariants* list in `.claude/rules/conventions.md`, following the terse shape of the existing entries: the rule, the code, the database backstop, and the `@pytest.mark.django_db` consequence. **Separate from T060**, which covers `profile_for_inactive_account` — both codes must be listed, neither replaces the other. **Revised 2026-08-05, by human decision:** the entry as first written explained *why* the constraint cannot carry the message (Django's `NON_FIELD_ERRORS` routing). That is Django behavior, not a project convention, and `conventions.md` is auto-loaded into every session — it states what to do, not why. The reasoning moved to `docs/adr/case-insensitive-skill-name-uniqueness.md` (T087) and the entry now points there. **`conventions.md` must contain no requirement, task, finding, or roadmap reference of any kind**
+- [X] T072 [P] [US1] Record finding F-5 in `docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md`, following the format of `whitespace-only-company-name-accepted-in-admin.md`, with four reversal criteria and the steps to take when one fires
+
+### Implementation
+
+- [ ] T073 [US1] Add the case-insensitive duplicate check to `Skill.clean()` in `django_version/profiles/models/skill.py`, **after** the existing strip and empty-name branches so FR-003 is applied before FR-002 (spec.md, *Skills* edge cases). Follow the required `clean()` shape in `conventions.md`: `logger.error` with no PII (log no name, no value — the name is not PII but the pattern logs derived facts only), message wrapped in `gettext_lazy`, and `raise ValidationError({"name": ValidationError(_(...), code="skill_name_duplicate")})`. The lookup is case-insensitive over the vocabulary and **must exclude the row being saved**, or editing a skill without changing its name would refuse itself and FR-005 recasing would become impossible. Skip the lookup when `name` is `None` or empty — the branches above have already spoken
+- [ ] T074 [US1] Add `constraints = [UniqueConstraint(Lower("name"), name="skill_unique_name_case_insensitive")]` to `Skill.Meta` in `django_version/profiles/models/skill.py`, importing `Lower` from `django.db.models.functions`. Keep `unique=True` on the field. This is the backstop for `.create()`, `.update()`, `bulk_create()` and shell writes, which never call `clean()` (`conventions.md`, *clean() is not called automatically*)
+- [ ] T075 [US1] Generate and apply the migration: `docker-compose exec web python manage.py makemigrations profiles` then `migrate`, from `django_version/`. **Requires explicit human approval before running** (`CLAUDE.md` Rule 10). Confirm the result is a single `AddConstraint` operation and nothing else — an `AlterField` in the output means `unique=True` was removed by mistake. The pre-condition is closed (0 collisions on 2026-08-05); if the command is ever run against another environment, re-check `LOWER(name)` collisions there first, because the migration aborts on one
+- [ ] T076 [US1] Correct `SkillAdmin.get_deleted_objects()` in `django_version/profiles/admin.py` to count **distinct profiles** rather than references, per the revised contract in contracts/admin-surface.md §1 — one aggregate over `FreelancerProfile` and one over `ClientProfile`, filtered by the selected skills, two queries whatever the selection size (findings F-4 and F-6 in one change). The refusal message, the single-summary-string rule and the no-enumeration clause of FR-028 are unchanged. Import the profile models from `profiles.models.*`, never from `profiles.admin` (research.md R-001)
+
+### Tests
+
+- [ ] T077 [US1] Extend `django_version/profiles/tests/models/test_skill.py` for the new rule, and repair the two tests it invalidates:
+  - `python` against an existing `Python` raises `skill_name_duplicate` on the `name` key — assert the key is in `error_dict` first, then the code (`testing.md`)
+  - `"  python  "` against `Python` is refused with the same code — proves the trim runs before the comparison
+  - saving an existing skill without changing its name is **accepted** — this is the test that fails if the self-exclusion is missing
+  - recasing a skill in place (`Python` → `python` on that row) is accepted (FR-005)
+  - a lowercase duplicate written through a path that skips validation raises `IntegrityError` — the database backstop, mirroring the existing `test_skill_name_uniqueness_enforced_at_database_level`
+  - **repair 1**: `test_skill_name_uniqueness` asserts `code == "unique"`, which the change makes unreachable — `Model.full_clean()` excludes any field that already failed before running `validate_unique()`. Update the assertion to `skill_name_duplicate`. Verified against the pinned 6.0.7 on 2026-08-05: the same call returns `['unique']` today and `['skill_name_duplicate']` with the rule in place
+  - **repair 2**: `test_skill_clean_strips_whitespace` has no `@pytest.mark.django_db` and does not need one today, because `clean()` is pure Python. Once `clean()` issues its lookup, the test hits pytest-django's blocker (`RuntimeError: Database access not allowed`). Add the marker. The other two `clean()` tests stay marker-free and must remain so: the empty-name test raises before the lookup, and the `None`-name test never reaches it
+- [ ] T078 [US1] Add the missing admin-path coverage to `django_version/profiles/tests/admin/test_skill_admin.py` (finding F-3 — FR-002 and FR-003 have no admin-layer test at all today). Drive the real form, `SkillAdmin(Skill, site).get_form(request)`, and assert codes through `form.errors.as_data()`, the pattern already used in `accounts/tests/admin/`. Assert the `name` key is present first, then the code — per `testing.md`. For the single-code cases `[0].code` is fine; for the two-code whitespace case below, compare the **set** of codes (`{e.code for e in form.errors.as_data()["name"]}`) rather than indexing, so the test does not encode Django's internal error ordering (`clean_fields()` before `clean()`) as if it were the contract:
+  - an exact duplicate is refused with `skill_name_duplicate`
+  - a case variant is refused with the same code, **and the existing skill still carries its original spelling** (FR-002's "the existing skill keeps its stored name")
+  - `"  python  "` is refused — case and whitespace combined
+  - a whitespace-only name yields **both** `required` and `skill_name_empty` on `name` (finding F-2b; a test asserting exactly one error would fail)
+  - a brand-new name is accepted, so the rule is proven to refuse duplicates rather than everything
+  - **Do not write a test asserting that the admin trims a name** (finding F-2a). The form's `CharField` carries `strip=True`, so such a test asserts Django's stripping and keeps passing with `Skill.clean()` deleted — tautological under `testing.md`'s *"a test must fail if the behavior under test is removed"*. The trim is covered on the model path, where it is reachable
+- [ ] T079 [US1] Add the coverage T018 cannot provide, in `django_version/profiles/tests/admin/test_skill_admin.py`: several skills selected together, all referred to by the **same single profile**, produce a count of **1** — the current implementation reports one per reference and would say 3. Add a query-count guard with `django_assert_num_queries` showing the count does not scale with the size of the selection (finding F-6). T018 uses one skill and three profiles, which is the case where references and profiles happen to be equal, which is why it never caught this
+
+### Manual validation
+
+- [ ] T080 [US1] Add two rows to `specs/001-profiles-admin-panel/quickstart.md` section A, after the existing A9, in the same table format: **A10** — with `Python` in the vocabulary, adding `python` is refused with a message on the name field, no second row is created, and the existing skill is still spelled `Python` (US1-8, FR-002); **A11** — adding `JavaScript` stores it exactly as `JavaScript`, with no capitalization rule applied (US1-9, FR-002 storage clause). T067 walks section A and would otherwise never exercise the amended rule
+
+### Dependencies within this phase
+
+- T068–T072 are applied. They touch five different documents and were
+  independent of each other.
+- T073 → T074 → T075 in sequence: the model rule, then the constraint, then the
+  single migration carrying it.
+- T076 is independent of T073–T075 — a different file and a different finding.
+  It can be done first.
+- T077 requires T073 and T074 (the `IntegrityError` case needs the constraint in
+  the test schema; `--no-migrations` builds it straight from `Meta`, so T075 is
+  not required for the suite to see it).
+- T078 requires T073. T079 requires T076.
+- T080 is independent of everything and can be written at any point.
+- **T066 must run after this phase**, never before — see its amendment.
