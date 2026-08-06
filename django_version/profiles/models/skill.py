@@ -9,6 +9,7 @@ to filter job postings.
 import logging
 
 from django.db import models
+from django.db.models.functions import Lower
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
@@ -71,6 +72,11 @@ class Skill(models.Model):
         verbose_name_plural = _("Skills")
         db_table = "skills"
         ordering = ["category", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), name="skill_unique_name_case_insensitive"
+            )
+        ]
 
     def __str__(self) -> str:
         """
@@ -98,11 +104,16 @@ class Skill(models.Model):
         """
         Enforce skill validation invariants.
 
-        Normalizes the skill name by stripping leading and trailing whitespace.
-        Ensures the name is not empty after normalization.
+        Strips leading and trailing whitespace from the name, refuses a name
+        left empty by the strip, and refuses a name another skill already
+        carries when letter case is ignored. The name is kept as entered, with
+        only the surrounding whitespace removed, and the skill being saved is
+        left out of the comparison.
 
         Raises:
             ValidationError: If name is empty or only whitespace.
+            ValidationError: If another skill already carries the name,
+                ignoring letter case.
         """
         super().clean()
 
@@ -117,6 +128,30 @@ class Skill(models.Model):
                         "name": ValidationError(
                             _("Skill name cannot be empty or only whitespace."),
                             code="skill_name_empty",
+                        )
+                    }
+                )
+
+            duplicate_exists = (
+                Skill.objects.annotate(lower_name=Lower("name"))
+                .filter(lower_name=self.name.lower())
+                .exclude(pk=self.pk)
+                .exists()
+            )
+
+            if duplicate_exists:
+                logger.error(
+                    "Skill name validation failed - case-insensitive duplicate"
+                    " of an existing skill name"
+                )
+                raise ValidationError(
+                    {
+                        "name": ValidationError(
+                            _(
+                                "A skill with this name already exists. Skill"
+                                " names are compared ignoring letter case."
+                            ),
+                            code="skill_name_duplicate",
                         )
                     }
                 )
