@@ -542,7 +542,42 @@ Established conventions for the Django admin layer:
   Open/Closed.
 - All code, variable names, comments, docstrings, and commit messages
   in English.
-- Commit messages are multiline with bullet points and descriptive.
+
+### What belongs in a docstring
+
+A docstring states **what** the class, method or function does. It does not
+explain framework internals, justify a design decision, or argue why an
+alternative was rejected. That reasoning belongs in `docs/adr/`.
+
+```python
+# Rejected — explains Django's mechanics and the rationale
+"""
+Refuse removal of a skill that a profile still refers to.
+
+on_delete has no effect on a many-to-many relation, so deleting a skill
+would drop its join-table rows and silently detach it from every profile
+referring to it.
+"""
+
+# Accepted — describes the behavior of this method
+"""
+Mark the selected skills as protected while profiles still refer to them.
+
+Counts the distinct profiles referring to the selection. When the count is
+greater than zero, a single summary line carrying it is added to the
+protected collection.
+"""
+```
+
+### Commit messages
+
+- Multiline, with bullet points, descriptive.
+- Written for a reader who has never opened the spec: state what changed in
+  the code and why, in plain terms. The bullets summarize; the diff carries
+  the detail.
+- No requirement IDs, task IDs, finding IDs, spec paths, or roadmap items —
+  the same rule the ADR and convention files follow, for the same reason.
+- No `Co-Authored-By` trailer.
 
 ---
 
