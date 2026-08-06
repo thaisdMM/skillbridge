@@ -142,6 +142,46 @@ def test_get_deleted_objects_summarizes_several_referring_profiles_in_one_entry(
 
 
 @pytest.mark.django_db
+def test_get_deleted_objects_counts_a_profile_referring_to_several_selected_skills_once(
+    admin_request: HttpRequest,
+    skill: Skill,
+    freelancer_profile: FreelancerProfile,
+) -> None:
+    """Three selected skills on one single profile produce a count of one."""
+    second_skill = Skill.objects.create(
+        name="Django", category=Skill.Category.TECHNOLOGY
+    )
+    third_skill = Skill.objects.create(name="Figma", category=Skill.Category.DESIGN)
+    freelancer_profile.skills.add(skill, second_skill, third_skill)
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+
+    *_, protected = admin_instance.get_deleted_objects(
+        [skill, second_skill, third_skill], admin_request
+    )
+
+    assert len(protected) == 1
+    assert "1" in protected[0]
+
+
+@pytest.mark.django_db
+def test_counting_referring_profiles_issues_two_queries_for_a_selection_of_three_skills(
+    django_assert_num_queries,
+    skill: Skill,
+    freelancer_profile: FreelancerProfile,
+) -> None:
+    """Counting the profiles referring to three selected skills issues two queries."""
+    second_skill = Skill.objects.create(
+        name="Django", category=Skill.Category.TECHNOLOGY
+    )
+    third_skill = Skill.objects.create(name="Figma", category=Skill.Category.DESIGN)
+    freelancer_profile.skills.add(skill, second_skill, third_skill)
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+
+    with django_assert_num_queries(2):
+        admin_instance._count_referring_profiles([skill, second_skill, third_skill])
+
+
+@pytest.mark.django_db
 def test_refused_deletion_leaves_the_skill_attached_to_every_profile(
     confirmed_delete_request: HttpRequest,
     skill: Skill,

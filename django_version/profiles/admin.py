@@ -14,6 +14,8 @@ from django.db.models import QuerySet
 from django.http import HttpRequest
 from django.utils.translation import ngettext
 
+from profiles.models.client_profile import ClientProfile
+from profiles.models.freelancer_profile import FreelancerProfile
 from profiles.models.skill import Skill
 
 
@@ -52,10 +54,10 @@ class SkillAdmin(admin.ModelAdmin):
         """
         Mark the selected skills as protected while profiles still refer to them.
 
-        Counts the freelancer and client profiles referring to the selection.
-        When the count is greater than zero, a single summary line carrying it
-        is added to the protected collection, which stops the deletion on both
-        the delete view and the delete selected action.
+        Counts the distinct freelancer and client profiles referring to the
+        selection. When the count is greater than zero, a single summary line
+        carrying it is added to the protected collection, which stops the
+        deletion on both the delete view and the delete selected action.
 
         Args:
             objs: The skills selected for removal.
@@ -69,15 +71,32 @@ class SkillAdmin(admin.ModelAdmin):
             super().get_deleted_objects(objs, request)
         )
 
-        referring_profiles = sum(
-            skill.freelancerprofile_set.count() + skill.clientprofile_set.count()
-            for skill in objs
-        )
+        referring_profiles = self._count_referring_profiles(objs)
 
         if referring_profiles:
             protected = list(protected) + [self._in_use_summary(referring_profiles)]
 
         return deletable_objects, model_count, perms_needed, protected
+
+    @staticmethod
+    def _count_referring_profiles(objs: QuerySet[Skill] | list[Skill]) -> int:
+        """
+        Count the distinct profiles referring to any of the selected skills.
+
+        Counts freelancer profiles and client profiles separately, one
+        aggregate query each, and returns the two totals added together. A
+        profile referring to several of the selected skills counts once.
+
+        Args:
+            objs: The skills selected for removal.
+
+        Returns:
+            int: How many profiles refer to at least one of the selected skills.
+        """
+        return (
+            FreelancerProfile.objects.filter(skills__in=objs).distinct().count()
+            + ClientProfile.objects.filter(interests__in=objs).distinct().count()
+        )
 
     @staticmethod
     def _in_use_summary(referring_profiles: int) -> str:
