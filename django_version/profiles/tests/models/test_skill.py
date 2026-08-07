@@ -69,6 +69,24 @@ def test_skill_clean_none_name_passes_validation() -> None:
 
 
 @pytest.mark.django_db
+def test_exactly_100_char_name_passes_validation() -> None:
+    """Skill name of exactly 100 characters passes validation."""
+    skill = Skill(name="a" * 100, category=Skill.Category.TECHNOLOGY)
+    skill.full_clean()
+
+
+@pytest.mark.django_db
+def test_exceeding_100_char_name_raises_validation_error() -> None:
+    """Skill name exceeding 100 characters raises a max_length ValidationError."""
+    skill = Skill(name="a" * 101, category=Skill.Category.TECHNOLOGY)
+    with pytest.raises(ValidationError) as exc_info:
+        skill.full_clean()
+
+    assert "name" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["name"][0].code == "max_length"
+
+
+@pytest.mark.django_db
 def test_skill_clean_name_differing_only_in_case_raises_validation_error() -> None:
     """A name differing from an existing skill only in letter case raises 'skill_name_duplicate'."""
     Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
@@ -116,11 +134,23 @@ def test_skill_recased_in_place_is_stored_with_the_new_capitalization() -> None:
 
 
 @pytest.mark.django_db
-def test_renaming_a_skill_onto_another_skills_name_raises_validation_error() -> None:
-    """Renaming a saved skill onto a second saved skill's name, differing in case, raises 'skill_name_duplicate'."""
+@pytest.mark.parametrize(
+    "new_name",
+    [
+        "Python",
+        "python",
+        "PYTHON",
+    ],
+)
+def test_renaming_a_saved_skill_to_a_name_another_saved_skill_carries_raises_validation_error(
+    new_name: str,
+) -> None:
+    """Renaming a saved skill to a name another saved skill already carries raises 'skill_name_duplicate'."""
     Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
-    second_skill = Skill.objects.create(name="Django", category=Skill.Category.TECHNOLOGY)
-    second_skill.name = "python"
+    second_skill = Skill.objects.create(
+        name="Django", category=Skill.Category.TECHNOLOGY
+    )
+    second_skill.name = new_name
 
     with pytest.raises(ValidationError) as exc_info:
         second_skill.full_clean()
@@ -177,6 +207,11 @@ def test_skill_case_insensitive_name_uniqueness_enforced_at_database_level() -> 
     with pytest.raises(IntegrityError):
         with transaction.atomic():
             Skill.objects.create(name="python", category=Skill.Category.TECHNOLOGY)
+
+
+def test_skill_name_field_declares_unique() -> None:
+    """Skill.name declares unique=True on the field itself."""
+    assert Skill._meta.get_field("name").unique is True
 
 
 @pytest.mark.django_db
