@@ -617,6 +617,11 @@ against any other environment before migrating it.
 
 ### Implementation
 
+> **Status 2026-08-06 — phase in flight.** T073–T077 and T079 are
+> implemented; T077 is written but not yet committed. **T078 and T080 remain
+> open**, and the audit remediation is in progress. Every box below is ticked
+> in one pass once the phase closes.
+
 - [ ] T073 [US1] Add the case-insensitive duplicate check to `Skill.clean()` in `django_version/profiles/models/skill.py`, **after** the existing strip and empty-name branches so FR-003 is applied before FR-002 (spec.md, *Skills* edge cases). Follow the required `clean()` shape in `conventions.md`: `logger.error` with no PII (log no name, no value — the name is not PII but the pattern logs derived facts only), message wrapped in `gettext_lazy`, and `raise ValidationError({"name": ValidationError(_(...), code="skill_name_duplicate")})`. The lookup is case-insensitive over the vocabulary and **must exclude the row being saved**, or editing a skill without changing its name would refuse itself and FR-005 recasing would become impossible. Skip the lookup when `name` is `None` or empty — the branches above have already spoken
 - [ ] T074 [US1] Add `constraints = [UniqueConstraint(Lower("name"), name="skill_unique_name_case_insensitive")]` to `Skill.Meta` in `django_version/profiles/models/skill.py`, importing `Lower` from `django.db.models.functions`. Keep `unique=True` on the field. This is the backstop for `.create()`, `.update()`, `bulk_create()` and shell writes, which never call `clean()` (`conventions.md`, *clean() is not called automatically*)
 - [ ] T075 [US1] Generate and apply the migration: `docker-compose exec web python manage.py makemigrations profiles` then `migrate`, from `django_version/`. **Requires explicit human approval before running** (`CLAUDE.md` Rule 10). Confirm the result is a single `AddConstraint` operation and nothing else — an `AlterField` in the output means `unique=True` was removed by mistake. The pre-condition is closed (0 collisions on 2026-08-05); if the command is ever run against another environment, re-check `LOWER(name)` collisions there first, because the migration aborts on one
