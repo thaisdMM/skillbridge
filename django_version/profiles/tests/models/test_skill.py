@@ -22,7 +22,7 @@ def test_skill_repr_representation() -> None:
     skill = Skill(name="Python", category=Skill.Category.TECHNOLOGY)
     assert (
         repr(skill)
-        == f"Skill (id=None, name={skill.name!r}, category={skill.category!r})"
+        == "Skill (id=None, name='Python', category=Skill.Category.TECHNOLOGY)"
     )
 
 
@@ -32,9 +32,7 @@ def test_skill_repr_representation_after_reload() -> None:
     skill = Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
     reloaded_skill = Skill.objects.get(id=skill.id)
     assert repr(reloaded_skill) == (
-        f"Skill (id={reloaded_skill.id}, "
-        f"name={reloaded_skill.name!r}, "
-        f"category={reloaded_skill.category!r})"
+        f"Skill (id={reloaded_skill.id}, name='Python', category='TECHNOLOGY')"
     )
 
 
