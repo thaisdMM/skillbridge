@@ -258,3 +258,111 @@ def test_get_deleted_objects_protects_a_skill_referred_to_from_a_deactivated_acc
     *_, protected = admin_instance.get_deleted_objects([skill], admin_request)
 
     assert protected != []
+
+
+@pytest.mark.django_db
+def test_add_form_refuses_a_name_an_existing_skill_already_carries(
+    admin_request: HttpRequest,
+    skill: Skill,
+) -> None:
+    """Adding a skill under a name already in the vocabulary is refused on the name field."""
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+    form = admin_instance.get_form(admin_request)(
+        {"name": "Python", "category": Skill.Category.TECHNOLOGY}
+    )
+
+    assert not form.is_valid()
+
+    errors = form.errors.as_data()
+    assert "name" in errors
+    assert errors["name"][0].code == "skill_name_duplicate"
+
+
+@pytest.mark.django_db
+def test_add_form_refuses_a_case_variant_without_rewriting_the_stored_name(
+    admin_request: HttpRequest,
+    skill: Skill,
+) -> None:
+    """A name differing only in case is refused and the stored skill keeps its own spelling."""
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+    form = admin_instance.get_form(admin_request)(
+        {"name": "python", "category": Skill.Category.TECHNOLOGY}
+    )
+
+    assert not form.is_valid()
+
+    errors = form.errors.as_data()
+    assert "name" in errors
+    assert errors["name"][0].code == "skill_name_duplicate"
+    assert Skill.objects.get(pk=skill.pk).name == "Python"
+
+
+@pytest.mark.django_db
+def test_add_form_refuses_a_case_variant_padded_with_whitespace(
+    admin_request: HttpRequest,
+    skill: Skill,
+) -> None:
+    """A padded case variant of an existing name is refused on the name field."""
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+    form = admin_instance.get_form(admin_request)(
+        {"name": "  python  ", "category": Skill.Category.TECHNOLOGY}
+    )
+
+    assert not form.is_valid()
+
+    errors = form.errors.as_data()
+    assert "name" in errors
+    assert errors["name"][0].code == "skill_name_duplicate"
+
+
+@pytest.mark.django_db
+def test_add_form_reports_the_required_and_the_empty_name_codes_for_a_blank_name(
+    admin_request: HttpRequest,
+) -> None:
+    """A whitespace-only name is refused with both the required and the empty-name codes."""
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+    form = admin_instance.get_form(admin_request)(
+        {"name": "   ", "category": Skill.Category.TECHNOLOGY}
+    )
+
+    assert not form.is_valid()
+
+    errors = form.errors.as_data()
+    assert "name" in errors
+    assert {error.code for error in errors["name"]} == {"required", "skill_name_empty"}
+
+
+@pytest.mark.django_db
+def test_add_form_accepts_a_name_no_skill_carries(
+    admin_request: HttpRequest,
+    skill: Skill,
+) -> None:
+    """A name no existing skill carries is accepted, so the rule refuses duplicates only."""
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+    form = admin_instance.get_form(admin_request)(
+        {"name": "Django", "category": Skill.Category.TECHNOLOGY}
+    )
+
+    assert form.is_valid()
+
+
+@pytest.mark.django_db
+def test_change_form_refuses_renaming_a_skill_onto_another_saved_skill_name(
+    admin_request: HttpRequest,
+    skill: Skill,
+) -> None:
+    """Renaming a saved skill onto another saved skill's name is refused on the change form."""
+    renamed_skill = Skill.objects.create(
+        name="Django", category=Skill.Category.TECHNOLOGY
+    )
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+    form = admin_instance.get_form(admin_request, obj=renamed_skill)(
+        {"name": "python", "category": Skill.Category.TECHNOLOGY},
+        instance=renamed_skill,
+    )
+
+    assert not form.is_valid()
+
+    errors = form.errors.as_data()
+    assert "name" in errors
+    assert errors["name"][0].code == "skill_name_duplicate"

@@ -643,7 +643,15 @@ against any other environment before migrating it.
   - `"  python  "` is refused — case and whitespace combined
   - a whitespace-only name yields **both** `required` and `skill_name_empty` on `name` (finding F-2b; a test asserting exactly one error would fail)
   - a brand-new name is accepted, so the rule is proven to refuse duplicates rather than everything
+  - a saved skill renamed onto another saved skill's name is refused through the **change** form — `get_form(request, obj=skill)`, with the bound form carrying `instance=skill`
   - **Do not write a test asserting that the admin trims a name** (finding F-2a). The form's `CharField` carries `strip=True`, so such a test asserts Django's stripping and keeps passing with `Skill.clean()` deleted — tautological under `testing.md`'s *"a test must fail if the behavior under test is removed"*. The trim is covered on the model path, where it is reachable
+  > **Sixth case added 2026-08-07.** This task originally prescribed five cases,
+  > all of them driving `get_form(request)` — the *add* form, with no instance.
+  > Django builds a different form for add and for change, and only the change
+  > form produces a bound `ModelForm` whose `_post_clean()` runs `full_clean()`
+  > on a model that already has a primary key. That is the saved path FR-002
+  > exists to guard, and five add-form tests would have left it undriven —
+  > reproducing the shape of the gap this task was written to close.
 - [ ] T079 [US1] Add the coverage T018 cannot provide, in `django_version/profiles/tests/admin/test_skill_admin.py`: several skills selected together, all referred to by the **same single profile**, produce a count of **1** — the current implementation reports one per reference and would say 3. Add a query-count guard with `django_assert_num_queries` showing the count does not scale with the size of the selection (finding F-6). T018 uses one skill and three profiles, which is the case where references and profiles happen to be equal, which is why it never caught this
 
 ### Manual validation
