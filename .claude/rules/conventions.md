@@ -271,8 +271,10 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
   app-layer path for the friendly field-level error and owns it alone — the
   constraint cannot report against `name`. Reasoning:
   `docs/adr/case-insensitive-skill-name-uniqueness.md`.
-  → this `clean()` issues a queryset lookup, so a test calling `Skill.clean()`
-  or `Skill.full_clean()` needs `@pytest.mark.django_db`.
+  → the duplicate lookup is a queryset query, so a test that reaches it —
+  one whose `name` is still non-empty after the strip — needs
+  `@pytest.mark.django_db`. A name that is empty, whitespace-only, or
+  `None` raises or returns before the query and must stay marker-free.
 
 > **Note:** This list is not guaranteed to be exhaustive or fully up to date.
 > If a `clean()` method raises a `code` not listed here, treat the source file
