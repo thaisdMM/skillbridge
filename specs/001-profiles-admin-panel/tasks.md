@@ -656,7 +656,15 @@ against any other environment before migrating it.
 
 ### Manual validation
 
-- [ ] T080 [US1] Add two rows to `specs/001-profiles-admin-panel/quickstart.md` section A, after the existing A9, in the same table format: **A10** — with `Python` in the vocabulary, adding `python` is refused with a message on the name field, no second row is created, and the existing skill is still spelled `Python` (US1-8, FR-002); **A11** — adding `JavaScript` stores it exactly as `JavaScript`, with no capitalization rule applied (US1-9, FR-002 storage clause). T067 walks section A and would otherwise never exercise the amended rule
+- [ ] T080 [US1] Add three rows to `specs/001-profiles-admin-panel/quickstart.md` section A, after the existing A9, in the same table format: **A10** — with `Python` in the vocabulary, adding `python` is refused with a message on the name field, no second row is created, and the existing skill is still spelled `Python` (US1-8, FR-002); **A11** — adding `JavaScript` stores it exactly as `JavaScript`, with no capitalization rule applied (US1-9, FR-002 storage clause); **A12** — opening an existing skill and renaming it onto **another** skill's name, differing only in case, is refused with a message on the name field, and both skills keep their stored names (FR-002, edit path). T067 walks section A and would otherwise never exercise the amended rule
+  > **Third row added 2026-08-07.** This task originally prescribed two rows,
+  > both of them on the *add* form. Manual validation earns its place where a
+  > test cannot reach: whether the message actually renders beside the name
+  > field in the real admin template. Django renders the add form and the change
+  > form through different bound form states, so a row that passes on one proves
+  > nothing about the other. The automated coverage added to T078 proves the
+  > code refuses the rename; A12 proves the message renders on the screen an
+  > operator edits from
 
 ### Dependencies within this phase
 

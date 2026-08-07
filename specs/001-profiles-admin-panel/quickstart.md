@@ -97,6 +97,9 @@ Sign in at `http://localhost:8000/admin/`.
 | A7 | Delete a skill no profile refers to | Permanently removed | US1-6, FR-027 |
 | A8 | Delete a skill at least one profile refers to | Refused, with a message giving the **count** of profiles — and no list of individual profiles | US1-7, FR-028 |
 | A9 | Select several skills → **Delete selected** with one in use | Same refusal; nothing is deleted | FR-028 (bulk) |
+| A10 | With `Python` in the vocabulary, add a skill named `python` | Refused with a message **on the name field**; no second row created; the existing skill is still spelled `Python` | US1-8, FR-002 |
+| A11 | Add a skill named `JavaScript` | Stored exactly as `JavaScript` — no capitalization rule applied | US1-9, FR-002 storage clause |
+| A12 | Open an existing skill and rename it onto **another** skill's name, differing only in case | Refused with a message on the name field; both skills keep their stored names | FR-002 (edit path) |
 
 After A8 and A9, re-open an affected profile and confirm the skill is **still
 attached** — nothing may be detached as a side effect (SC-010).
