@@ -164,6 +164,28 @@ def test_get_deleted_objects_counts_a_profile_referring_to_several_selected_skil
 
 
 @pytest.mark.django_db
+def test_get_deleted_objects_counts_a_client_profile_referring_to_several_selected_skills_once(
+    admin_request: HttpRequest,
+    skill: Skill,
+    client_profile: ClientProfile,
+) -> None:
+    """Three selected skills on one single client profile produce a count of one."""
+    second_skill = Skill.objects.create(
+        name="Django", category=Skill.Category.TECHNOLOGY
+    )
+    third_skill = Skill.objects.create(name="Figma", category=Skill.Category.DESIGN)
+    client_profile.interests.add(skill, second_skill, third_skill)
+    admin_instance = SkillAdmin(Skill, django_admin.site)
+
+    *_, protected = admin_instance.get_deleted_objects(
+        [skill, second_skill, third_skill], admin_request
+    )
+
+    assert len(protected) == 1
+    assert "1" in protected[0]
+
+
+@pytest.mark.django_db
 def test_counting_referring_profiles_issues_two_queries_for_a_selection_of_three_skills(
     django_assert_num_queries,
     skill: Skill,
