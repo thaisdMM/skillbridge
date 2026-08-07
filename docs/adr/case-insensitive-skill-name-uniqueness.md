@@ -1,7 +1,7 @@
 # Skill-Name Uniqueness Is Case-Insensitive; Stored Casing Is Never Normalized
 
 **Date:** 2026-08-05
-**Status:** Accepted — mechanism specified, implementation pending.
+**Status:** Accepted — implemented in `Skill.clean()` and `Skill.Meta.constraints`.
 **Applies to:** `Skill.name`, `Skill.clean()`, `Skill.Meta.constraints`, and any future
 serializer, form, or import path writing a skill name.
 
@@ -62,6 +62,9 @@ and correcting its casing in place would be impossible.
   environment must be re-checked before it is migrated.
 * Bad, because this is the only `clean()` here that issues a queryset lookup, so tests
   touching it need database access — a real divergence from every other `clean()`.
+* Bad, because "ignoring letter case" has to mean the same thing in both layers, which
+  only holds if the comparison is evaluated in one engine — see
+  `docs/adr/skill-name-comparison-is-evaluated-in-the-database.md`.
 * Bad, because the `unique` code becomes unreachable once `clean()` refuses duplicates
   (`full_clean()` excludes already-failed fields before `validate_unique()`), so tests
   asserting it must move to `skill_name_duplicate`.

@@ -160,6 +160,19 @@ def test_renaming_a_saved_skill_to_a_name_another_saved_skill_carries_raises_val
 
 
 @pytest.mark.django_db
+def test_skill_clean_compares_the_name_using_the_database_case_mapping() -> None:
+    """A name whose Python and PostgreSQL lowercasings differ still raises 'skill_name_duplicate'."""
+    Skill.objects.create(name="I", category=Skill.Category.TECHNOLOGY)
+    dotted_capital_i = Skill(name="İ", category=Skill.Category.TECHNOLOGY)
+
+    with pytest.raises(ValidationError) as exc_info:
+        dotted_capital_i.full_clean()
+
+    assert "name" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["name"][0].code == "skill_name_duplicate"
+
+
+@pytest.mark.django_db
 def test_skill_creation_assigns_id() -> None:
     """Creating a Skill assigns a database primary key."""
     skill = Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)

@@ -134,7 +134,7 @@ class Skill(models.Model):
 
             duplicate_exists = (
                 Skill.objects.annotate(lower_name=Lower("name"))
-                .filter(lower_name=self.name.lower())
+                .filter(lower_name=Lower(models.Value(self.name)))
                 .exclude(pk=self.pk)
                 .exists()
             )
