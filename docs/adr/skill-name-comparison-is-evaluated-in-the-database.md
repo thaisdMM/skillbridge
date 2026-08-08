@@ -27,10 +27,10 @@ the platform targets the European market.
 
 ## Considered Options
 
-* Keep the Python-side `.lower()` and record the divergence as a known limit
-* `name__iexact=self.name`
-* A non-deterministic ICU collation on the `name` column
-* Lowercase the candidate in the database too: `Lower(models.Value(self.name))`
+- Keep the Python-side `.lower()` and record the divergence as a known limit
+- `name__iexact=self.name`
+- A non-deterministic ICU collation on the `name` column
+- Lowercase the candidate in the database too: `Lower(models.Value(self.name))`
 
 ## Decision Outcome
 
@@ -49,14 +49,12 @@ divergence was set aside because the fix is one expression and generates no migr
 
 ### Consequences
 
-* Good, because the field-level `skill_name_duplicate` message now reaches the operator
+- Good, because the field-level `skill_name_duplicate` message now reaches the operator
   for every name the constraint would refuse, not merely most of them.
-* Good, because the comparison holds across the European alphabets the platform serves.
+- Good, because the comparison holds across the European alphabets the platform serves.
   Lowering is the direction that keeps them distinguishable, which is why `lower` was kept
   on both sides rather than moved to `upper` — that folds German `ß` and `ss` together.
-* Good, because the change is one expression: no import, no field or `Meta` change, and
+- Good, because the change is one expression: no import, no field or `Meta` change, and
   `makemigrations --check` reports no changes.
-* Bad, because the comparison costs a database round trip for a value already in memory,
+- Bad, because the comparison costs a database round trip for a value already in memory,
   and reads correctly only if `Lower` is understood as PostgreSQL's, not Python's.
-* Bad, because any future code comparing skill names must lower **in the database**; a
-  Python-side `.lower()` reintroduces the same silent gap.
