@@ -202,14 +202,21 @@ satisfies FR-035 structurally.
 
 | Admin | `list_display` gains | `list_filter` gains |
 |---|---|---|
-| `FreelancerAdmin` | `profile_badge` | `HasProfileFilter`, `profile__skills` |
-| `ClientAdmin` | `profile_badge` | `HasProfileFilter`, `profile__interests` |
+| `FreelancerAdmin` | `profile_badge` | `HasProfileFilter`, `("profile__skills", SkillInUseFilter)` |
+| `ClientAdmin` | `profile_badge` | `HasProfileFilter`, `("profile__interests", SkillInUseFilter)` |
 | `StaffUserAdmin` | nothing | nothing |
 
 Skill filters (FR-037, FR-038): the built-in related-field path is the intended
 implementation, with a `SimpleListFilter` over the same lookup as the documented
 fallback if the reverse-O2O-then-M2M path does not resolve on Django 6.0.7
 (R-007). Either way the contract is identical:
+
+`SkillInUseFilter` (added 2026-08-09, human decision) subclasses
+`RelatedOnlyFieldListFilter`, so each list offers only the skills a profile on
+that list actually refers to rather than the whole vocabulary. It overrides
+`has_output()` to stay applied while a skill is selected: the stock class drops
+itself, and silently drops the filtering with it, when no skill on the list is
+in use — which turns a narrowing request into the full list.
 
 - Filtering by a skill lists exactly the accounts whose profile refers to it.
 - **Each account appears exactly once**, however many skills its profile has
