@@ -5,10 +5,10 @@ Registers Freelancer, Client, and StaffUser models with customized interfaces
 including list_display, search, filters, fieldset grouping, and bulk actions.
 
 Shared admin behavior is consolidated into a non-registered base class
-(BaseAccountAdmin) and one opt-in mixin (StatusBadgeMixin), so each
-registered admin composes exactly the members it needs without duplicating
-method bodies. Bulk deactivation lives on StaffUserAdmin, the only admin
-that exposes it.
+(BaseAccountAdmin) and two opt-in mixins (StatusBadgeMixin and
+ProfilePresenceMixin), so each registered admin composes exactly the members
+it needs without duplicating method bodies. Bulk deactivation lives on
+StaffUserAdmin, the only admin that exposes it.
 
 Profiles are administered inside the account screen they belong to rather than
 on screens of their own, so the profile inlines live here beside the account
@@ -22,7 +22,7 @@ from django.contrib import admin, messages
 from django.contrib.admin.widgets import RelatedFieldWidgetWrapper
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import Exists, OuterRef, QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.utils.html import format_html
@@ -173,6 +173,91 @@ class StatusBadgeMixin:
         )
 
 
+class HasProfileFilter(admin.SimpleListFilter):
+    """
+    Filter narrowing an account list to the accounts that have a profile.
+
+    Offered on the freelancer and client lists only. Both account models reach
+    their profile through the same reverse accessor, so one filter serves both.
+    """
+
+    title = _("profile")
+    parameter_name = "has_profile"
+
+    def lookups(
+        self, request: HttpRequest, model_admin: admin.ModelAdmin
+    ) -> tuple[tuple[str, str], ...]:
+        """
+        List the two groups an administrator can narrow the list to.
+
+        Returns:
+            The value and label of each choice offered by the filter.
+        """
+        return (
+            ("yes", _("With a profile")),
+            ("no", _("Without a profile")),
+        )
+
+    def queryset(
+        self, request: HttpRequest, queryset: QuerySet[BaseUser]
+    ) -> QuerySet[BaseUser]:
+        """
+        Narrow the list to the group the administrator selected.
+
+        Returns:
+            The accounts of the selected group, or the untouched queryset when
+            no choice is active.
+        """
+        if self.value() == "yes":
+            return queryset.filter(profile__isnull=False)
+        if self.value() == "no":
+            return queryset.filter(profile__isnull=True)
+        return queryset
+
+
+class ProfilePresenceMixin:
+    """
+    Mixin providing the profile presence badge on an account list.
+
+    Opted into by FreelancerAdmin and ClientAdmin. StaffUserAdmin does not
+    inherit it, so no profile column reaches the staff list.
+
+    The badge reads an annotation resolved once for the whole page rather than
+    the reverse accessor, which would cost one query per row.
+    """
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[BaseUser]:
+        """
+        Annotate every account on the page with whether it has a profile.
+
+        The profile model is read from the reverse relation the account model
+        declares, so the mixin serves both account lists unchanged.
+
+        Returns:
+            The changelist queryset carrying the has_profile annotation.
+        """
+        profile_relation = self.model._meta.get_field("profile")
+        profiles = profile_relation.related_model.objects.filter(user=OuterRef("pk"))
+        return super().get_queryset(request).annotate(has_profile=Exists(profiles))
+
+    @admin.display(description=_("Profile"))
+    def profile_badge(self, obj: BaseUser) -> SafeString:
+        """
+        Build the profile presence badge for list display.
+
+        Returns:
+            A SafeString HTML badge, green when the account has a profile and
+            red when it has none.
+        """
+        color = "green" if obj.has_profile else "red"
+        label = _("Yes") if obj.has_profile else _("No")
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            label,
+        )
+
+
 class FreelancerProfileInline(BaseProfileInline):
     """
     Profile section rendered inside the freelancer account screen.
@@ -215,13 +300,14 @@ class FreelancerProfileInline(BaseProfileInline):
 
 
 @admin.register(Freelancer)
-class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
+class FreelancerAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
     """
     Admin interface for the Freelancer model.
 
-    Provides list display with status and availability badges, fieldset
-    grouping, search and filter controls, bulk account activation, bulk
-    availability management, and the freelancer profile section.
+    Provides list display with status, availability and profile presence
+    badges, fieldset grouping, search and filter controls, bulk account
+    activation, bulk availability management, and the freelancer profile
+    section.
     """
 
     list_display = (
@@ -230,10 +316,11 @@ class FreelancerAdmin(StatusBadgeMixin, BaseAccountAdmin):
         "email",
         "status_badge",
         "availability_badge",
+        "profile_badge",
         "created_at_display",
     )
     list_display_links = ("name", "email")
-    list_filter = ("is_active", "is_available", "created_at")
+    list_filter = ("is_active", "is_available", HasProfileFilter, "created_at")
     search_fields = ("name", "email")
     ordering = ("-created_at",)
     list_per_page = 25
@@ -395,23 +482,24 @@ class ClientProfileInline(BaseProfileInline):
 
 
 @admin.register(Client)
-class ClientAdmin(StatusBadgeMixin, BaseAccountAdmin):
+class ClientAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
     """
     Admin interface for the Client model.
 
-    Provides list display with status badges, fieldset grouping,
-    search and filter controls, and bulk activation of accounts.
+    Provides list display with status and profile presence badges, fieldset
+    grouping, search and filter controls, and bulk activation of accounts.
     """
 
     list_display = (
         "name",
         "email",
         "status_badge",
+        "profile_badge",
         "created_at_display",
     )
 
     list_display_links = ("name", "email")
-    list_filter = ("is_active", "created_at")
+    list_filter = ("is_active", HasProfileFilter, "created_at")
     search_fields = ("name", "email")
     ordering = ("-created_at",)
     list_per_page = 25
