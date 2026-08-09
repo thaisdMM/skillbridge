@@ -3,9 +3,11 @@
 from decimal import Decimal
 
 import pytest
+from django.test import Client as DjangoTestClient
 
 from accounts.models.freelancer import Freelancer
 from accounts.models.client import Client
+from accounts.models.staff_user import StaffUser
 from profiles.models.client_profile import ClientProfile
 from profiles.models.freelancer_profile import FreelancerProfile
 from profiles.models.skill import Skill
@@ -61,6 +63,25 @@ def client_user(db, valid_client_data: dict[str, str]) -> Client:
     """Create and return a Client instance saved in the test database."""
 
     return Client.objects.create_user(**valid_client_data)
+
+
+@pytest.fixture
+def admin_site_client(db, client) -> DjangoTestClient:
+    """
+    Return a test client signed in as an active staff superuser.
+
+    Used by the tests that drive the real admin views rather than a formset
+    built in isolation. Whether a refusal reaches the page is a property of
+    the rendered response, so those tests need a request cycle to measure.
+    """
+
+    administrator = StaffUser.objects.create_superuser(
+        email="administrator@example.com",
+        name="Administrator",
+        password="SecurePass@123",
+    )
+    client.force_login(administrator)
+    return client
 
 
 @pytest.fixture
