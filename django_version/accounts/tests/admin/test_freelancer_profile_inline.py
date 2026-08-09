@@ -3,7 +3,9 @@
 import pytest
 from django.contrib import admin as django_admin
 from django.http import HttpRequest
+from django.test import Client as DjangoTestClient
 from django.test import RequestFactory
+from django.urls import reverse
 
 from accounts.admin import FreelancerAdmin, FreelancerProfileInline
 from accounts.models.freelancer import Freelancer
@@ -398,6 +400,32 @@ def test_editing_a_profile_on_a_deactivated_account_is_accepted(
     )
 
     assert formset.is_valid()
+
+
+@pytest.mark.django_db
+def test_a_refused_profile_save_shows_the_message_on_the_account_screen(
+    admin_site_client: DjangoTestClient,
+    freelancer_user: Freelancer,
+    valid_profile_section_data: dict[str, str],
+) -> None:
+    """A profile refused from the account screen comes back as a message on the page, never a failure page."""
+    response = admin_site_client.post(
+        reverse("admin:accounts_freelancer_change", args=[freelancer_user.pk]),
+        {
+            "name": freelancer_user.name,
+            "email": freelancer_user.email,
+            **valid_profile_section_data,
+        },
+    )
+
+    assert response.status_code == 200
+
+    section = response.context["inline_admin_formsets"][0].formset.forms[0]
+    non_field_errors = section.non_field_errors()
+    assert [error.code for error in non_field_errors.as_data()] == [
+        "profile_for_inactive_account"
+    ]
+    assert str(non_field_errors[0]) in response.content.decode()
 
 
 @pytest.mark.django_db
