@@ -215,6 +215,29 @@ class HasProfileFilter(admin.SimpleListFilter):
         return queryset
 
 
+class SkillInUseFilter(admin.RelatedOnlyFieldListFilter):
+    """
+    Filter offering the skills at least one profile on the list refers to.
+
+    Keeps the vocabulary entries nobody uses out of the sidebar, where they
+    would only ever lead to an empty list.
+
+    Stays applied when a skill is selected but no longer offered, so a link
+    kept from an earlier visit narrows the list to nothing rather than
+    silently widening it to every account.
+    """
+
+    def has_output(self) -> bool:
+        """
+        Report whether the filter takes part in building the list.
+
+        Returns:
+            bool: True when a skill is selected, or when there is more than
+                one group to choose between.
+        """
+        return self.lookup_val is not None or super().has_output()
+
+
 class ProfilePresenceMixin:
     """
     Mixin providing the profile presence badge on an account list.
@@ -320,7 +343,13 @@ class FreelancerAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
         "created_at_display",
     )
     list_display_links = ("name", "email")
-    list_filter = ("is_active", "is_available", HasProfileFilter, "created_at")
+    list_filter = (
+        "is_active",
+        "is_available",
+        HasProfileFilter,
+        ("profile__skills", SkillInUseFilter),
+        "created_at",
+    )
     search_fields = ("name", "email")
     ordering = ("-created_at",)
     list_per_page = 25
@@ -499,7 +528,12 @@ class ClientAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
     )
 
     list_display_links = ("name", "email")
-    list_filter = ("is_active", HasProfileFilter, "created_at")
+    list_filter = (
+        "is_active",
+        HasProfileFilter,
+        ("profile__interests", SkillInUseFilter),
+        "created_at",
+    )
     search_fields = ("name", "email")
     ordering = ("-created_at",)
     list_per_page = 25
