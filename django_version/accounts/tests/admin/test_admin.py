@@ -304,6 +304,11 @@ def test_client_admin_neither_defines_nor_inherits_deactivate_accounts() -> None
     assert not hasattr(ClientAdmin, "deactivate_accounts")
 
 
+def test_staff_user_admin_renders_no_profile_section() -> None:
+    """StaffUserAdmin attaches no inline — a staff account has no profile."""
+    assert not StaffUserAdmin.inlines
+
+
 @pytest.mark.parametrize(
     ("admin_class", "model"),
     [
