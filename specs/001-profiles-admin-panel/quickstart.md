@@ -144,7 +144,7 @@ not a regression. The admin form strips the value to `""` before
 is stored empty, which is the correct outcome for an optional field, but no
 message is shown. Full reasoning, verification against Django 6.0.7 and the
 criteria that would reverse the decision are in
-`docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`. It is
+`docs/tech_debt/002-whitespace-only-company-name-accepted-in-admin.md`. It is
 scheduled in `docs/ROADMAP_SKILLBRIDGE.md` → SPRINT 3.2.
 
 Note the values in this table are written as bare descriptions, not quoted
@@ -165,8 +165,9 @@ With some accounts having profiles and some not, and a known skill (say
 | D5 | Filter the freelancer list by `Python` | Only freelancers whose profile lists it | US6-1 |
 | D6 | Filter the client list by a skill | Only clients listing it as an interest | US6-2 |
 | D7 | Filter by a skill held by a freelancer with several skills | That freelancer appears **exactly once** | US6-3, FR-039, SC-012 |
-| D8 | Filter by a skill no profile refers to | Empty list, no error | US6-4 |
+| D8 | Filter the freelancer list by `Python`, then open each account it lists and remove `Python` from its profile, saving the account each time | The list loses a row per save, and `Python` stays selected and offered while any profile still holds it. After the last one the filtered list comes back with no rows, `Python` is gone from the sidebar, and no error is shown | US6-4 |
 | D9 | Open the **staff** list | No profile badge, no profile filter, no skill filter | US5-5, US6-5, FR-035 |
+| D10 | Read the skill filter in the sidebar | Only the skills a profile on that list refers to, not the whole vocabulary | FR-037, FR-038 |
 
 D1 is also a performance check. Open Django's SQL log (`django.db.backends` is at
 `DEBUG` in development) and confirm the changelist does **not** issue one query
