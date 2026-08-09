@@ -304,23 +304,36 @@ must exist to be indicated.
 
 ### Implementation for User Story 5
 
-- [ ] T045 [US5] Add `HasProfileFilter(admin.SimpleListFilter)` to `django_version/accounts/admin.py` with two choices over the `profile__isnull` lookup (FR-034, SC-011)
-- [ ] T046 [US5] Add `ProfilePresenceMixin` to `django_version/accounts/admin.py` with a `get_queryset()` that annotates profile presence using `Exists(...)` — annotated **once**, never resolved per row (FR-033, research.md R-006)
-- [ ] T047 [US5] Add the `profile_badge` display method to `ProfilePresenceMixin` in `django_version/accounts/admin.py`, built the same way as the existing `StatusBadgeMixin.status_badge` — an `@admin.display` returning a coloured `format_html` badge, not a boolean tick (FR-033)
-- [ ] T048 [US5] Compose `ProfilePresenceMixin` into `FreelancerAdmin` and `ClientAdmin` in `django_version/accounts/admin.py`, add `profile_badge` to each `list_display` and `HasProfileFilter` to each `list_filter`. Do **not** compose it into `StaffUserAdmin` — FR-035 is satisfied structurally, exactly as `StatusBadgeMixin` already is
+- [X] T045 [US5] Add `HasProfileFilter(admin.SimpleListFilter)` to `django_version/accounts/admin.py` with two choices over the `profile__isnull` lookup (FR-034, SC-011). One filter serves both lists unchanged — `FreelancerProfile.user` and `ClientProfile.user` both declare `related_name="profile"`, so the same lookup resolves on either account model
+- [X] T046 [US5] Add `ProfilePresenceMixin` to `django_version/accounts/admin.py` with a `get_queryset()` that annotates profile presence using `Exists(...)` — annotated **once**, never resolved per row (FR-033, research.md R-006). The profile model is read from the account model's own reverse relation (`self.model._meta.get_field("profile").related_model`) rather than declared per admin, so the mixin is written once and composed twice (FR-022)
+- [X] T047 [US5] Add the `profile_badge` display method to `ProfilePresenceMixin` in `django_version/accounts/admin.py`, built the same way as the existing `StatusBadgeMixin.status_badge` — an `@admin.display` returning a coloured `format_html` badge, not a boolean tick (FR-033). **Colour and labels chosen by the human 2026-08-09**: column `Profile`, green `Yes`, red `No` — a freelancer or client can be created without a profile, and no profile is the default state
+- [X] T048 [US5] Compose `ProfilePresenceMixin` into `FreelancerAdmin` and `ClientAdmin` in `django_version/accounts/admin.py`, add `profile_badge` to each `list_display` and `HasProfileFilter` to each `list_filter`. Do **not** compose it into `StaffUserAdmin` — FR-035 is satisfied structurally, exactly as `StatusBadgeMixin` already is. The mixin is placed first in the bases so `super().get_queryset()` resolves through to `ModelAdmin`; `profile_badge` sits beside the other badges and `HasProfileFilter` before `created_at`, leaving every existing column, action and control untouched (FR-024, SC-009)
 
 ### Tests for User Story 5
 
 All in `django_version/accounts/tests/admin/test_account_list_profile.py` (new
 file).
 
-- [ ] T049 [US5] Create `django_version/accounts/tests/admin/test_account_list_profile.py` and assert `profile_badge` reports presence correctly for a freelancer with a profile and for one without, and the same for clients (FR-033, US5 scenarios 1–2)
-- [ ] T050 [US5] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert `HasProfileFilter` narrows each list to exactly the accounts without a profile, and to exactly those with one (FR-034, US5 scenarios 3–4, SC-011)
-- [ ] T051 [US5] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert the changelist issues **no** per-row query for the badge — count queries with `django_assert_num_queries` over a page of accounts and confirm the count does not scale with the row count (R-006; quickstart D1 is the manual counterpart)
-- [ ] T052 [US5] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert `StaffUserAdmin` neither defines nor inherits `profile_badge` and that `HasProfileFilter` is absent from its `list_filter`, mirroring the existing `test_freelancer_admin_neither_defines_nor_inherits_deactivate_accounts` style (FR-035, US5 scenario 5)
+- [X] T049 [US5] Create `django_version/accounts/tests/admin/test_account_list_profile.py` and assert `profile_badge` reports presence correctly for a freelancer with a profile and for one without, and the same for clients (FR-033, US5 scenarios 1–2). Four tests, one per case, each reading the account back through `admin_instance.get_queryset()` so the badge is measured on the annotated object the changelist actually renders
+- [X] T050 [US5] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert `HasProfileFilter` narrows each list to exactly the accounts without a profile, and to exactly those with one (FR-034, US5 scenarios 3–4, SC-011). The filter is instantiated directly rather than driven through a changelist. Its `params` shape was verified against the pinned 6.0.7 rather than assumed: `SimpleListFilter.__init__` reads `params.pop(parameter_name)[-1]`, so a value arrives as a **list** (`{"has_profile": ["no"]}`) and is popped off the dict it is given
+- [X] T051 [US5] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert the changelist issues **no** per-row query for the badge — count queries with `django_assert_num_queries` over a page of accounts and confirm the count does not scale with the row count (R-006; quickstart D1 is the manual counterpart). Asserted as exactly **one** query for a five-account page: a count fixed at one cannot scale, and the bound is what fails when the annotation is dropped
+- [X] T052 [US5] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert `StaffUserAdmin` neither defines nor inherits `profile_badge` and that `HasProfileFilter` is absent from its `list_filter`, mirroring the existing `test_freelancer_admin_neither_defines_nor_inherits_deactivate_accounts` style (FR-035, US5 scenario 5). Split into two tests, one per assertion, per the granularity rule in `testing.md`
+
+> **Every test in this phase was mutation-checked, 2026-08-09.** Each was run
+> against a deliberate break of the rule it guards, and only the tests owning
+> that rule failed: a badge pinned to green/`Yes` failed the two absent-profile
+> cases and nothing else; pinned to red/`No`, the two present-profile cases;
+> reading `hasattr(obj, "profile")` per row instead of the annotation failed
+> **only** T051, with one `SELECT` per row visible in the query log; a
+> `queryset()` returning its argument untouched failed all four T050 cases;
+> composing the mixin into `StaffUserAdmin` and adding the filter to its
+> `list_filter` failed one T052 test each.
 
 **Checkpoint**: Profile presence is visible and filterable on both account
-lists. Validate with quickstart.md rows D1–D4 and D9.
+lists. Validate with quickstart.md rows D1–D4 and D9. **Walked by the human
+2026-08-09 — D1, D2, D3, D4 and D9 all behave as stated.** D5–D8 are skill
+filtering and belong to the next phase. The full A–F walk is repeated once at
+the end as T067.
 
 ---
 
