@@ -352,16 +352,43 @@ together (spec.md:205-206).
 
 ### Implementation for User Story 6
 
-- [ ] T053 [US6] **Verification gate (Principle VI)**: confirm against the pinned Django 6.0.7 that `list_filter` resolves a path traversing a reverse `OneToOneField` then a `ManyToManyField`. Check `django.contrib.admin.utils.get_fields_from_path` behavior for `profile__skills` in `docker-compose exec web python manage.py shell` before writing the attribute. Record the outcome (research.md R-007)
-- [ ] T054 [US6] Add `"profile__skills"` to `FreelancerAdmin.list_filter` and `"profile__interests"` to `ClientAdmin.list_filter` in `django_version/accounts/admin.py`. If T053 showed the path does not resolve, implement the recorded fallback instead — a `SimpleListFilter` over the same lookup, placed beside `HasProfileFilter` in the same file. The contract in contracts/admin-surface.md §3 is identical either way (FR-037, FR-038)
+- [X] T053 [US6] **Verification gate (Principle VI)**: confirm against the pinned Django 6.0.7 that `list_filter` resolves a path traversing a reverse `OneToOneField` then a `ManyToManyField`. Check `django.contrib.admin.utils.get_fields_from_path` behavior for `profile__skills` in `docker-compose exec web python manage.py shell` before writing the attribute. Record the outcome (research.md R-007). **Outcome, 2026-08-09: the path resolves — the fallback is not needed.** `get_fields_from_path(Freelancer, "profile__skills")` returns `[OneToOneRel, ManyToManyField]`, and `get_fields_from_path(Client, "profile__interests")` the same. A second question was asked in the same session and decides how the tests are written: `lookup_spawns_duplicates(Freelancer._meta, "profile__skills__id__exact")` returns `True`, so the `.distinct()` that FR-039 relies on is applied by `ChangeList.get_queryset()` — **not** by any filter object. Driving the filter in isolation, as the T050 tests do for `HasProfileFilter`, would bypass it and measure a path no operator ever takes, so T055–T058 build a whole changelist instead
+- [X] T054 [US6] Add `"profile__skills"` to `FreelancerAdmin.list_filter` and `"profile__interests"` to `ClientAdmin.list_filter` in `django_version/accounts/admin.py`. If T053 showed the path does not resolve, implement the recorded fallback instead — a `SimpleListFilter` over the same lookup, placed beside `HasProfileFilter` in the same file. The contract in contracts/admin-surface.md §3 is identical either way (FR-037, FR-038). **Built-in path used**, each entry placed after `HasProfileFilter` and before `created_at`, the placement rule T048 set. Nothing else on either class changed
+  > **Amended 2026-08-09, human decision.** The plain field path offered the
+  > **whole** vocabulary in the sidebar — 33 skills on the development database,
+  > of which 4 were in use by freelancers and 6 by clients, so 29 entries led
+  > only to an empty list. Both entries became
+  > `("profile__skills", SkillInUseFilter)` and
+  > `("profile__interests", SkillInUseFilter)`, a `RelatedOnlyFieldListFilter`
+  > subclass in `django_version/accounts/admin.py` offering only the skills a
+  > profile on that list refers to.
+  >
+  > The subclass exists because the stock class breaks US6 scenario 4. Its
+  > `has_output()` returns `False` once no skill on the list is in use, and the
+  > changelist then drops the filter **after** its parameter has been consumed:
+  > the request narrows nothing and the list widens to every account, with no
+  > error. Measured on 2026-08-09 — no skill in use, filtering by one, returned
+  > the full list; with one skill in use, the same URL correctly returned
+  > nothing. The override keeps the filter applied whenever a skill is selected.
+  > T058 is its test, and it is the test that failed against the stock class.
+  >
+  > Two tests were added to `test_account_list_profile.py` alongside the five
+  > below, one per list, asserting the filter offers only the skills in use.
+  > Both were mutation-checked against the plain field path.
 
 ### Tests for User Story 6
 
-- [ ] T055 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert filtering the freelancer list by a skill lists exactly the freelancers whose profile refers to it, and no others (FR-037, US6 scenario 1)
-- [ ] T056 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert filtering the client list by a skill lists exactly the clients listing it as an interest (FR-038, US6 scenario 2)
-- [ ] T057 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert a freelancer whose profile refers to several skills appears **exactly once** when filtered by one of them — verify the duplicate is actually absent rather than trusting Django's `.distinct()` (FR-039, US6 scenario 3, SC-012)
-- [ ] T058 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert filtering by a skill no profile refers to yields an empty list and raises no error (US6 scenario 4)
-- [ ] T059 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert no skill filter is present on `StaffUserAdmin.list_filter` (FR-035, US6 scenario 5)
+- [X] T055 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert filtering the freelancer list by a skill lists exactly the freelancers whose profile refers to it, and no others (FR-037, US6 scenario 1). A second freelancer carrying a profile **without** the skill is created alongside, so the test fails a filter that returns everyone as well as one that returns nobody
+- [X] T056 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert filtering the client list by a skill lists exactly the clients listing it as an interest (FR-038, US6 scenario 2)
+- [X] T057 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert a freelancer whose profile refers to several skills appears **exactly once** when filtered by one of them — verify the duplicate is actually absent rather than trusting Django's `.distinct()` (FR-039, US6 scenario 3, SC-012). Asserted by comparing the whole changelist queryset against a one-element list, so a repeat fails on length. **Finding, 2026-08-09**: the duplicate this task guards against **cannot arise on the admin's own filter**, and the test is therefore a behavior guard rather than a live catch. Measured rather than reasoned: filtering on a single skill id (`profile__skills=<pk>`, the shape the admin submits) returns **1** row for a profile holding three skills, because `(profile, skill)` pairs are unique in the join table; the same queryset filtered on three ids returns **3** rows, and `.distinct()` collapses it to 1. So FR-039 holds twice over on this screen — by the shape of the join, and by the changelist's `.distinct()`. The test still fails when the `list_filter` entry is removed, which is the production line it targets
+- [X] T058 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert filtering by a skill no profile refers to yields an empty list and raises no error (US6 scenario 4)
+- [X] T059 [US6] In `django_version/accounts/tests/admin/test_account_list_profile.py`, assert no skill filter is present on `StaffUserAdmin.list_filter` (FR-035, US6 scenario 5). Asserted over every entry rather than against the two literal paths, so a skill filter reaching the staff list under any spelling fails it
+
+> **Every test in this phase was mutation-checked, 2026-08-09**, as Phase 7's
+> were. Dropping `"profile__skills"` from `FreelancerAdmin.list_filter` failed
+> T055, T057 and T058 and nothing else; dropping `"profile__interests"` from
+> `ClientAdmin.list_filter` failed T056 alone; adding `"profile__skills"` to
+> `StaffUserAdmin.list_filter` failed T059 alone.
 
 **Checkpoint**: All six user stories are independently functional. Validate with
 quickstart.md rows D5–D9.
@@ -616,7 +643,7 @@ Execution Order* is authoritative. It **blocks** T063, T065, T066 and T067.
 - Recasing a skill **in place** (`Python` → `python` on that same row) stays
   permitted — that is FR-005. The lookup must exclude the row being saved.
 - **F-5 does not become a constraint.** Recorded as technical debt instead —
-  `docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md`.
+  `docs/tech_debt/003-in-use-skill-removal-has-no-backstop-outside-the-admin.md`.
 
 **Migration exception — scoped to this phase.** The constraint at the top of
 this file (*"No new dependency, no model field, no migration"*, research.md
@@ -635,7 +662,7 @@ against any other environment before migrating it.
 - [X] T069 [P] [US1] Revise `specs/001-profiles-admin-panel/contracts/admin-surface.md` §4: the duplicate-name row is **revised in place** to `skill_name_duplicate` (not complemented — `unique` becomes unreachable on any path that runs `clean()`, so two rows for one trigger would document an impossible outcome); the whitespace row is corrected to `required` **and** `skill_name_empty` (finding F-2b, verified through the bound form on 6.0.7); the "only new code this feature introduces" paragraph now names both codes; §6 drops "no migration"
 - [X] T070 [P] [US1] Revise `specs/001-profiles-admin-panel/contracts/admin-surface.md` §1: the `get_deleted_objects()` contract now prescribes **distinct profiles** over two aggregate queries instead of summing `freelancerprofile_set.count() + clientprofile_set.count()` per skill (findings F-4 and F-6). Measured on the development database, 2026-08-05: the old prescription reported 7 where 3 profiles were affected
 - [X] T071 [P] [US1] Add `skill_name_duplicate` to the *Established invariants* list in `.claude/rules/conventions.md`, following the terse shape of the existing entries: the rule, the code, the database backstop, and the `@pytest.mark.django_db` consequence. **Separate from T060**, which covers `profile_for_inactive_account` — both codes must be listed, neither replaces the other. **Revised 2026-08-05, by human decision:** the entry as first written explained *why* the constraint cannot carry the message (Django's `NON_FIELD_ERRORS` routing). That is Django behavior, not a project convention, and `conventions.md` is auto-loaded into every session — it states what to do, not why. The reasoning moved to `docs/adr/case-insensitive-skill-name-uniqueness.md` (T087) and the entry now points there. **`conventions.md` must contain no requirement, task, finding, or roadmap reference of any kind**
-- [X] T072 [P] [US1] Record finding F-5 in `docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md`, following the format of `whitespace-only-company-name-accepted-in-admin.md`, with four reversal criteria and the steps to take when one fires
+- [X] T072 [P] [US1] Record finding F-5 in `docs/tech_debt/003-in-use-skill-removal-has-no-backstop-outside-the-admin.md`, following the format of `002-whitespace-only-company-name-accepted-in-admin.md`, with four reversal criteria and the steps to take when one fires
 
 ### Implementation
 
