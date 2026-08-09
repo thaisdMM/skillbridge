@@ -520,7 +520,10 @@ Established conventions for the Django admin layer:
   move on.
 - `ARCHITECTURE.md` is **closed to new entries** and will be refactored into
   `docs/adr/`. Add new decisions as ADRs, never to that file.
-- Known technical debt goes to `docs/tech_debt/`, one decision per file.
+- Known technical debt goes to `docs/tech_debt/`, one decision per file, named
+  with a zero-padded sequence number in the order recorded (`001-…`,
+  `002-…`), so the directory reads chronologically. A new entry takes the next
+  number; existing files are never renumbered.
 - ADRs and convention files reference code, behavior and pinned versions —
   never requirement IDs, task IDs, spec paths, or roadmap items. Those are
   transient and rot when a feature directory is archived.
