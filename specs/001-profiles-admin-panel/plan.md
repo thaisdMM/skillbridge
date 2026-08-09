@@ -84,14 +84,15 @@ Gates derived from `.specify/memory/constitution.md` v1.0.0.
 | VII | GDPR First — No PII | No email/name/PII in logs or error output | PASS | PASS — new `logger.error` carries no PII |
 | VIII | One Layer Owns Each Rule | Owning layer named before each rule is written | PASS | PASS — table in data-model.md |
 | IX | No Code Without Tests | Every change ships with tests per `testing.md` | PASS | PASS — test modules enumerated below |
-| X | Deactivate, Never Delete | Profiles never destroyed; PROTECT preserved | PASS | **CONDITIONAL** — FR-023 via `can_delete=False` holds. But Principle X states "Deletion is disabled in the admin", and `SkillAdmin` deliberately enables it (FR-027, SC-006). The exception was approved by the human at plan time; it is **not yet recorded in the constitution**, which is still v1.0.0. Closing action: T086 — see *Open constitution item* below |
+| X | Deactivate, Never Delete | Profiles never destroyed; PROTECT preserved | PASS | PASS — FR-023 via `can_delete=False` holds. The `SkillAdmin` exception (FR-027, SC-006) was approved by the human at plan time and is now recorded in Principle X itself, amended 2026-08-09 in constitution v1.1.0. Closed by T086 — see *Constitution item* below |
 | XI | English Only | All artifacts in English | PASS | PASS |
 | XII | Approved Artifacts Lead | Spec/code divergence reported, not resolved silently | PASS | PASS — FR-021 divergence surfaced and decided |
 
-**One open item, no violations of substance.** Every gate passes on the work
-itself. Row X is marked CONDITIONAL only because an approved exception has not
-yet been written into the constitution — a documentation gap, not a code one.
-The Complexity Tracking table below stays empty by design.
+**No open items, no violations of substance.** Every gate passes on the work
+itself. Row X was held at CONDITIONAL until 2026-08-09 because an approved
+exception had not yet been written into the constitution — a documentation gap,
+not a code one; the amendment closed it. The Complexity Tracking table below
+stays empty by design.
 
 > **Amended 2026-08-05.** This plan originally stated that the feature adds "no
 > dependency, no field and no migration" and recorded row IV as *"feature
@@ -102,7 +103,7 @@ The Complexity Tracking table below stays empty by design.
 > file was missed in that pass and is corrected here. Nothing else about the
 > "no schema drift" posture changes. Recorded as T081.
 
-### Open constitution item (Principle X)
+### Constitution item, closed 2026-08-09 (Principle X)
 
 Principle X states *"Deletion is disabled in the admin."* FR-027 and SC-006
 require the opposite for `Skill`, and `SkillAdmin` implements it (T012,
@@ -118,9 +119,12 @@ that contradicts the constitution *"MUST be raised with the human and resolved
 explicitly — never silently."* An inline note would be exactly that silent
 resolution, so the exception belongs in Principle X itself.
 
-Closing action: **T086**. Until it is closed, `.claude/rules/conventions.md`
-carries the same gap — see finding F-7 of
-`docs/skill-admin-findings-2026-08-04.md`, closed by T085.
+Closed by **T086** on 2026-08-09. Principle X keeps its original paragraph and
+gains a second one naming what the rule protects — records of people, which are
+not reproducible — and what it does not restrict: curated reference data, of which
+`Skill` is the only instance. The constitution was bumped 1.0.0 → 1.1.0 with a
+dated Sync Impact Report entry. `.claude/rules/conventions.md` carried the same
+gap as finding F-7 of `docs/skill-admin-findings-2026-08-04.md`, closed by T085.
 
 ### Decisions taken by the human, 2026-07-28
 
@@ -283,9 +287,10 @@ are governed by `.claude/rules/testing.md` — notably: assert on the
 - `.claude/rules/conventions.md` — *Admin conventions* still states
   `has_delete_permission` returns `False` on **all** admin classes, which
   `SkillAdmin` contradicts by design. Finding F-7; closed by T085.
-- `.specify/memory/constitution.md` — Principle X needs the `Skill`/FR-027
-  deletion exception, with a version bump (T086). See *Open constitution item*
-  above.
+- `.specify/memory/constitution.md` — Principle X carries the `Skill`/FR-027
+  deletion exception since v1.1.0, amended 2026-08-09 (T086). See *Constitution
+  item* above. Two now-overbroad lines in `ARCHITECTURE.md` were corrected in the
+  same pass and point at the ADR.
 - `ARCHITECTURE.md` — record the FR-021 narrowing and the FR-028 mechanism, since
   both are decisions with reasoning worth keeping.
 
