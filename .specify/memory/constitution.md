@@ -1,4 +1,43 @@
 <!--
+SYNC IMPACT REPORT — 2026-08-09
+
+Version change: 1.0.0 → 1.1.0
+Bump rationale: MINOR — Principle X is materially expanded with a scoped exception.
+No principle was removed and none was redefined incompatibly: Principle X already
+required that physical deletion be revisited explicitly and documented before any
+model change, and this records that revisit.
+
+Principles modified (1; none added, none removed):
+  X. Deactivate, Never Delete — gains a second paragraph naming what the rule
+     protects (records of people, which are not reproducible) and what it does not
+     restrict (curated reference data). The Skill vocabulary has no is_active field,
+     is deletable in the admin, and is refused removal only while a profile still
+     refers to it. Reasoning, rejected alternatives and the standing constraints live
+     in docs/adr/skill-is-the-only-deletable-record.md, per the Governance meta-rule.
+
+Sections added: none. Sections removed: none.
+
+Consistency propagation:
+  ✅ .claude/rules/conventions.md — Admin conventions already states the rule as
+     "every admin class except SkillAdmin" and carries the standing instruction not
+     to suppress it.
+  ✅ docs/adr/skill-is-the-only-deletable-record.md — holds the full reasoning.
+  ✅ docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md —
+     already scopes the guard to the admin layer.
+  ✅ .specify/templates/*.md — no template restates Principle X. plan-template.md
+     line 43 holds the generic "[Gates determined based on constitution file]"
+     placeholder, filled per feature at plan time.
+  ⚠ ARCHITECTURE.md — PENDING, two lines now too broad. Line 949's "Principles
+     Applied Throughout" row says on_delete=PROTECT and has_delete_permission=False
+     "enforce this across ORM and admin layers"; line 825 says has_delete_permission
+     is False "on all admin classes". Both predate SkillAdmin. Not edited here: that
+     file is closed to new entries and correcting it is a separate decision. Line 365
+     is correctly scoped to the three account admins and needs no change.
+
+Follow-up TODOs: the two ARCHITECTURE.md lines above.
+-->
+
+<!--
 SYNC IMPACT REPORT — 2026-07-27
 
 Version change: (unfilled template) → 1.0.0
@@ -154,6 +193,12 @@ and profiles. `on_delete=PROTECT` is used on every `ForeignKey` and
 Introducing physical deletion requires revisiting this policy explicitly and
 documenting it before any model change.
 
+This rule protects records of people, which are not reproducible — a re-created
+account is a different row, stripped of its history, its relations and its audit
+trail. It does not restrict curated reference data, which carries no history and no
+personal data: the `Skill` vocabulary has no `is_active` field, is deletable in the
+admin, and is refused removal only while a profile still refers to it.
+
 ### XI. English Only
 
 All code, identifiers, comments, docstrings, commit messages, documents, and
@@ -199,4 +244,4 @@ PATCH for clarification and wording.
 principles. Any deviation MUST be justified in writing and approved before it is
 implemented.
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-07-27
+**Version**: 1.1.0 | **Ratified**: 2026-07-27 | **Last Amended**: 2026-08-09
