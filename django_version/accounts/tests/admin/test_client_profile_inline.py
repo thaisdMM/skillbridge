@@ -3,7 +3,9 @@
 import pytest
 from django.contrib import admin as django_admin
 from django.http import HttpRequest
+from django.test import Client as DjangoTestClient
 from django.test import RequestFactory
+from django.urls import reverse
 
 from accounts.admin import ClientAdmin, ClientProfileInline
 from accounts.models.client import Client
@@ -276,6 +278,27 @@ def test_filling_the_section_while_deactivating_the_account_is_refused(
 
 
 @pytest.mark.django_db
+def test_refusal_on_a_hidden_field_is_shown_above_the_section(
+    admin_request: HttpRequest,
+    client_user: Client,
+    valid_profile_section_data: dict[str, str],
+) -> None:
+    """The FR-029 refusal reaches non_field_errors, which the section renders."""
+    client_user.is_active = False
+    inline_instance = ClientProfileInline(Client, django_admin.site)
+    formset = inline_instance.get_formset(admin_request)(
+        valid_profile_section_data, instance=client_user
+    )
+    assert not formset.is_valid()
+
+    non_field_errors = formset.forms[0].non_field_errors().as_data()
+
+    assert [error.code for error in non_field_errors] == [
+        "profile_for_inactive_account"
+    ]
+
+
+@pytest.mark.django_db
 def test_refusal_on_a_hidden_field_leaves_no_orphan_error(
     admin_request: HttpRequest,
     client_user: Client,
@@ -353,6 +376,32 @@ def test_editing_a_profile_on_a_deactivated_account_is_accepted(
     )
 
     assert formset.is_valid()
+
+
+@pytest.mark.django_db
+def test_a_refused_profile_save_shows_the_message_on_the_account_screen(
+    admin_site_client: DjangoTestClient,
+    client_user: Client,
+    valid_profile_section_data: dict[str, str],
+) -> None:
+    """A profile refused from the account screen comes back as a message on the page, never a failure page."""
+    response = admin_site_client.post(
+        reverse("admin:accounts_client_change", args=[client_user.pk]),
+        {
+            "name": client_user.name,
+            "email": client_user.email,
+            **valid_profile_section_data,
+        },
+    )
+
+    assert response.status_code == 200
+
+    section = response.context["inline_admin_formsets"][0].formset.forms[0]
+    non_field_errors = section.non_field_errors()
+    assert [error.code for error in non_field_errors.as_data()] == [
+        "profile_for_inactive_account"
+    ]
+    assert str(non_field_errors[0]) in response.content.decode()
 
 
 @pytest.mark.django_db
