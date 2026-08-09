@@ -122,7 +122,7 @@ carries exactly one error would fail, and the contract row should say both.
 
 Note that this is **not** the same shape as the documented
 `company_name` tech debt
-(`docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`). There,
+(`docs/tech_debt/002-whitespace-only-company-name-accepted-in-admin.md`). There,
 `company_name` is `blank=True`, so the form produces `""` with no error and
 `ClientProfile.clean()`'s `if self.company_name:` short-circuits. `Skill.name`
 is required, so it does not have that hole.

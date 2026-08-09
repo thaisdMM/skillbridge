@@ -1382,7 +1382,7 @@ rejects `max_budget=-5` returns `is_valid() == True` for that input.
       still living in `validate_email` / `validate_user_name` / `create_user`
       (`ARCHITECTURE.md` → _User Input Normalization_).
 - [ ] Close the admin-layer gap recorded in
-      `docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`: the
+      `docs/tech_debt/002-whitespace-only-company-name-accepted-in-admin.md`: the
       form's `strip=True` reduces a whitespace-only `company_name` to `""`
       before `clean()` runs, so `company_name_empty` never fires in the admin
       (FR-016, FR-020 of `001-profiles-admin-panel`). Deferred to here rather

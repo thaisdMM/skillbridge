@@ -22,7 +22,7 @@ Consistency propagation:
      "every admin class except SkillAdmin" and carries the standing instruction not
      to suppress it.
   ✅ docs/adr/skill-is-the-only-deletable-record.md — holds the full reasoning.
-  ✅ docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md —
+  ✅ docs/tech_debt/003-in-use-skill-removal-has-no-backstop-outside-the-admin.md —
      already scopes the guard to the admin layer.
   ✅ .specify/templates/*.md — no template restates Principle X. plan-template.md
      line 43 holds the generic "[Gates determined based on constitution file]"

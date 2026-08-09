@@ -63,4 +63,4 @@ simply stops having that skill.
   principle both have to carry the exception.
 * Bad, because the guard is admin-layer only; a shell or ORM delete still drops join rows
   silently. Recorded in
-  `docs/tech_debt/in-use-skill-removal-has-no-backstop-outside-the-admin.md`.
+  `docs/tech_debt/003-in-use-skill-removal-has-no-backstop-outside-the-admin.md`.

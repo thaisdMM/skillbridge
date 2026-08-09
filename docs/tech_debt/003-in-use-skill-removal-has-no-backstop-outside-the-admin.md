@@ -105,7 +105,7 @@ constraint is added for this.**
   cover it, including the bulk route and the deactivated-account case.
 
 This is the same reasoning and the same route already used for
-`docs/tech_debt/whitespace-only-company-name-accepted-in-admin.md`: record the
+`docs/tech_debt/002-whitespace-only-company-name-accepted-in-admin.md`: record the
 gap, name what would change the assessment, and do not duplicate a rule across
 layers before a caller exists.
 
