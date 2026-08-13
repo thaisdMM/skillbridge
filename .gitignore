@@ -7,8 +7,8 @@ __pycache__/
 *.so
 
 # Virtual Environments
-oop-version/.venv/
-django-version/.venv/
+oop_version/.venv/
+django_version/.venv/
 venv/
 ENV/
 
@@ -17,14 +17,14 @@ ENV/
 .env.local
 
 # Django
-django-version/db.sqlite3
-django-version/*.log
-django-version/staticfiles/
-django-version/media/
+django_version/db.sqlite3
+django_version/*.log
+django_version/staticfiles/
+django_version/media/
 
 # OOP Project
-oop-version/.coverage
-oop-version/.pytest_cache/
+oop_version/.coverage
+oop_version/.pytest_cache/
 
 # IDEs
 .vscode/
