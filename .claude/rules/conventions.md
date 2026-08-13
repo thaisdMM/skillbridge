@@ -250,13 +250,27 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
   The constraint is the backstop for ORM paths that bypass `clean()`
   (direct `.update()`, scripts, shell). `clean()` remains the
   app-layer path for friendly field-level errors.
+- `StaffUser.clean()`: `is_active=True` requires `is_staff=True`
+  → code: `staffuser_active_without_staff`
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
   → code: `hourly_rate_not_positive`
+- `FreelancerProfile.clean()`: on creation only (`self.pk is None`), the
+  account the profile belongs to must be active. Creating a profile for an
+  inactive freelancer is refused; editing a profile that already exists on
+  an inactive account stays permitted.
+  → code: `profile_for_inactive_account`
+  → raised on the `user` field
 - `ClientProfile.clean()`: `company_name`, if provided, must not be empty
   after stripping whitespace.
   → code: `company_name_empty`
 - `ClientProfile.clean()`: `max_budget`, if provided, must be > 0.
   → code: `max_budget_not_positive`
+- `ClientProfile.clean()`: on creation only (`self.pk is None`), the
+  account the profile belongs to must be active. Creating a profile for an
+  inactive client is refused; editing a profile that already exists on an
+  inactive account stays permitted.
+  → code: `profile_for_inactive_account`
+  → raised on the `user` field
 - `Skill.clean()`: `name` stripped of whitespace, cannot be empty after strip.
   → code: `skill_name_empty`
 - `Skill.clean()`: `name` must not duplicate an existing skill's `name`,
