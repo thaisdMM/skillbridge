@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-27
 
-**Status**: Draft
+**Status**: Completed
 
 **Input**: User description: "I need to create the admin panel to app profiles. I need to create a admin for profiles that create profiles, create skills and do all the profiles requirements, but at the same time I need to connect this admin from profiles with the django_version/accounts/admin.py for accounts app. For the django_version/profiles/admin.py we have the follow the same standard established in the django_version/accounts/admin.py. if you have questions you can ask me."
 
