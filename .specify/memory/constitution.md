@@ -35,6 +35,14 @@ Consistency propagation:
      is correctly scoped to the three account admins and needs no change.
 
 Follow-up TODOs: the two ARCHITECTURE.md lines above.
+
+Resolved 2026-08-13: both lines now carry the exception. The Reasoning section
+under the deactivation decision scopes has_delete_permission = False to "every
+account admin class" and names Skill as the one exempt record; the "Deactivate,
+never delete" row in Principles Applied Throughout carries the same scoping and
+the same exemption. Both point at docs/adr/skill-is-the-only-deletable-record.md.
+The follow-up above is closed. Note the line numbers cited above have since
+drifted — locate both passages by their content, not by those numbers.
 -->
 
 <!--
