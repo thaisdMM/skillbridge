@@ -696,19 +696,36 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 
 - [x] `__str__` → `self.name`
 - [x] `__repr__` → `"{ClassName} (id=…, name=…!r, category=…!r)"` — usa `!r` para citar as strings
-- [x] `clean()` — normaliza `name` com `.strip()` e levanta `ValidationError` com código `skill_name_empty` se vazio após o strip
+- [x] `clean()` — normaliza `name` com `.strip()`, levanta `ValidationError` com
+      código `skill_name_empty` se vazio após o strip, e levanta
+      `skill_name_duplicate` se outro skill já carrega o mesmo nome ignorando
+      maiúsculas/minúsculas (a instância sendo salva é excluída da comparação)
 
 **Meta:**
 
 - [x] `db_table = "skills"`
 - [x] `ordering = ["category", "name"]`
 - [x] `verbose_name`, `verbose_name_plural`
+- [x] `constraints = [UniqueConstraint(Lower("name"), name="skill_unique_name_case_insensitive")]`
+      — backstop de banco para o `clean()`, cobre caminhos ORM que ignoram
+      `full_clean()` (`.create()`, `.update()`, `bulk_create()`, shell)
+
+**Migração:**
+
+- [x] `profiles/migrations/0001_initial.py` — cria a tabela `skills` com os
+      campos concretos
+- [x] `profiles/migrations/0007_skill_skill_unique_name_case_insensitive.py` —
+      adiciona `UniqueConstraint(Lower("name"))`, quando `skill_name_duplicate`
+      foi implementado em `clean()`
 
 **Decisões arquiteturais** (documentadas no `ARCHITECTURE.md`):
 
 - Skills são geridas exclusivamente por admins. Freelancers selecionam da lista existente. Vocabulário controlado garante filtragem e matching fiáveis em `list_open_jobs(skills=...)` (Sprint 2.3)
 - Exposto em `profiles/models/__init__.py` (`__all__`)
-- Migration de schema gerada e aplicada (`0001_initial.py`)
+- Duplicata de nome comparada ignorando letter case, nunca normalizada no
+  armazenamento — `name` é guardado como digitado, só com `.strip()`. Reforçado
+  em dois níveis: `clean()` para o erro de campo amigável,
+  `UniqueConstraint(Lower("name"))` como backstop de banco
 
 ---
 
@@ -718,7 +735,7 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 
 **Testes implementados:**
 
-`profiles/tests/models/test_skill.py` — **12 testes, todos passando**.
+`profiles/tests/models/test_skill.py` — **24 testes, todos passando**.
 
 1. [x] `test_skill_str_representation` — `__str__` retorna o nome da skill
 2. [x] `test_skill_repr_representation` — `__repr__` numa instância não salva, `category` renderizado como membro do `TextChoices`
@@ -726,11 +743,21 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 4. [x] `test_skill_clean_strips_whitespace` — `clean()` normaliza espaços
 5. [x] `test_skill_clean_empty_name_raises_validation_error` — parametrizado com `""` e `"   "`, verifica `code="skill_name_empty"`
 6. [x] `test_skill_clean_none_name_passes_validation` — `clean()` não altera e não levanta erro quando `name=None`
-7. [x] `test_skill_creation_assigns_id` — criação atribui chave primária
-8. [x] `test_skill_is_persisted_and_retrievable` — skill salva é recuperável com os campos corretos
-9. [x] `test_skill_name_uniqueness` — `unique=True` aplicado via `full_clean()`, código `unique`
-10. [x] `test_skill_name_uniqueness_enforced_at_database_level` — duplicata inserida sem `full_clean()` levanta `IntegrityError`
-11. [x] `test_skill_ordering` — ordering por categoria e depois por nome é respeitado
+7. [x] `test_exactly_100_char_name_passes_validation` — nome no limite exato (100)
+8. [x] `test_exceeding_100_char_name_raises_validation_error` — nome acima do limite, código `max_length`
+9. [x] `test_skill_clean_name_differing_only_in_case_raises_validation_error` — nome diferindo só na caixa levanta `skill_name_duplicate`
+10. [x] `test_skill_clean_strips_the_name_before_comparing_it_with_existing_skills` — nome com padding, uma vez stripped, colide e levanta `skill_name_duplicate`
+11. [x] `test_skill_whose_name_did_not_change_passes_validation` — skill salva sem alteração de nome passa em `full_clean()`
+12. [x] `test_skill_recased_in_place_is_stored_with_the_new_capitalization` — recasing em lugar é permitido, o nome persiste na nova caixa
+13. [x] `test_renaming_a_saved_skill_to_a_name_another_saved_skill_carries_raises_validation_error` — parametrizado (`"Python"`, `"python"`, `"PYTHON"`), levanta `skill_name_duplicate`
+14. [x] `test_skill_clean_compares_the_name_using_the_database_case_mapping` — `İ`/`I` com lowercasing divergente entre Python e PostgreSQL ainda levanta `skill_name_duplicate`
+15. [x] `test_skill_creation_assigns_id` — criação atribui chave primária
+16. [x] `test_skill_is_persisted_and_retrievable` — skill salva é recuperável com os campos corretos
+17. [x] `test_skill_name_uniqueness` — repetição exata de um nome existente levanta `skill_name_duplicate`
+18. [x] `test_skill_name_uniqueness_enforced_at_database_level` — duplicata exata inserida sem `full_clean()` levanta `IntegrityError`
+19. [x] `test_skill_case_insensitive_name_uniqueness_enforced_at_database_level` — duplicata diferindo só na caixa, inserida sem `full_clean()`, levanta `IntegrityError`
+20. [x] `test_skill_name_field_declares_unique` — o field `name` declara `unique=True`
+21. [x] `test_skill_ordering` — ordering por categoria e depois por nome é respeitado
 
 **Seed:**
 
@@ -742,14 +769,18 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 - Testes de `__repr__` usam `!r` no assert f-string em vez de aspas literais — mais robusto e consistente com o código real do modelo
 - `@pytest.mark.django_db` apenas para testes que tocam a base de dados
 - `bulk_create(ignore_conflicts=True)` para seeds — eficiente e idempotente
-- `full_clean()` para testar `unique=True` — evita depender do `IntegrityError` da base de dados diretamente
+- `full_clean()` para testar duplicidade — evita depender do `IntegrityError` da base de dados diretamente
 - Fixtures de modelo ficam locais ao ficheiro enquanto usadas por apenas um ficheiro de teste
+- Duplicidade testada em três camadas: `clean()` isolado, `full_clean()` (que
+  agora levanta `skill_name_duplicate` antes de `validate_unique()` chegar a
+  rodar), e `IntegrityError` direto via `UniqueConstraint`, sem passar por
+  `full_clean()`
 
 **Decisões arquiteturais** (documentadas no `ARCHITECTURE.md`):
 
 - `bulk_create` sem `full_clean()` no seed é intencional — dados controlados, revistos antes do commit. `clean()` permanece ativo para o único caminho externo de inserção: Django Admin restrito a administradores da plataforma
 
-**Total profiles/ até aqui: 17 testes passando (5 base + 12 skill).**
+**Total profiles/ até aqui: 29 testes passando (5 base + 24 skill).**
 
 ---
 
@@ -762,20 +793,27 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 - [x] Herda de `Profile` (`bio`, `created_at`, `updated_at`)
 - [x] `user` — `OneToOneField(Freelancer, on_delete=PROTECT, related_name="profile")`
 - [x] `hourly_rate` — `DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)`
-      — campo opcional. Migração `0003_freelancerprofile.py` criou-o obrigatório;
-      `0005_alter_freelancerprofile_options_and_more.py` relaxou para `null=True, blank=True`
+      — campo opcional (ver **Migração** abaixo para o histórico do relaxamento)
 - [x] `skills` — `ManyToManyField(Skill, blank=True)`
 - [x] `portfolio_url` — `URLField(blank=True)` — sem checagem extra de string vazia em `clean()`
 - [x] `years_of_experience` — `PositiveIntegerField(default=0)`
 
 **Métodos implementados:**
 
-- [x] `clean()` — valida apenas `hourly_rate`: deve ser estritamente > 0 quando
+- [x] `clean()` — valida `hourly_rate`: deve ser estritamente > 0 quando
       fornecido (código `hourly_rate_not_positive`). `portfolio_url` não é
       validado em `clean()` — o formato já é garantido pelo `URLField`, e não
       existe checagem de string vazia. Skills não validadas aqui — `ManyToManyField`
       indisponível antes do `.save()`; obrigatoriedade de pelo menos uma skill
-      fica no serializer (Sprint DRF)
+      fica no serializer (Sprint DRF). Na criação apenas (`self.pk is None`), a
+      conta a que o perfil pertence deve estar ativa — código
+      `profile_for_inactive_account`, levantado no campo `user`. Editar um
+      perfil já existente numa conta que foi desativada depois permanece
+      permitido (FR-030)
+- [x] `_get_account()` — retorna a conta ligada ao perfil, lendo a instância em
+      memória (`self.user`) em vez de reconsultar o banco, para enxergar o
+      `is_active` submetido no formset inline do admin antes da gravação.
+      Retorna `None` quando nenhuma conta está associada
 - [x] `get_display_info()` — retorna dict com `name`, `hourly_rate`,
       `years_of_experience`, `portfolio_url`, `bio`, `skills` (lista de nomes).
       **Não inclui `email`**
@@ -807,28 +845,47 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 - Skills obrigatória (mínimo uma) é regra de negócio aplicada no serializer
   DRF, não no model — documentado em "FreelancerProfile — Minimum One Skill
   Enforced at Serializer Level" (`ARCHITECTURE.md:843`)
+- Perfil não pode ser criado para conta inativa (`profile_for_inactive_account`),
+  mas continua editável se a conta for desativada depois de criado (FR-030) —
+  mesma regra e mesmo code em `ClientProfile`
+
+**Migração:**
+
+- [x] `profiles/migrations/0003_freelancerprofile.py` — cria o modelo com
+      `hourly_rate` obrigatório
+- [x] `profiles/migrations/0004_alter_freelancerprofile_bio.py` — ajusta o
+      `help_text` de `bio`
+- [x] `profiles/migrations/0005_alter_freelancerprofile_options_and_more.py` —
+      relaxa `hourly_rate` para `null=True, blank=True`
 
 **Testes implementados:**
 
-`profiles/tests/models/test_freelancer_profile.py` — **18 testes, todos passando**.
+`profiles/tests/models/test_freelancer_profile.py` — **25 testes, todos passando**.
 
 1. [x] `test_freelancer_profile_inherits_from_profile_class`
 2. [x] `test_freelancer_profile_creation_and_saving`
 3. [x] `test_freelancer_profile_default_years_of_experience`
 4. [x] `test_freelancer_profile_raises_validation_error_with_non_positive_hourly_rate` — parametrizado (2 casos: `0.00`, `-10.50`)
-5. [x] `test_freelancer_profile_hourly_rate_none_passes_validation`
-6. [x] `test_freelancer_profile_hourly_rate_none_persists_on_save`
-7. [x] `test_freelancer_profile_str_representation`
-8. [x] `test_freelancer_profile_repr_representation`
-9. [x] `test_freelancer_profile_get_display_info`
-10. [x] `test_freelancer_profile_get_display_info_without_skills`
-11. [x] `test_freelancer_profile_on_delete_protect`
-12. [x] `test_add_and_remove_skills`
+5. [x] `test_freelancer_profile_str_representation`
+6. [x] `test_freelancer_profile_repr_representation`
+7. [x] `test_freelancer_profile_get_display_info`
+8. [x] `test_freelancer_profile_get_display_info_without_skills`
+9. [x] `test_freelancer_profile_get_display_info_on_unsaved_instance` — `ValueError` numa instância não salva
+10. [x] `test_freelancer_profile_on_delete_protect`
+11. [x] `test_freelancer_profile_add_skills`
+12. [x] `test_freelancer_profile_remove_skills`
 13. [x] `test_freelancer_profile_created_at_is_set_on_creation`
 14. [x] `test_freelancer_profile_updated_at_changes_on_save`
-15. [x] `test_freelancer_profile_user_uniqueness`
-16. [x] `test_freelancer_profile_user_uniqueness_enforced_at_database_level`
-17. [x] `test_freelancer_profile_ordering`
+15. [x] `test_freelancer_profile_hourly_rate_none_passes_validation`
+16. [x] `test_freelancer_profile_optional_fields_can_be_omitted` — só `user` definido passa em `full_clean()`
+17. [x] `test_freelancer_profile_hourly_rate_accepts_null_at_database_level`
+18. [x] `test_freelancer_profile_user_uniqueness`
+19. [x] `test_freelancer_profile_user_uniqueness_enforced_at_database_level`
+20. [x] `test_freelancer_profile_ordering`
+21. [x] `test_freelancer_profile_creation_refused_for_inactive_account` — código `profile_for_inactive_account`
+22. [x] `test_freelancer_profile_creation_accepted_for_active_account`
+23. [x] `test_freelancer_profile_edit_accepted_on_deactivated_account` — FR-030
+24. [x] `test_freelancer_profile_clean_does_not_raise_when_no_account_attached`
 
 **Padrões estabelecidos:**
 
@@ -839,8 +896,12 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
   e `IntegrityError` direto na base de dados, sem passar por `full_clean()`
 - `hourly_rate=None` testado tanto na validação (`full_clean()` não levanta)
   quanto na persistência (valor sobrevive ao save/reload)
+- Regra de conta inativa testada em três cenários: criação recusada para conta
+  inativa, criação aceita para conta ativa, e edição aceita depois que a conta
+  é desativada (FR-030) — o mesmo padrão de três cenários se repete em
+  `ClientProfile`
 
-**Total profiles/ até aqui: 35 testes passando (5 base + 12 skill + 18 freelancer_profile).**
+**Total profiles/ até aqui: 54 testes passando (5 base + 24 skill + 25 freelancer_profile).**
 
 ---
 
@@ -871,6 +932,14 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
     (código `max_budget_not_positive`)
   - Interests **não** validadas aqui — `ManyToManyField` indisponível
     antes do `.save()`
+  - Na criação apenas (`self.pk is None`), a conta a que o perfil pertence
+    deve estar ativa — código `profile_for_inactive_account`, levantado no
+    campo `user`. Editar um perfil já existente numa conta que foi
+    desativada depois permanece permitido (FR-030)
+- [x] `_get_account()` — retorna a conta ligada ao perfil, lendo a instância em
+      memória (`self.user`) em vez de reconsultar o banco, para enxergar o
+      `is_active` submetido no formset inline do admin antes da gravação.
+      Retorna `None` quando nenhuma conta está associada
 - [x] `get_display_info()` — retorna dict com `name`, `max_budget`,
       `company_name`, `website_url`, `bio`, `interests` (lista de nomes).
       **Não inclui `email`**
@@ -904,42 +973,62 @@ são regras dos concretos (`FreelancerProfile`/`ClientProfile`).
 - `clean()` assume o tipo já convertido (`Decimal`) para `max_budget`, sem
   type guard — documentado em `docs/adr/model-clean-assumes-converted-field-types.md`
   (aplica-se explicitamente a `ClientProfile.max_budget`)
+- Perfil não pode ser criado para conta inativa (`profile_for_inactive_account`),
+  mas continua editável se a conta for desativada depois de criado (FR-030) —
+  mesma regra e mesmo code em `FreelancerProfile`
 
 ---
 
-### TASK 2.1.5b — profiles/ Testes ClientProfile
+### TASK 2.1.5b — profiles/ Testes ClientProfile ✅ CONCLUÍDA
 
-**Status:** PENDING — nenhum teste existe ainda para `ClientProfile`
-(confirmado: `profiles/tests/models/` não contém `test_client_profile.py`
-nem qualquer outro ficheiro relacionado).
+**Arquivo:** `profiles/tests/models/test_client_profile.py`
 
-**Plano de testes** (baseado na cobertura real de
-`test_freelancer_profile.py`, adaptado aos campos reais de `ClientProfile`):
+**Testes implementados:**
 
-- [ ] `test_client_profile_inherits_from_profile_class`
-- [ ] `test_client_profile_creation_and_saving`
-- [ ] `test_client_profile_raises_validation_error_with_non_positive_max_budget` — parametrizado (`0.00`, negativo)
-- [ ] `test_client_profile_max_budget_none_passes_validation`
-- [ ] `test_client_profile_max_budget_none_persists_on_save`
-- [ ] `test_client_profile_raises_validation_error_with_whitespace_company_name` — código `company_name_empty`
-- [ ] `test_client_profile_empty_company_name_passes_validation` — `company_name=""` não aciona a validação
-- [ ] `test_client_profile_str_representation`
-- [ ] `test_client_profile_repr_representation`
-- [ ] `test_client_profile_get_display_info`
-- [ ] `test_client_profile_get_display_info_without_interests`
-- [ ] `test_client_profile_on_delete_protect`
-- [ ] `test_add_and_remove_interests`
-- [ ] `test_client_profile_created_at_is_set_on_creation`
-- [ ] `test_client_profile_updated_at_changes_on_save`
-- [ ] `test_client_profile_user_uniqueness`
-- [ ] `test_client_profile_user_uniqueness_enforced_at_database_level`
-- [ ] `test_client_profile_ordering`
+`profiles/tests/models/test_client_profile.py` — **26 testes, todos passando**.
+
+1. [x] `test_client_profile_inherits_from_profile_class`
+2. [x] `test_client_profile_creation_and_saving`
+3. [x] `test_client_profile_raises_validation_error_with_non_positive_max_budget` — parametrizado (2 casos: `0.00`, `-10.50`)
+4. [x] `test_client_profile_max_budget_none_passes_validation`
+5. [x] `test_client_profile_raises_validation_error_with_empty_company_name` — código `company_name_empty`
+6. [x] `test_client_profile_no_company_name_passes_validation` — `company_name=""` não aciona a validação
+7. [x] `test_client_profile_optional_fields_can_be_omitted` — só `user` definido passa em `full_clean()`
+8. [x] `test_client_profile_str_representation`
+9. [x] `test_client_profile_repr_representation`
+10. [x] `test_client_profile_get_display_info`
+11. [x] `test_client_profile_get_display_info_without_interests`
+12. [x] `test_client_profile_get_display_info_on_unsaved_instance` — `ValueError` numa instância não salva
+13. [x] `test_client_profile_on_delete_protect`
+14. [x] `test_client_profile_add_interests`
+15. [x] `test_client_profile_remove_interests`
+16. [x] `test_client_profile_created_at_is_set_on_creation`
+17. [x] `test_client_profile_updated_at_changes_on_save`
+18. [x] `test_client_profile_user_uniqueness`
+19. [x] `test_client_profile_user_uniqueness_enforced_at_database_level`
+20. [x] `test_client_profile_max_budget_accepts_null_at_database_level`
+21. [x] `test_client_profile_ordering`
+22. [x] `test_client_profile_creation_refused_for_inactive_account` — código `profile_for_inactive_account`
+23. [x] `test_client_profile_creation_accepted_for_active_account`
+24. [x] `test_client_profile_edit_accepted_on_deactivated_account` — FR-030
+25. [x] `test_client_profile_clean_does_not_raise_when_no_account_attached`
+
+**Padrões estabelecidos:**
+
+- Mesmo padrão de `test_freelancer_profile.py`: unicidade de `user` testada em
+  dois níveis (`full_clean()` e `IntegrityError` direto), `max_budget=None`
+  testado na validação e na persistência, timestamps testados só no concreto
+- Regra de conta inativa testada em três cenários: criação recusada para conta
+  inativa, criação aceita para conta ativa, e edição aceita depois que a conta
+  é desativada (FR-030) — mesmo padrão de três cenários de `FreelancerProfile`
 
 **Nota:** este plano não inclui testes para `years_of_experience`-like
 defaults (não há campo equivalente em `ClientProfile`) nem para
 `portfolio_url`-style empty-string checks (não existe tal validação em
 `FreelancerProfile`, e `website_url` não tem validação própria em
 `clean()` além do formato já garantido pelo `URLField`).
+
+**Total profiles/ até aqui: 80 testes passando (5 base + 24 skill + 25 freelancer_profile + 26 client_profile).**
 
 ---
 
@@ -960,23 +1049,246 @@ defaults (não há campo equivalente em `ClientProfile`) nem para
 
 ---
 
-### TASK 2.1.6 — Migrations & Admin profiles/ (30min)
+### TASK 2.1.6 — profiles/ Admin (SkillAdmin) + Testes ✅ CONCLUÍDA
 
-- [ ] `makemigrations profiles`
-- [ ] `migrate`
-- [ ] Admin com `TabularInline` (mostrar Profile inline ao User)
-- [ ] Testar no Admin
-- [ ] **No admin action may write `max_budget` or `hourly_rate` through
-      `queryset.update()`.** Both invariants live in `ClientProfile.clean()` /
-      `FreelancerProfile.clean()` alone, with no `CheckConstraint` backstop.
-      `update()` bypasses `clean()`, so such an action would write a negative
-      amount with no error at any layer. If the action becomes necessary, the
-      ADR must be revisited and the `CheckConstraint` added **in the same change
-      that introduces the write path** — not after.
-      → ADR: _Positive-Amount Invariants Enforced by `clean()` Only — No
-      `CheckConstraint`_
+**Arquivo:** `profiles/admin.py`
 
-**Conceitos para estudar:** `TabularInline` vs `StackedInline`.
+**Configuração implementada** (`SkillAdmin(admin.ModelAdmin)`, registrado para `Skill`):
+
+- [x] `list_display = ("name", "category")`
+- [x] `list_display_links = ("name",)`
+- [x] `list_filter = ("category",)`
+- [x] `search_fields = ("name",)`
+- [x] `ordering = ("category", "name")`
+- [x] `list_per_page = 25`
+- [x] `fieldsets` — um único fieldset sem nome, com `name` e `category`
+
+**Métodos implementados:**
+
+- [x] `get_deleted_objects()` — sobrescrito para proteger a remoção: conta os
+      perfis (freelancer + client) que ainda referem alguma das skills
+      selecionadas e, se maior que zero, acrescenta uma linha de resumo à
+      coleção protegida, bloqueando tanto a view de delete quanto a bulk
+      action `delete_selected`
+- [x] `_count_referring_profiles()` — soma `FreelancerProfile` e `ClientProfile`
+      distintos que referem a seleção, uma query agregada para cada
+- [x] `_in_use_summary()` — monta a mensagem de recusa reportando só a
+      contagem, nunca os perfis individuais
+
+**Decisões arquiteturais** (documentadas em `.claude/rules/conventions.md`):
+
+- `SkillAdmin` é a única admin class do projeto que permite exclusão —
+  `Skill` não tem `is_active`, então não há desativação disponível para ela.
+  A remoção é recusada enquanto qualquer perfil ainda a referir, porque
+  `on_delete` não tem efeito sobre um `ManyToManyField`
+- Duplicidade de nome (`skill_name_duplicate`) e nome vazio
+  (`skill_name_empty`) chegam ao formulário do admin através do `clean()` do
+  model — nenhuma validação própria no admin
+
+**Testes implementados:**
+
+`profiles/tests/admin/test_skill_admin.py` — **24 testes, todos passando**.
+
+1. [x] `test_skill_admin_declares_the_configured_screen_attribute` — parametrizado, 6 atributos de tela
+2. [x] `test_skill_admin_groups_name_and_category_in_one_unnamed_fieldset`
+3. [x] `test_skill_admin_permits_deletion`
+4. [x] `test_get_deleted_objects_protects_nothing_for_a_skill_no_profile_refers_to`
+5. [x] `test_get_deleted_objects_protects_a_skill_a_freelancer_profile_refers_to`
+6. [x] `test_get_deleted_objects_protects_a_skill_a_client_profile_refers_to`
+7. [x] `test_get_deleted_objects_summarizes_several_referring_profiles_in_one_entry`
+8. [x] `test_get_deleted_objects_counts_a_profile_referring_to_several_selected_skills_once`
+9. [x] `test_get_deleted_objects_counts_a_client_profile_referring_to_several_selected_skills_once`
+10. [x] `test_counting_referring_profiles_issues_two_queries_for_a_selection_of_three_skills`
+11. [x] `test_refused_deletion_leaves_the_skill_attached_to_every_profile`
+12. [x] `test_delete_selected_deletes_no_skill_when_one_of_the_selected_skills_is_in_use`
+13. [x] `test_get_deleted_objects_protects_a_skill_referred_to_from_a_deactivated_account`
+14. [x] `test_add_form_refuses_a_name_an_existing_skill_already_carries` — código `skill_name_duplicate`
+15. [x] `test_add_form_refuses_a_case_variant_without_rewriting_the_stored_name`
+16. [x] `test_add_form_refuses_a_case_variant_padded_with_whitespace`
+17. [x] `test_add_form_reports_the_required_and_the_empty_name_codes_for_a_blank_name` — códigos `required` e `skill_name_empty`
+18. [x] `test_add_form_accepts_a_name_no_skill_carries`
+19. [x] `test_change_form_refuses_renaming_a_skill_onto_another_saved_skill_name`
+
+**Padrões estabelecidos:**
+
+- `admin_instance = SkillAdmin(Skill, django_admin.site)` — instancia a admin
+  class diretamente em vez de resolver via `django_admin.site._registry`
+- `RequestFactory` + `FallbackStorage` para simular uma request de admin sem
+  o test client do Django
+- `django_assert_num_queries` trava o número de queries da contagem agregada
+  em `_count_referring_profiles()`
+
+**Total profiles/ até aqui: 104 testes passando (80 profiles/tests/models + 24 profiles/tests/admin).**
+
+---
+
+> As três tasks abaixo (2.1.7a/b/c) implementam o painel de administração de
+> perfis inline em `accounts/admin.py`, entregue pela spec
+> `specs/001-profiles-admin-panel/`. Não fazem parte do plano original do
+> Sprint 2.1 — o arquivo já existia desde a TASK 1.2.5 (FASE 1), mas a spec
+> acrescentou os inlines de perfil, o mixin de presença de perfil e os
+> filtros por skill depois que aquela task foi escrita. Por decisão do
+> usuário, a TASK 1.2.5 permanece como retrato da FASE 1 e não é reescrita —
+> reescrevê-la exigiria repetir ali um arquivo que cresceu demais desde
+> então. Todo o conteúdo novo é documentado aqui, uma task por arquivo de
+> teste, no mesmo padrão de Skill/FreelancerProfile/ClientProfile/SkillAdmin.
+
+### TASK 2.1.7a — accounts/ `admin.py` — Freelancer Profile Inline + Testes ✅ CONCLUÍDA
+
+**Arquivo:** `accounts/admin.py`
+
+**Base compartilhada dos dois inlines de perfil** (reutilizada, sem alteração, pela TASK 2.1.7b):
+
+- [x] `ProfileInlineForm(forms.ModelForm)` — move para `non_field_errors` os erros levantados contra campos que a seção renderiza ocultos (ex.: `profile_for_inactive_account`, associado a `user`), que de outro modo chegariam à página sem lugar para aparecer; cada erro mantém seu `code` original, só muda onde é exibido
+- [x] `BaseProfileInline(admin.StackedInline)` (não registrado) — `extra=1`, `max_num=1`, `can_delete=False`, `has_delete_permission()` → `False`, `readonly_fields=("created_at", "updated_at")`, `formfield_for_dbfield()` remove o controle "+" de qualquer campo relacionado
+
+**`FreelancerProfileInline(BaseProfileInline)`:**
+
+- [x] `model = FreelancerProfile` · `filter_horizontal = ("skills",)`
+- [x] `fieldsets`: (sem título) `hourly_rate`/`years_of_experience`/`portfolio_url`; `Skills` → `skills`; `Biography` → `bio`; `Important Dates` (colapsável) → `created_at`/`updated_at`
+- [x] anexado a `FreelancerAdmin.inlines = (FreelancerProfileInline,)`
+
+**Decisões arquiteturais:**
+
+- O hook correto para suprimir o "+" no Django 6.0.7 é `formfield_for_dbfield()`, não `formfield_for_manytomany()` — o `RelatedFieldWidgetWrapper` só existe depois que o segundo retorna, então setar a flag ali deixaria o "+" renderizado
+- `Skill` continua vocabulário fechado (ver `.claude/rules/conventions.md` → Skill model): o freelancer seleciona, nunca cria; o "+" removido é a garantia dessa regra na UI
+- `ProfileInlineForm` existe porque `profile_for_inactive_account` é levantado sobre o campo `user`, que a seção não exibe — sem o form, o erro chegaria ao HTML sem nenhum elemento para renderizá-lo
+
+**Testes implementados:**
+
+`accounts/tests/admin/test_freelancer_profile_inline.py` — **28 testes, todos passando**.
+
+1. [x] `test_freelancer_admin_attaches_the_freelancer_profile_inline` — `FreelancerAdmin` não renderiza nenhum outro inline
+2. [x] `test_freelancer_profile_inline_binds_to_the_freelancer_profile_model`
+3. [x] `test_freelancer_profile_inline_offers_one_blank_form_slot` — `extra == 1`
+4. [x] `test_freelancer_profile_inline_caps_the_section_at_one_profile` — `max_num == 1`
+5. [x] `test_freelancer_profile_inline_renders_no_removal_checkbox` — `can_delete is False`
+6. [x] `test_freelancer_profile_inline_refuses_delete_permission`
+7. [x] `test_freelancer_profile_inline_shows_the_timestamps_read_only`
+8. [x] `test_freelancer_profile_inline_groups_the_fields_as_contracted` — os 4 grupos de `fieldsets`
+9. [x] `test_freelancer_profile_inline_selects_skills_through_a_two_column_widget` — `filter_horizontal`
+10. [x] `test_skills_widget_offers_no_add_related_control` — `can_add_related is False`
+11. [x] `test_rendered_skills_widget_carries_no_add_related_link` — HTML renderizado sem link de popup de criação
+12. [x] `test_section_offers_exactly_one_form_for_an_account_without_a_profile`
+13. [x] `test_section_form_is_blank_for_an_account_without_a_profile`
+14. [x] `test_section_offers_exactly_one_form_for_an_account_with_a_profile` — sem segundo form em branco
+15. [x] `test_section_form_holds_the_existing_profile`
+16. [x] `test_section_offers_exactly_one_form_on_the_add_screen` — perfil disponível antes de a conta existir
+17. [x] `test_untouched_section_reports_no_change` — `has_changed() is False`
+18. [x] `test_untouched_section_creates_no_profile` — seção intocada não cria `FreelancerProfile`
+19. [x] `test_non_positive_hourly_rate_is_refused_on_the_hourly_rate_field` — código `hourly_rate_not_positive`
+20. [x] `test_biography_over_the_limit_is_refused_on_the_bio_field` — código `max_length` numa bio de 501 caracteres
+21. [x] `test_filling_the_section_while_deactivating_the_account_is_refused` — `profile_for_inactive_account` sob `__all__`
+22. [x] `test_refusal_on_a_hidden_field_is_shown_above_the_section` — erro chega a `non_field_errors`
+23. [x] `test_refusal_on_a_hidden_field_leaves_no_orphan_error` — nenhum erro remanescente em `user`
+24. [x] `test_error_on_a_visible_field_stays_on_that_field` — erro em campo visível não é movido para o form
+25. [x] `test_filling_the_section_while_reactivating_the_account_is_accepted`
+26. [x] `test_editing_a_profile_on_a_deactivated_account_is_accepted` — edição de perfil existente continua permitida
+27. [x] `test_a_refused_profile_save_shows_the_message_on_the_account_screen` — POST real via Django test client, resposta 200 com a mensagem no HTML
+28. [x] `test_saved_section_attaches_the_selected_skills`
+
+**Total accounts/ até aqui: 154 testes passando (32 validators + 50 base + 12 freelancer + 6 client + 9 staff_user + 17 admin + 28 freelancer_profile_inline).**
+
+---
+
+### TASK 2.1.7b — accounts/ `admin.py` — Client Profile Inline + Testes ✅ CONCLUÍDA
+
+**Arquivo:** `accounts/admin.py`
+
+**`ClientProfileInline(BaseProfileInline)`** (reutiliza a base da TASK 2.1.7a sem alteração):
+
+- [x] `model = ClientProfile` · `filter_horizontal = ("interests",)`
+- [x] `fieldsets`: (sem título) `company_name`/`max_budget`/`website_url`; `Interests` → `interests`; `Biography` → `bio`; `Important Dates` (colapsável) → `created_at`/`updated_at`
+- [x] anexado a `ClientAdmin.inlines = (ClientProfileInline,)`
+- [x] o "+" de `interests` já sai suprimido por herdar `formfield_for_dbfield()` de `BaseProfileInline` — nenhum código de widget próprio nesta classe
+
+**Decisões arquiteturais:**
+
+- A supressão do "+" em `interests` é só herança do que a TASK 2.1.7a definiu em `BaseProfileInline` — verificado como carga real (não suposta): remover a atribuição na base quebra `test_interests_widget_offers_no_add_related_control` e `test_rendered_interests_widget_carries_no_add_related_link` aqui
+- `company_name_empty` não é alcançável pelo inline: `forms.CharField` tem `strip=True` por padrão, então `"   "` chega a `ClientProfile.clean()` já como `""`, e o teste que tentasse essa via testaria o `strip` do Django, não o código do projeto. A regra continua coberta na camada de model (`profiles/tests/models/test_client_profile.py`), só não é reexercida aqui
+
+**Testes implementados:**
+
+`accounts/tests/admin/test_client_profile_inline.py` — **27 testes, todos passando**.
+
+1. [x] `test_client_admin_attaches_the_client_profile_inline`
+2. [x] `test_client_profile_inline_binds_to_the_client_profile_model`
+3. [x] `test_client_profile_inline_offers_one_blank_form_slot`
+4. [x] `test_client_profile_inline_caps_the_section_at_one_profile`
+5. [x] `test_client_profile_inline_renders_no_removal_checkbox`
+6. [x] `test_client_profile_inline_refuses_delete_permission`
+7. [x] `test_client_profile_inline_shows_the_timestamps_read_only`
+8. [x] `test_client_profile_inline_groups_the_fields_as_contracted`
+9. [x] `test_client_profile_inline_selects_interests_through_a_two_column_widget`
+10. [x] `test_interests_widget_offers_no_add_related_control`
+11. [x] `test_rendered_interests_widget_carries_no_add_related_link`
+12. [x] `test_section_offers_exactly_one_form_for_an_account_without_a_profile`
+13. [x] `test_section_form_is_blank_for_an_account_without_a_profile`
+14. [x] `test_section_offers_exactly_one_form_for_an_account_with_a_profile`
+15. [x] `test_section_form_holds_the_existing_profile`
+16. [x] `test_section_offers_exactly_one_form_on_the_add_screen`
+17. [x] `test_untouched_section_reports_no_change`
+18. [x] `test_untouched_section_creates_no_profile`
+19. [x] `test_non_positive_max_budget_is_refused_on_the_max_budget_field` — código `max_budget_not_positive`
+20. [x] `test_filling_the_section_while_deactivating_the_account_is_refused`
+21. [x] `test_refusal_on_a_hidden_field_is_shown_above_the_section`
+22. [x] `test_refusal_on_a_hidden_field_leaves_no_orphan_error`
+23. [x] `test_error_on_a_visible_field_stays_on_that_field`
+24. [x] `test_filling_the_section_while_reactivating_the_account_is_accepted`
+25. [x] `test_editing_a_profile_on_a_deactivated_account_is_accepted`
+26. [x] `test_a_refused_profile_save_shows_the_message_on_the_account_screen`
+27. [x] `test_saved_section_attaches_the_selected_interests`
+
+Mais um teste, em `accounts/tests/admin/test_admin.py` (que a TASK 1.2.5 já cobre) —
+acrescentado aqui porque só faz sentido depois que os dois inlines existem:
+
+- [x] `test_staff_user_admin_renders_no_profile_section` — `StaffUserAdmin.inlines` vazio; conta de staff não tem seção de perfil
+
+**Total accounts/ até aqui: 182 testes passando (32 validators + 50 base + 12 freelancer + 6 client + 9 staff_user + 18 admin + 28 freelancer_profile_inline + 27 client_profile_inline).**
+
+---
+
+### TASK 2.1.7c — accounts/ `admin.py` — Presença de Perfil e Filtro por Skill + Testes ✅ CONCLUÍDA
+
+**Arquivo:** `accounts/admin.py`
+
+**Configuração implementada:**
+
+- [x] `HasProfileFilter(admin.SimpleListFilter)` — duas opções (`yes`/`no`) sobre o lookup `profile__isnull`; serve as duas listas sem alteração, porque `FreelancerProfile.user` e `ClientProfile.user` declaram o mesmo `related_name="profile"`
+- [x] `ProfilePresenceMixin` — `get_queryset()` anota `has_profile` via `Exists(...)` resolvido uma vez por página, nunca por linha; `profile_badge` (`@admin.display`) devolve badge verde/`Yes` ou vermelho/`No` via `format_html`
+- [x] `SkillInUseFilter(admin.RelatedOnlyFieldListFilter)` — restringe a sidebar às skills que pelo menos um perfil da lista usa; sobrescreve `has_output()` para continuar aplicado quando uma skill está selecionada mas deixou de ser oferecida, evitando que a lista se abra silenciosamente para todas as contas
+- [x] `FreelancerAdmin`/`ClientAdmin` compõem `ProfilePresenceMixin`, ganham `profile_badge` em `list_display` e `HasProfileFilter` + `("profile__skills"|"profile__interests", SkillInUseFilter)` em `list_filter`, nessa ordem, antes de `created_at`
+- [x] `StaffUserAdmin` não compõe `ProfilePresenceMixin` nem ganha nenhum dos dois filtros — conta de staff não tem perfil
+
+**Decisões arquiteturais:**
+
+- `RelatedOnlyFieldListFilter` puro falha o cenário de filtrar por uma skill que nenhum perfil da lista usa: seu `has_output()` retorna `False` quando nenhuma skill está em uso e a changelist descarta o filtro depois de já ter consumido o parâmetro da URL, abrindo a lista inteira sem erro. `SkillInUseFilter` existe só para fechar essa brecha
+- A anotação de `ProfilePresenceMixin.get_queryset()` lê o modelo de perfil pela relação reversa do próprio model (`self.model._meta.get_field("profile").related_model`), não declarada por admin — por isso o mesmo mixin serve `FreelancerAdmin` e `ClientAdmin` sem duplicação
+
+**Testes implementados:**
+
+`accounts/tests/admin/test_account_list_profile.py` — **18 testes, todos passando**.
+
+1. [x] `test_profile_badge_reports_a_freelancer_that_has_a_profile`
+2. [x] `test_profile_badge_reports_a_freelancer_that_has_no_profile`
+3. [x] `test_profile_badge_reports_a_client_that_has_a_profile`
+4. [x] `test_profile_badge_reports_a_client_that_has_no_profile`
+5. [x] `test_profile_filter_narrows_the_freelancer_list_to_accounts_without_a_profile`
+6. [x] `test_profile_filter_narrows_the_freelancer_list_to_accounts_with_a_profile`
+7. [x] `test_profile_filter_narrows_the_client_list_to_accounts_without_a_profile`
+8. [x] `test_profile_filter_narrows_the_client_list_to_accounts_with_a_profile`
+9. [x] `test_profile_badge_costs_no_query_per_row` — `django_assert_num_queries(1)` numa página de 5 contas
+10. [x] `test_the_skill_filter_lists_only_the_freelancers_offering_that_skill`
+11. [x] `test_the_skill_filter_lists_only_the_clients_holding_that_interest`
+12. [x] `test_a_freelancer_offering_several_skills_is_listed_once_by_the_skill_filter` — sem duplicata mesmo com 3 skills selecionadas
+13. [x] `test_the_skill_filter_lists_nothing_for_a_skill_no_profile_offers`
+14. [x] `test_the_freelancer_skill_filter_offers_only_the_skills_a_profile_offers` — sidebar restrita ao vocabulário em uso
+15. [x] `test_the_client_skill_filter_offers_only_the_skills_a_profile_holds`
+16. [x] `test_staff_user_admin_neither_defines_nor_inherits_profile_badge`
+17. [x] `test_staff_user_admin_offers_no_profile_filter`
+18. [x] `test_staff_user_admin_offers_no_skill_filter`
+
+**Total accounts/ até aqui: 200 testes passando (32 validators + 50 base + 12 freelancer + 6 client + 9 staff_user + 18 admin + 28 freelancer_profile_inline + 27 client_profile_inline + 18 account_list_profile).**
 
 ---
 
