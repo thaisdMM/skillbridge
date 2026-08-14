@@ -50,3 +50,20 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - name: Count tests for badge
+        if: github.ref == 'refs/heads/main'
+        id: test_count
+        run: echo "count=$(pytest --collect-only -q | tail -1 | grep -oE '[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Update tests badge
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        uses: schneegans/dynamic-badges-action@v1.9.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ae3f8ce794a99531a58a906e10095831
+          filename: tests-badge.json
+          label: tests
+          message: ${{ steps.test_count.outputs.count }} passing
+          color: brightgreen
