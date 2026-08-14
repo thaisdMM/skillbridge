@@ -127,6 +127,16 @@ def test_freelancer_profile_get_display_info_without_skills(
     assert display_info["skills"] == []
 
 
+def test_freelancer_profile_get_display_info_on_unsaved_instance() -> None:
+    """get_display_info() raises ValueError when called before the FreelancerProfile instance is saved."""
+    unsaved_freelancer_profile = FreelancerProfile(
+        user=Freelancer(name="Unsaved Freelancer")
+    )
+
+    with pytest.raises(ValueError):
+        unsaved_freelancer_profile.get_display_info()
+
+
 @pytest.mark.django_db
 def test_freelancer_profile_on_delete_protect(
     freelancer_user: Freelancer, freelancer_profile: FreelancerProfile
@@ -137,8 +147,8 @@ def test_freelancer_profile_on_delete_protect(
 
 
 @pytest.mark.django_db
-def test_add_and_remove_skills(freelancer_profile: FreelancerProfile) -> None:
-    """Skills added to and removed from a freelancer profile persist correctly in the database."""
+def test_freelancer_profile_add_skills(freelancer_profile: FreelancerProfile) -> None:
+    """Skills added to a freelancer profile persist correctly in the database."""
     python_skill = Skill.objects.create(
         name="Python", category=Skill.Category.TECHNOLOGY
     )
@@ -153,6 +163,21 @@ def test_add_and_remove_skills(freelancer_profile: FreelancerProfile) -> None:
     assert python_skill in reloaded_profile.skills.all()
     assert django_skill in reloaded_profile.skills.all()
     assert reloaded_profile.skills.count() == 2
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_remove_skills(
+    freelancer_profile: FreelancerProfile,
+) -> None:
+    """Skills removed from a freelancer profile persist correctly in the database."""
+    python_skill = Skill.objects.create(
+        name="Python", category=Skill.Category.TECHNOLOGY
+    )
+    django_skill = Skill.objects.create(
+        name="Django", category=Skill.Category.TECHNOLOGY
+    )
+
+    freelancer_profile.skills.add(python_skill, django_skill)
 
     freelancer_profile.skills.remove(python_skill)
     reloaded_profile = FreelancerProfile.objects.prefetch_related("skills").get(
@@ -204,10 +229,20 @@ def test_freelancer_profile_hourly_rate_none_passes_validation(
 
 
 @pytest.mark.django_db
-def test_freelancer_profile_hourly_rate_none_persists_on_save(
+def test_freelancer_profile_optional_fields_can_be_omitted(
     freelancer_user: Freelancer,
 ) -> None:
-    """A FreelancerProfile created with hourly_rate=None persists and reloads as None."""
+    """A FreelancerProfile with only a user set passes full_clean()."""
+    profile = FreelancerProfile(user=freelancer_user)
+
+    profile.full_clean()
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_hourly_rate_accepts_null_at_database_level(
+    freelancer_user: Freelancer,
+) -> None:
+    """Saving a FreelancerProfile with hourly_rate=None succeeds because the column accepts NULL."""
     profile = FreelancerProfile.objects.create(user=freelancer_user, hourly_rate=None)
     reloaded_profile = FreelancerProfile.objects.get(id=profile.id)
     assert reloaded_profile.hourly_rate is None
@@ -242,3 +277,61 @@ def test_freelancer_profile_user_uniqueness_enforced_at_database_level(
 def test_freelancer_profile_ordering() -> None:
     """FreelancerProfile inherits ordering by -created_at from Profile.Meta."""
     assert FreelancerProfile._meta.ordering == ["-created_at"]
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_creation_refused_for_inactive_account(
+    freelancer_user: Freelancer,
+    valid_freelancer_profile_data: dict,
+) -> None:
+    """Creating a profile for an inactive account raises a 'profile_for_inactive_account' ValidationError."""
+    inactive_freelancer = freelancer_user
+    inactive_freelancer.is_active = False
+    inactive_freelancer.is_available = False
+    profile = FreelancerProfile(
+        **{
+            **valid_freelancer_profile_data,
+            "user": inactive_freelancer,
+        }
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        profile.full_clean()
+
+    assert "user" in exc_info.value.error_dict
+    assert exc_info.value.error_dict["user"][0].code == "profile_for_inactive_account"
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_creation_accepted_for_active_account(
+    valid_freelancer_profile_data: dict,
+) -> None:
+    """Creating a profile for an active account passes full_clean()."""
+    profile = FreelancerProfile(**valid_freelancer_profile_data)
+
+    profile.full_clean()
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_edit_accepted_on_deactivated_account(
+    freelancer_profile: FreelancerProfile,
+) -> None:
+    """An existing profile stays editable once its account is deactivated (FR-030)."""
+    freelancer_profile.user.is_available = False
+    freelancer_profile.user.is_active = False
+    freelancer_profile.user.save()
+
+    freelancer_profile.bio = "Updated while the account is deactivated"
+    freelancer_profile.full_clean()
+    freelancer_profile.save()
+
+    freelancer_profile.refresh_from_db()
+    assert freelancer_profile.bio == "Updated while the account is deactivated"
+
+
+@pytest.mark.django_db
+def test_freelancer_profile_clean_does_not_raise_when_no_account_attached() -> None:
+    """clean() raises no RelatedObjectDoesNotExist when no account is attached."""
+    profile = FreelancerProfile()
+
+    profile.clean()

@@ -18,16 +18,16 @@ architectural decisions, not maintenance updates.
 | Technology     | Version pinned in requirements.txt |
 | -------------- | ---------------------------------- |
 | Python         | 3.14                               |
-| Django         | 6.0.6                              |
+| Django         | 6.0.7                              |
 | PostgreSQL     | 17 (docker-compose)                |
 | psycopg        | 3.3.4                              |
 | psycopg-binary | 3.3.4                              |
 | psycopg-pool   | 3.3.1                              |
 | argon2-cffi    | 25.1.0                             |
-| pytest         | 9.0.3                              |
+| pytest         | 9.1.1                              |
 | pytest-django  | 4.12.0                             |
 | python-dotenv  | 1.2.2                              |
-| pillow         | 12.2.0                             |
+| pillow         | 12.3.0                             |
 
 **Not yet installed — pin exact version on install:**
 
@@ -250,15 +250,42 @@ Per Rule 2 of `CLAUDE.md`, read these files before writing a new `clean()`
   The constraint is the backstop for ORM paths that bypass `clean()`
   (direct `.update()`, scripts, shell). `clean()` remains the
   app-layer path for friendly field-level errors.
+- `StaffUser.clean()`: `is_active=True` requires `is_staff=True`
+  → code: `staffuser_active_without_staff`
 - `FreelancerProfile.clean()`: `hourly_rate`, if provided, must be > 0.
   → code: `hourly_rate_not_positive`
+- `FreelancerProfile.clean()`: on creation only (`self.pk is None`), the
+  account the profile belongs to must be active. Creating a profile for an
+  inactive freelancer is refused; editing a profile that already exists on
+  an inactive account stays permitted.
+  → code: `profile_for_inactive_account`
+  → raised on the `user` field
 - `ClientProfile.clean()`: `company_name`, if provided, must not be empty
   after stripping whitespace.
   → code: `company_name_empty`
 - `ClientProfile.clean()`: `max_budget`, if provided, must be > 0.
   → code: `max_budget_not_positive`
+- `ClientProfile.clean()`: on creation only (`self.pk is None`), the
+  account the profile belongs to must be active. Creating a profile for an
+  inactive client is refused; editing a profile that already exists on an
+  inactive account stays permitted.
+  → code: `profile_for_inactive_account`
+  → raised on the `user` field
 - `Skill.clean()`: `name` stripped of whitespace, cannot be empty after strip.
   → code: `skill_name_empty`
+- `Skill.clean()`: `name` must not duplicate an existing skill's `name`,
+  compared ignoring letter case. Storage is never normalized — the name is
+  stored as entered, trimmed only. The lookup excludes the row being saved, so
+  recasing a skill in place stays permitted.
+  → code: `skill_name_duplicate`
+  → also enforced at the database level by `UniqueConstraint(Lower("name"))`
+  `skill_unique_name_case_insensitive` on `Skill.Meta.constraints`.
+  The constraint is the backstop for ORM paths that bypass `clean()`
+  (`.create()`, `.update()`, `bulk_create()`, shell). `clean()` remains the
+  app-layer path for the field-level error.
+  → this is the only `clean()` that queries: a test whose `name` is still
+  non-empty after the strip needs `@pytest.mark.django_db`; empty,
+  whitespace-only and `None` names stay marker-free.
 
 > **Note:** This list is not guaranteed to be exhaustive or fully up to date.
 > If a `clean()` method raises a `code` not listed here, treat the source file
@@ -473,8 +500,14 @@ Established conventions for the Django admin layer:
 - Password fields are hidden in all admin classes.
 - `save_model` calls `set_unusable_password()` when the password field is
   empty on save (closes the Django default-behavior gap).
-- `has_delete_permission` returns `False` on all admin classes. Use
-  `is_active=False` for deactivation.
+- `has_delete_permission` returns `False` on every admin class except
+  `SkillAdmin`. Use `is_active=False` for deactivation.
+- `SkillAdmin` permits deletion, and is the only admin class that does.
+  `Skill` is curated vocabulary with no `is_active` field, so deactivation is
+  not available to it. Removal is refused while any profile still refers to
+  the skill, enforced in `SkillAdmin.get_deleted_objects()` — `on_delete` has
+  no effect on a `ManyToManyField`. Do not suppress `has_delete_permission`
+  on `SkillAdmin`.
 - `has_module_perms` requires `is_active=True` AND `is_staff=True` to
   grant admin access.
 - `Client` and `Freelancer` admin classes never expose `is_staff` or
@@ -485,6 +518,29 @@ Established conventions for the Django admin layer:
 - Promoting a `StaffUser` to superuser is a shell-only operation
   (`createsuperuser` or Django shell). It is intentionally not exposed
   in any admin form.
+
+---
+
+## Recording decisions
+
+- Architectural decisions, and significant code or documentation decisions, go
+  to `docs/adr/` — one decision per file, in **MADR short form**: title,
+  `Date` / `Status` / `Applies to`, *Context and Problem Statement*,
+  *Considered Options*, *Decision Outcome*, *Consequences*.
+- **Keep an ADR under ~60 lines.** A long ADR is not what the MADR template is
+  for, and it costs context on every session that reads one. Record the
+  decision, the options rejected, and the reasoning that constrains future
+  work. Do not walk through framework behavior — state the verified fact and
+  move on.
+- `ARCHITECTURE.md` is **closed to new entries** and will be refactored into
+  `docs/adr/`. Add new decisions as ADRs, never to that file.
+- Known technical debt goes to `docs/tech_debt/`, one decision per file, named
+  with a zero-padded sequence number in the order recorded (`001-…`,
+  `002-…`), so the directory reads chronologically. A new entry takes the next
+  number; existing files are never renumbered.
+- ADRs and convention files reference code, behavior and pinned versions —
+  never requirement IDs, task IDs, spec paths, or roadmap items. Those are
+  transient and rot when a feature directory is archived.
 
 ---
 
@@ -502,7 +558,93 @@ Established conventions for the Django admin layer:
   Open/Closed.
 - All code, variable names, comments, docstrings, and commit messages
   in English.
-- Commit messages are multiline with bullet points and descriptive.
+
+### What belongs in a docstring
+
+A docstring states **what** the class, method or function does. It does not
+explain framework internals, justify a design decision, or argue why an
+alternative was rejected. That reasoning belongs in `docs/adr/`.
+
+```python
+# Rejected — explains Django's mechanics and the rationale
+"""
+Refuse removal of a skill that a profile still refers to.
+
+on_delete has no effect on a many-to-many relation, so deleting a skill
+would drop its join-table rows and silently detach it from every profile
+referring to it.
+"""
+
+# Accepted — describes the behavior of this method
+"""
+Mark the selected skills as protected while profiles still refer to them.
+
+Counts the distinct profiles referring to the selection. When the count is
+greater than zero, a single summary line carrying it is added to the
+protected collection.
+"""
+```
+
+### Commit messages
+
+**Shape**
+
+```
+<type>(<scope>): <main change> in <file or class>
+
+- <what changed, and why>
+- <one line per change that matters>
+```
+
+**`<type>`** — `feat`, `fix`, `refactor`, `tests`, `docs`, `chore`.
+
+**`<scope>`** — the app, then the folder inside it the change is *about*.
+Three rules follow from that:
+
+- Never repeat the type in the scope. A test commit names the folder the
+  tests cover, not the folder they live in: `tests(profiles/models)`, never
+  `tests(profiles/tests)`.
+- The scope is a folder, never a file. The file belongs in the subject:
+  `fix(profiles/models): lower both sides of the duplicate check in skill.py`,
+  never `fix(profiles/skill)`.
+- One scope per commit. A change spanning two apps is two commits, one per
+  app — never a composite scope.
+
+**One commit per file, not per topic.** Several unrelated edits already applied
+to the same file are one commit; summarize them rather than splitting. Edits to
+different files are separate commits, unless they are one change — a production
+file with the tests covering it, or a model with its migration.
+
+Outside the apps, the scope is the artifact area: `docs(adr)`,
+`docs(conventions)`, `docs(audits)`, `docs(tech-debt)`,
+`docs(spec/<feature-directory>)`.
+
+**`<subject>`** — imperative, lower case, no full stop. The main change, and
+the file it lands in — or the class, when the file is one class.
+
+**Body** — bullets, one per change that matters. A bullet states *what changed
+and why*; it does not walk the diff. If a bullet only repeats what two lines
+of the patch already say, it is not earning its place — and if the list runs
+past five, the commit is probably doing more than one thing.
+
+- No requirement IDs, task IDs, finding IDs, spec paths, or roadmap items —
+  the same rule the ADR and convention files follow, for the same reason.
+- No `Co-Authored-By` trailer.
+- A fact the reader needs that is not itself a change goes on a final line of
+  its own, e.g. `Depends on accounts.0002 and profiles.0002_seed_skills`.
+
+**Example**
+
+```
+tests(profiles/models): guard the name rules left uncovered in test_skill.py
+
+- refuse a rename onto a name another saved skill carries, parametrized over
+  an exact repeat and two case variants
+- add the 100/101 boundary pair for the name length
+- assert the name field declares unique, which nothing observed before
+- each new test was checked against a deliberate break of the rule it guards,
+  and only it failed
+```
 
 ---
 
@@ -513,7 +655,11 @@ policies, layer ownership, or architectural decisions not clearly
 covered here, ask the user before proceeding. Apply Rule 1 from
 `CLAUDE.md`: do not infer, do not assume, do not fill gaps.
 
+Before changing anything listed under *Established invariants* or *Admin
+conventions*, check `docs/adr/` for a decision covering it. Those sections
+state the rule; the decision behind it — and what it forbids reopening —
+lives in an ADR.
+
 For historical context on why a decision was made, consult
 `ARCHITECTURE.md`. For testing strategy, consult `testing.md`. For
-behavior rules and persona definitions, consult `CLAUDE.md` and
-`AGENT_FULL_CONTEXT.md` respectively.
+behavior rules and persona definitions, consult `CLAUDE.md`

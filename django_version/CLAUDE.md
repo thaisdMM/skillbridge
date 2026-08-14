@@ -116,9 +116,3 @@ These rules look similar but cover different situations:
   which direction.
 
 When in doubt, treat the situation as Rule 1 and ask.
-
-## How to use personas
-
-Full persona definitions are in `AGENT_FULL_CONTEXT.md` at the project root.
-When starting a session, the user will indicate which persona to use —
-or paste the relevant section directly into the chat.

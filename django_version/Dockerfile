@@ -1,5 +1,5 @@
 # Base image — official Python
-FROM python:3.14-slim
+FROM python:3.14.6-slim
 
 # Prevents Python from writing .pyc files
 ENV PYTHONDONTWRITEBYTECODE=1

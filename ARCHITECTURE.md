@@ -822,8 +822,10 @@ with an associated profile is attempted.
 
 The platform does not delete users — deactivation via `is_active=False` is
 the only supported lifecycle transition for `Freelancer` accounts. This is
-enforced at the Admin layer (`has_delete_permission = False` on all admin
-classes) and is a documented architectural decision.
+enforced at the Admin layer (`has_delete_permission = False` on every account
+admin class) and is a documented architectural decision. `Skill` is the one
+record exempt from that policy, being curated reference data rather than a
+record of a person — see `docs/adr/skill-is-the-only-deletable-record.md`.
 
 `PROTECT` makes this invariant explicit at the database level. If a deletion
 is attempted by mistake — via shell, script, or a future admin change — the
@@ -946,4 +948,4 @@ until their replacement exists — the rule is relocated, never simply deleted.
 | DRY                      | Shared fields and logic defined once in `BaseUser`, not duplicated across models                                                                                   |
 | Type Hints               | Used throughout for clarity and IDE support (Python 3.14)                                                                                                          |
 | Security by default      | Argon2id, GDPR-aligned logging, and whitespace-safe validators from the start                                                                                      |
-| Deactivate, never delete | `is_active=False` is the only supported lifecycle transition; `on_delete=PROTECT` and admin `has_delete_permission=False` enforce this across ORM and admin layers |
+| Deactivate, never delete | `is_active=False` is the only supported lifecycle transition for accounts and profiles; `on_delete=PROTECT` and `has_delete_permission=False` enforce it across the ORM and every account admin. `Skill` is exempt as curated reference data — see `docs/adr/skill-is-the-only-deletable-record.md` |
