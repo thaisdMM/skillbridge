@@ -20,15 +20,15 @@ Production-oriented backend, built with:
 - **Argon2id** password hashing, GDPR-aligned logging from day one
 - Custom user model, Abstract Base Classes over Multi-Table Inheritance — see [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-→ [`django_version/`](./django_version/) for setup instructions and full technical details.
+→ [`django_version/README.md`](./django_version/README.md) for setup instructions and full technical details.
 
 ---
 
 ## Repository Structure
 
 | Directory                              | Description                                                     |
-| --------------------------------------- | ------------------------------------------------------------------ |
-| [`django_version/`](./django_version/) | Django application — production-oriented, active development   |
+| -------------------------------------- | --------------------------------------------------------------- |
+| [`django_version/`](./django_version/) | Django application — production-oriented, active development    |
 | [`oop_version/`](./oop_version/)       | Pure Python implementation — OOP foundations, 100 tests, closed |
 
 Each directory contains its own `README.md` with setup instructions and technical details.
