@@ -3328,6 +3328,12 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
   only the security half. The two are configured in different places — the security half follows
   from the repository toggles, the version half from the `dependabot.yml` entry — so dropping one
   and keeping the other is available.
+- **New, created by T1:** whether the now-empty `RUN apt-get install` step in
+  `django_version/Dockerfile` is deleted outright. T1 removed `pillow`'s libraries and, on the
+  empirical result, `libpq-dev` too — nothing is left for the step to install. Left in place
+  rather than removed, because a task later in this plan may still need `apt-get` for a system
+  package this plan did not foresee, and this plan never decided the step's fate. Revisit once
+  every task is implemented (after T17); if still empty then, remove it.
 
 ## Verification debts — to be settled against official documentation, not training data
 
