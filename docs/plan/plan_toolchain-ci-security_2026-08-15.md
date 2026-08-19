@@ -3089,6 +3089,49 @@ file entry governs version updates only.
   it nothing watches this project's dependencies, and the three high-severity `sqlparse` alerts
   against the active project were found by it rather than by review.
 
+#### Developer note, 2026-08-19 — the licence gate does not apply to this repository, and the manifest-path rule is available
+
+**Written by the Developer, not the Planner.** It records a measurement that contradicts a
+premise stated above. The decision it bears on stays open and belongs to a Planner session.
+
+T18 instructed the Developer to stop and report if the Dependabot rules screen offered a custom
+rule with a manifest-path condition. **It does.** Observed on _Dependabot rules → New rule_: a
+rule-name field, a state control, an _Add rule metadata_ filter list carrying `severity`,
+`package`, `ecosystem`, `scope`, **`manifest`**, `cwe`, `cve_id`, `ghsa_id`, `epss`, `malware`
+and `classification`, and two rule actions — _Dismiss alerts_ and _Open a pull request to resolve
+alerts_. The `manifest` filter's autocomplete offered `django_version/requirements.txt`.
+
+**The premise this contradicts.** The amendment above states that custom rules are gated behind
+GitHub Code Security on organization-owned repositories or GitHub Team with a licence, and that
+_"the user has neither"_. GitHub's _About Dependabot auto-triage rules_ states that custom rules
+are available _"on public repositories and on any organization-owned repositories in GitHub Team
+with GitHub Code Security enabled"_. The gate applies to private and internal repositories. This
+repository is public, so the option the amendment set aside is available at no cost.
+
+**Three further facts, read from GitHub's documentation this session and not measured by
+execution:**
+
+- The manifest-path filter is documented as _"for repository-level rules only"_, which is the
+  screen described above.
+- For an _open a pull request_ rule to take effect, _"you must ensure that Dependabot security
+  updates are disabled"_ — the state the repository is already in.
+- Rules _"apply to both future and current alerts"_.
+
+**What the Developer did not do, and why.** The rule was not created. The `manifest` value on
+offer is computed from the dependency graph of the default branch, where
+`django_version/requirements.txt` still exists; this branch deletes it in favour of
+`pyproject.toml` and `uv.lock`. A rule written against the current value would match nothing
+after the merge, and would fail silently rather than report. Whether the filter accepts a path
+prefix or a wildcard is documented on neither page read.
+
+**Carried to the Planner, unresolved here.** Whether to adopt the rule, and in which shape. The
+reading taken this session is that the two mechanisms are orthogonal — the rule governs
+alert-to-pull-request behaviour, `dependabot.yml` governs version updates — so the file T9 writes
+is unaffected either way; what the amendment above would stop paying is the monthly latency it
+accepted as the price. The earliest moment the rule can be written correctly is the first merge
+to `main` that removes `django_version/requirements.txt`, and the check that the moment has
+arrived is the `manifest` autocomplete offering `django_version/uv.lock` instead.
+
 ---
 
 ## D19 — `--reuse-db` is removed: every run builds the test database
