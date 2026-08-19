@@ -3557,6 +3557,44 @@ rather than the `dev` group, and D5 records the exception deliberately rather th
 
 ## T3 — Stack bump: Django 6.1, Python 3.14.7, pytest-django 4.14.0
 
+**Status: Done — 2026-08-19.**
+
+**Result.** All three pins moved: Django `6.0.7` → `6.1`, pytest-django `4.12.0` → `4.14.0`,
+base image `python:3.14.6-slim` → `python:3.14.7-slim`. Each was confirmed at implementation
+time to be the current release rather than copied from D16's table: PyPI offers no 6.1 patch
+above `6.1` and no pytest-django above `4.14.0`, and `3.14.7-slim` is the highest Python tag
+published. **Django publishes the release as `6.1`, not `6.1.0`** — that is the literal the pin
+carries. `uv lock` touched 8 lines and moved no package other than those two.
+`docker-compose exec web pytest` → **304 passed**.
+
+**D16's open verification, settled.** `check --deploy` under Django 6.1 returns **7 issues,
+exit 0** — `security.W004`, `W008`, `W009`, `W012`, `W016`, `W018`, `W020`. This is identical
+to D7's baseline measured on 6.0.7: the delta D16 flagged as unknown is nil. **`mail.E001` does
+not fire**, as predicted from `config/settings.py` declaring no `MAILERS`, and `security.W027`
+does not fire either. D7's step may now be made build-failing at ERROR.
+
+**Notes and deviations.**
+
+- **`.python-version` was edited, though this task's _Scope_ does not list it.** D16's Category A
+  predates the file — the uv migration created it. `conventions.md` now names it as the one
+  authoritative Python pin, the `Dockerfile` copies it before `uv sync --locked`, and
+  `UV_PYTHON_DOWNLOADS=never` forbids fetching a managed interpreter, so leaving it at 3.14.6
+  against a 3.14.7 base image would have failed the build. `ci.yml` reads the same file through
+  `python-version-file`, so runner and image move together from one edit.
+- **Two READMEs carry a live version literal, not one.** D16's Category A calls the root
+  `README.md` "the only version literal in the README"; a repository-wide sweep found a second in
+  `django_version/README.md`'s _Tech Stack_ table. Both were updated, with the user's approval for
+  the file outside _Scope_.
+- **`.claude/rules/conventions.md` needed no edit.** It is in _Scope_ and in Category A, but the
+  uv migration had already rewritten _Stack and versions_ to name the authoritative file for each
+  version instead of restating any. The acceptance criterion is met by that earlier change.
+- The sweep confirmed no Category C file was modified. Every remaining match for a superseded
+  version — `docs/audits/`, `docs/verifications/`, `docs/adr/`, `docs/tech_debt/`, the roadmaps,
+  `specs/001-profiles-admin-panel/`, and the generated header of `profiles/migrations/0007` — is a
+  record of what a past verification ran against, and stays as written.
+- Neither README mentions `uv` in its stack description. That is incomplete rather than false, and
+  is left for the Planner.
+
 **Implements:** D16, its commit 2 and its synchronisation subtask. **Follows T2 immediately**, in
 the same session, once the suite is green.
 
