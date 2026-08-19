@@ -13,7 +13,7 @@ This repository is structured as a monorepo documenting the full technical evolu
 
 Production-oriented backend, built with:
 
-- **Django 6.0.7** + **PostgreSQL 17** (psycopg3, connection pooling)
+- **Django 6.1** + **PostgreSQL 17** (psycopg3, connection pooling)
 - **Docker** + **docker-compose** for a reproducible dev environment
 - **CI/CD** via GitHub Actions — automated tests run on every push
 - **pytest** / **pytest-django** — automated test suite, live count tracked by the badge above
