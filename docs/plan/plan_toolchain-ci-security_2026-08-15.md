@@ -3431,6 +3431,14 @@ than being resolved by the Developer.
 
 ## T1 — `Dockerfile` cleanup: remove `pillow` and its system libraries, and test `libpq-dev`
 
+**Status: Done — 2026-08-18.**
+
+**Result.** `pillow`, `libjpeg-dev` and `zlib1g-dev` removed. `libpq-dev` dropped empirically and
+kept dropped — a full rebuild without it gave 304 passed, confirming `psycopg-binary` bundles its
+own libpq. **Image size: 311 MB → 244 MB.** D4's 285 MB is a planning-time figure; 311 MB is what
+this task measured immediately before editing, and is the one the 244 MB compares against. The
+now-empty `apt-get` step was left in place deliberately — see *Open questions*.
+
 **Implements:** *Items that need no decision*. **Blocks:** T11 (D6's build step is measured
 against the cleaned image).
 
@@ -3454,6 +3462,46 @@ failure. Image size before and after is reported.
 ---
 
 ## T2 — Migrate to `uv`: `pyproject.toml`, `uv.lock`, the image, and CI installation
+
+**Status: Done — 2026-08-19.**
+
+**Result.** `uv` 0.12.5 pinned in the image and in `ci.yml`. `uv sync --locked` succeeds on the
+host and in the image; `docker-compose exec web pytest` → 304 passed, invoked unchanged. No
+`.venv` exists inside `/app`, `sys.executable` reports `/opt/venv/bin/python`, and `uv` is not a
+package in the project environment. **Image size: 244 MB → 251 MB** — the pre-migration figure is
+T1's 244 MB, not the 285 MB the acceptance criteria below quote, which predates T1's cleanup.
+
+**Verification debts settled.**
+
+- `[tool.pytest]` governs the run, confirmed empirically rather than by inspection: breaking
+  `python_files` on purpose collected 0 items, and restoring it collected the suite again. This
+  also settles the debt about `pyproject.toml` being discovered without `--cov-config`.
+- `actions/setup-python@v5` accepts `.python-version`, `pyproject.toml` and `.tool-versions` for
+  `python-version-file`. `.python-version` was chosen because `pyproject.toml` carries only
+  `requires-python = ">=3.14"`, a range — reading it would replace the workflow's exact patch pin
+  with "any 3.14.x" and let CI diverge from the image.
+
+**Notes and deviations.**
+
+- `UV_PYTHON_DOWNLOADS=never` was added to the `Dockerfile` beyond what this task asked, so the
+  build fails loudly instead of silently fetching a managed interpreter. uv's documented default
+  (`python-preference = managed`) prefers a matching system interpreter over a download, so no
+  equivalent setting was needed on the runner.
+- `[tool.coverage.*]` does not exist in this repository yet, so item 2's "move it whole" was a
+  no-op. That table is created with the coverage task.
+- The four transitive dependencies uv resolved above the versions `requirements.txt` pinned
+  (`sqlparse`, `pygments`, `packaging`, `cffi`) were left at uv's resolution. A `[tool.uv]`
+  `constraint-dependencies` block pinning them was written and then reverted: it works, but it
+  would freeze security-relevant transitives where Dependabot could not move them.
+- `actions/setup-python` stayed at `@v5` although `v7.0.0` is current, and `astral-sh/setup-uv`
+  entered on a tag rather than a SHA. Both are deliberate: version moves belong to D16, and SHA
+  pinning to D8.
+- Item 7 was taken further than "rewrite what became false": *Stack and versions* in
+  `.claude/rules/conventions.md` no longer restates any version number, naming the one
+  authoritative file for each instead, and it gained a rule requiring permission before reading
+  `uv.lock`. Root `CLAUDE.md`'s pointer to that section followed — one file beyond this task's
+  scope, edited with the user's approval, as were `django_version/AUDITOR.md` and
+  `django_version/DEVELOPER.md`, which cited `requirements.txt` with a fixed version list.
 
 **Implements:** D1, D2 and its amendment, D3 and its amendment, D4, D5 and its amendment, D6 and
 its amendment 1. This is **D16's commit 1**: no version moves in this task.
@@ -3783,6 +3831,8 @@ the root-relative paths stop resolving. Add `mypy`, `pytest` or `gitleaks` to th
 ---
 
 ## T15 — Enable Dependabot alerts and security updates
+
+**Status: Done — 2026-08-18.**
 
 **Implements:** D18, its repository half.
 
