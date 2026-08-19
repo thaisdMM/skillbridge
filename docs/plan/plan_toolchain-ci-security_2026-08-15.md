@@ -3,10 +3,13 @@
 **Date:** 2026-08-15
 **Persona:** Planner
 **Tree:** `feature/django-refactor`
-**Status:** Complete as a plan, as of 2026-08-17. The Decision log runs D1–D20 with nothing
-open; the task entries T1–T17 and the _Order of execution_ are written; the deferrals are
-recorded in `docs/tech_debt/006`–`010`. What remains is implementation, by the Developer
-persona, starting at T15 and T1.
+**Status:** Complete as a plan, as of 2026-08-19. The Decision log runs D1–D21 with nothing
+open; the task entries T1–T18 and the _Order of execution_ are written; the deferrals are
+recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2 and T3 are implemented.** What remains is
+implementation, by the Developer persona, starting at **T18** and then **T9** — the two entries
+revised on 2026-08-19, after implementing T15 showed that Dependabot's default configuration
+cannot be aimed by `dependabot.yml` and that no Dependabot-triggered run can read a repository
+secret. See D18's amendment and D21.
 **Files modified by this session:** this plan only. No production file was touched.
 
 ## What this plan supersedes, and why it is a new file
@@ -3011,6 +3014,81 @@ the moment to reopen this entry. Until then, a gate means `pip-audit`.
   filtering and ignore mechanism are unknown, and the revisit above is the point at which they
   get measured.
 
+### Amendment, 2026-08-19 — security updates are turned off, alerts stay on, and the version half carries the load, scoped to `/django_version`
+
+D18 enabled both halves of Dependabot and assumed `dependabot.yml` could aim them. Implementing
+T15 proved it cannot. **The goal does not change and the outcome does**: this project keeps
+dependency monitoring, and stops paying for it in `oop_version/` pull requests and red runs.
+
+**What T15 produced, measured 2026-08-19.** Four security-update pull requests, opened
+2026-08-18 against `main`: `#6` (Pygments), `#8` (pytest) and `#9` (python-dotenv) against
+`oop_version/requirements.txt`, and `#7` (sqlparse) against `django_version/requirements.txt`.
+All four are **still open**, each with a failing `test` check. The three `oop_version` alerts
+were dismissed as `not_used` on 2026-08-19 — **dismissing an alert did not close its pull
+request**, which is the fact that turns this from housekeeping into a decision.
+
+**Why the file D18 planned cannot fix it.** Read this session in GitHub's _Dependabot options
+reference_:
+
+- `ignore` carries the version-updates icon only, so an `/oop_version` entry with
+  `dependency-name: "*"` suppresses nothing on the security side.
+- `open-pull-requests-limit: 0` is documented as disabling **version** updates.
+- `directory` / `directories` govern where version updates look; for security updates the
+  reference says only that the directory _"must be the path to the manifest files"_ for the
+  configuration to apply to them.
+
+The measurement settles it more directly than the reading does: there is no `dependabot.yml` in
+this repository at all, so version updates were never enabled, and all four pull requests
+arrived anyway. Security updates follow the repository toggle and the dependency graph, not the
+file.
+
+**The one lever that filters by directory is not available here.** Custom auto-triage rules can
+target _"Manifest path (for repository-level rules only)"_, but the same documentation gates
+custom rules behind GitHub Code Security on organization-owned repositories, or GitHub Team with
+a licence. The user has neither.
+
+**Decided.** Dependabot **security updates are disabled** at the repository toggle. Dependabot
+**alerts stay enabled**. `.github/dependabot.yml` declares `package-ecosystem: "uv"` at
+`directory: "/django_version"` and `package-ecosystem: "github-actions"`, both at
+`interval: monthly`. `oop_version/` is declared nowhere.
+
+**What this costs, stated plainly.** Detection does not move: an advisory against a
+`django_version` dependency still raises an alert immediately. What moves is the automatic fix —
+it arrives with the monthly version-update run instead of within hours. Against this
+repository's measured cadence (D8 Item 3: a 47-day gap between runs), that latency sits inside
+the noise. What it buys is that a directory root `CLAUDE.md` declares closed can never again
+produce a pull request or an Actions run, permanently, without editing anything inside it.
+
+**The residual, accepted rather than hidden.** Alerts are not filterable by directory either, so
+a future advisory against an `oop_version` package still appears in the Security tab. An alert
+creates no branch, no pull request and no workflow run — it costs one dismissal and never
+reaches the Actions history, which is where the visible cost was.
+
+**The `uv` verification debt closes, in D18's favour.** GitHub's _Dependabot options reference_
+lists **UV** among the accepted `package-ecosystem` values. D18 rested on two changelog entries
+because the supported-ecosystems table would not read cleanly; a normative page now confirms it,
+and T15's carried instruction — _"if `uv` is unavailable, the fallback is reopening D18"_ — does
+not fire.
+
+**And D18's other open question is answered by the same evidence.** It asked whether the security
+half follows from the toggles alone or requires the file entry. Measured: the toggles alone. The
+file entry governs version updates only.
+
+**Alternatives considered**
+
+- **Keep security updates on and dismiss each `oop_version` alert as it arrives** — the status
+  quo since 2026-08-18. Set aside on measurement: dismissal leaves the pull request open, so the
+  manual cost is two actions per advisory, recurring indefinitely, against a closed directory.
+- **A custom auto-triage rule on manifest path** — the only lever that filters exactly the right
+  thing while keeping security fixes immediate for `django_version`. Set aside: licence-gated,
+  and this is a free personal public repository.
+- **Remove `oop_version/requirements.txt` so it leaves the dependency graph** — effective, and
+  it needs no repository setting. Set aside: it edits a closed directory to change the behaviour
+  of a service, and it destroys the record of what that version was pinned to.
+- **Turn Dependabot off entirely** — set aside on D18's original measurement, unchanged: without
+  it nothing watches this project's dependencies, and the three high-severity `sqlparse` alerts
+  against the active project were found by it rather than by review.
+
 ---
 
 ## D19 — `--reuse-db` is removed: every run builds the test database
@@ -3127,6 +3205,84 @@ every session, so the claim is read by every future agent as if it were true.
 
 ---
 
+## D21 — CI generates its `SECRET_KEY` per run instead of reading it from a secret
+
+**Decided:** 2026-08-19. Closes the first of the three facts T9 recorded on 2026-08-19, and is
+the precondition for D18's amendment being worth anything.
+
+`ci.yml` stops taking `SECRET_KEY` from `secrets.SECRET_KEY` and generates a random value inside
+the job, before any Django command runs.
+
+### The problem, measured rather than reasoned
+
+From run `32122772733`, the run of Dependabot pull request `#7`:
+
+```
+Secret source: Dependabot
+  SECRET_KEY:
+raise ValueError("SECRET_KEY not found in environment variables")
+##[error]Process completed with exit code 1
+```
+
+All four Dependabot runs failed identically. `config/settings.py` reads `SECRET_KEY` from the
+environment and raises when it is absent, and GitHub's Dependabot-on-Actions troubleshooting
+reference gives the cause: _"When a Dependabot event triggers a workflow, the only secrets
+available to the workflow are Dependabot secrets. GitHub Actions secrets are not available."_
+The same page applies it to `push`, `pull_request`, `pull_request_review` and
+`pull_request_review_comment` alike, so D8 Item 3's `pull_request` trigger does not change it.
+Measured: `gh api repos/…/dependabot/secrets` → `{"total_count": 0}`.
+
+**This is not an `oop_version` problem.** It fires on any Dependabot-triggered run, including the
+monthly `uv` version-update pull request that D18's amendment now makes the only automatic fix
+path. A check that is red for a reason unrelated to the diff cannot gate a dependency bump.
+
+### Why generating it, rather than registering a Dependabot secret
+
+- **The value protects nothing.** The CI `SECRET_KEY` signs sessions against a throwaway Postgres
+  service whose credentials are already literal in the workflow — the `services.postgres.env`
+  block and the job `env` block both carry them in the file. Treating one of the two as a secret
+  and the other as public is ceremony, not a boundary.
+- **It lands in a diff.** A Dependabot secret is a settings-panel value that no clone restores
+  and no review sees — the class this plan already records twice as a durability problem (D8's
+  _Recorded but not planned_, and T15). This replanning session exists because a settings-panel
+  action produced consequences no file described.
+- **It removes a duplicate that can drift.** Under the secret option the same value exists as an
+  Actions secret and as a Dependabot secret, and rotating one silently leaves the other stale.
+
+### The cost accepted, and it lands on D7
+
+D7 measured `check --deploy` producing 7 warnings and recorded that whether **W009**
+(`SECRET_KEY`) fires in CI _"depends on the value behind `secrets.SECRET_KEY`, which cannot be
+read from here"_. Under this decision it becomes knowable, and it probably stops firing: a
+generated value carries no `django-insecure-` prefix and clears Django's length and distinct-
+character thresholds. **T10 records the baseline measured under the generated key**, rather than
+inheriting D7's number.
+
+_Second, smaller:_ the `SECRET_KEY` Actions secret becomes unused. Whether it is deleted is the
+user's call and is not a task criterion — it is a repository setting, and nothing breaks either
+way.
+
+### Alternatives considered
+
+- **Register `SECRET_KEY` as a Dependabot secret** — the fix T9 called minimal, and it needs no
+  diff at all. Set aside on the three points above; the decisive one is that it answers an
+  invisible-configuration failure with more invisible configuration.
+- **A fallback expression, `${{ secrets.SECRET_KEY || '<literal>' }}`** — one line, and it keeps
+  the real secret on ordinary runs. Set aside: the literal sits in the file anyway, so it pays
+  D13's allowlist cost without avoiding the appearance of a committed secret, and if the real
+  secret ever disappears by accident the workflow passes silently on the fallback instead of
+  failing.
+- **Skipping the job for the `dependabot[bot]` actor** — set aside for the reason T9 already
+  gave: it removes the gate rather than repairing it.
+
+### Open questions carried to the task
+
+- The exact generation form is the Developer's, written against the runner's available tooling
+  and GitHub's `$GITHUB_ENV` documentation. Two constraints on it: it must not print the value,
+  and it must run before the first step that imports Django settings.
+
+---
+
 # Planning state
 
 ## Closed
@@ -3213,6 +3369,19 @@ the schedule existed to cover.
 D9 also leaves D14 one measured input — run from the monorepo root, ruff reads `oop_version/`,
 and hierarchical configuration does not exclude a subdirectory — but that is a question about
 invocation scope, not about ruff's configuration, which is settled.
+
+**2026-08-19 — two entries reopened by implementation, not by an audit.** T15 was implemented on
+2026-08-18, and what it produced falsified two things D18 had assumed. Both were re-decided with
+the user and neither came from a review of the plan; they came from running it.
+
+| What implementation showed                                                                                   | Decided                                                                                      | Landed in         |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ----------------- |
+| `dependabot.yml` cannot keep security updates out of `oop_version/` — the file governs version updates only  | security updates off, alerts on, version updates monthly and scoped to `/django_version`     | **D18** amendment |
+| No Dependabot-triggered run can read a repository secret, so every one of them failed on an empty `SECRET_KEY` | `ci.yml` generates the key per run instead of reading a secret                               | **D21** (new)     |
+
+Neither reverses a decision on its own terms: D18 still holds that this project keeps dependency
+monitoring, and D8 still holds that CI is hardened rather than loosened for the bot. What changed
+is the mechanism, in both cases because the platform does not work the way the entry assumed.
 
 ## Open — decisions still to take, in the suggested order
 
@@ -3323,10 +3492,12 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
   and the question is closed as unnecessary rather than deferred again. No dependency-audit step
   is added, so the schedule has no beneficiary, and Dependabot's alerts arrive without a workflow
   run at all.
-- **New, created by D18:** whether routine `uv` **version**-update pull requests are wanted, or
-  only the security half. The two are configured in different places — the security half follows
-  from the repository toggles, the version half from the `dependabot.yml` entry — so dropping one
-  and keeping the other is available.
+- ~~**New, created by D18:** whether routine `uv` **version**-update pull requests are wanted, or
+  only the security half.~~ **Answered 2026-08-19, and the answer inverted the expectation: the
+  version half is kept and the security half is dropped.** The two are indeed configured in
+  different places, and that is what decided it — the security half is a repository toggle that
+  applies to every manifest in the dependency graph, `oop_version/` included, and no file can
+  narrow it; the version half is declared per directory. See D18's amendment.
 - **New, created by T1:** whether the now-empty `RUN apt-get install` step in
   `django_version/Dockerfile` is deleted outright. T1 removed `pillow`'s libraries and, on the
   empirical result, `libpq-dev` too — nothing is left for the step to install. Left in place
@@ -3386,12 +3557,18 @@ single verification step of this kind. These must not be inherited:
   D1 removed the `-r` nesting (audit Observation O5, left unverified by both passes).~~ **Moot
   as of D18** — no dependency-audit tool is adopted, and `requirements.txt` is removed by D1.
   It returns only if the revisit trigger in D18 fires.
-- **Which `package-ecosystem` value Dependabot accepts for a `uv` project**, confirmed against
-  GitHub's supported-ecosystems table rather than against the changelog entries D18 relies on.
-  The table could not be read cleanly this session (D18).
-- **Whether Dependabot security updates require the `dependabot.yml` entry, or follow from the
-  repository toggles alone.** D18 states the distinction as reasoning; it decides whether the
-  file entry is required for the coverage D18 was taken for or is an addition on top of it.
+- ~~**Which `package-ecosystem` value Dependabot accepts for a `uv` project.**~~ **Settled
+  2026-08-19** against GitHub's _Dependabot options reference_, which lists **UV** among the
+  accepted values. The supported-ecosystems table still would not read cleanly; the options
+  reference is normative and was legible (D18 amendment).
+- ~~**Whether Dependabot security updates require the `dependabot.yml` entry, or follow from the
+  repository toggles alone.**~~ **Settled 2026-08-19 by measurement, not by reading: the toggles
+  alone.** Four security-update pull requests were opened against a repository containing no
+  `dependabot.yml` at all. The consequence is the one D18's amendment acts on — the file governs
+  version updates only, so it cannot keep security updates out of `oop_version/`.
+- **New, created by D21: that a Dependabot-authored pull request passes CI under a generated
+  `SECRET_KEY`.** It cannot be verified before the merge, because only Dependabot can produce a
+  run with the restricted secret source. Carried as T9's deferred verification.
 - ~~Whether Dependabot updates actions pinned to a full commit SHA.~~ **Settled 2026-08-17**
   against the GitHub changelog of 2022-10-31: it updates the SHA and the version comment
   beside it. Item 2's amendment rests on this.
@@ -3742,52 +3919,52 @@ with them uncovered.
 
 ---
 
-## T9 — `ci.yml` hardening, triggers, and `dependabot.yml`
+## T9 — `ci.yml` hardening, triggers, the generated `SECRET_KEY`, and `dependabot.yml`
 
-**Implements:** D8, all three items and all three amendments; and the file half of D18.
+**Implements:** D8, all three items and all three amendments; the file half of D18 **as amended
+2026-08-19**; and D21.
 
-**Discovered during T2, 2026-08-19. Recorded as evidence, not decided here.**
+**Requires T3** (done) **and T18**, which turns off the toggle producing the pull requests this
+task's file cannot filter. **This task precedes any merge to `main`.**
 
-Enabling Dependabot produced four security-update pull requests on 2026-08-18, all targeting
-`main`, and with them three facts this plan does not cover.
+**Why it precedes the merge.** The four open `sqlparse` alerts — three of them high — are computed
+from `django_version/requirements.txt` as it stands on `main`, which this branch deletes.
+`uv.lock` already resolves `sqlparse` to the patched 0.6.0, so the fix travels with the merge; the
+monitoring does not. Dependabot reads `dependabot.yml` from the default branch, so the `uv` entry
+starts working when the merge lands and not before — which is precisely why it has to be in the
+merge.
 
-1. **Every Dependabot-triggered run fails, for a reason unrelated to the code under test.**
-   GitHub does not expose repository secrets to workflows triggered by Dependabot — the run log
-   reports `Secret source: Dependabot` — so `secrets.SECRET_KEY` arrives empty and
-   `config/settings.py` raises the `ValueError` it is written to raise. All four runs failed this
-   way. D8's planned `pull_request` trigger does not change it: Dependabot pull requests carry the
-   restricted secret source under both events. This defeats what D18 enabled Dependabot for, since
-   a check that is red for an unrelated reason cannot gate a dependency bump. The minimal fix is
-   registering `SECRET_KEY` as a Dependabot secret — a repository setting rather than a diff, the
-   same class as T15. Skipping the job for the `dependabot[bot]` actor removes the gate instead of
-   repairing it.
+**Corrected 2026-08-19.** An earlier version of this entry recorded the three `oop_version` pull
+requests as closed, and left it unverified whether `dependabot.yml` could keep security updates out
+of that directory. Both are settled: measured, `#6`, `#7`, `#8` and `#9` are all still open with a
+failing `test` check, and D18's amendment establishes that the file cannot filter security updates
+at all. Closing the pull requests belongs to T18.
 
-2. **Dependabot watches `oop_version/`, which root `CLAUDE.md` declares closed.** Three of the four
-   pull requests target `oop_version/requirements.txt`. Their alerts were dismissed as `not_used`
-   and the pull requests closed on 2026-08-19. Whether `dependabot.yml` can keep security updates
-   out of that directory, or whether dismissal is the only lever available, is unverified.
+**Do.**
 
-3. **Merging this branch to `main` removes the only manifest Dependabot reads for the active
-   project.** The four open `sqlparse` alerts — three of them high — are computed from
-   `django_version/requirements.txt` as it stands on `main`, which this branch deletes. `uv.lock`
-   already resolves `sqlparse` to the patched 0.6.0, so the fix travels with the merge; the
-   monitoring does not. Until this task's `dependabot.yml` declares `package-ecosystem: "uv"`, and
-   until the verification T15 left open confirms `uv` is an accepted value, the merge would leave
-   `django_version` with no dependency monitoring at all. **This task therefore runs immediately
-   after T3 and precedes any merge to `main`.**
-
-**Do.** `permissions: {}` at the workflow level and `permissions: contents: read` on the `test`
-job. Bump `actions/checkout` and `actions/setup-python` to their current majors **first**, then
-SHA-pin all four actions with the version in a trailing comment. Add the `pull_request` trigger,
-a `concurrency` group with `cancel-in-progress: true`, and `paths-ignore` covering `docs/**` and
-root Markdown — **not** `.claude/rules/**` and **not** `specs/**`. Create `.github/dependabot.yml`
-covering `github-actions` and `uv`, both at `interval: monthly`.
+- `permissions: {}` at the workflow level and `permissions: contents: read` on the `test` job.
+- Bump `actions/checkout` and `actions/setup-python` to their current majors **first**, then
+  SHA-pin all four actions with the version in a trailing comment.
+- Add the `pull_request` trigger, a `concurrency` group with `cancel-in-progress: true`, and
+  `paths-ignore` covering `docs/**` and root Markdown — **not** `.claude/rules/**` and **not**
+  `specs/**`.
+- Replace `SECRET_KEY: ${{ secrets.SECRET_KEY }}` in the job `env` block with a step that generates
+  a random value into `$GITHUB_ENV` before any Django command runs (D21).
+- Create `.github/dependabot.yml` with exactly two entries: `github-actions`, and `uv` at
+  `directory: "/django_version"`. Both at `interval: monthly`. **`oop_version/` is declared
+  nowhere**, and no third entry is added for completeness.
 
 **Scope.** `.github/workflows/ci.yml`, `.github/dependabot.yml` (new).
 
 **Acceptance.** CI is green on the first push after the change. All four actions carry a
 40-character SHA. A documentation-only push produces no run; a push mixing documentation and code
-does.
+does. `.github/dependabot.yml` names no directory under `oop_version/`.
+
+**Deferred verification — it can only be taken after the merge.** That a Dependabot-authored pull
+request reports a **green** `test` check. It is the only proof that D21 works against the
+restricted secret source, and nothing on this branch can produce it. Record it against the first
+monthly `uv` pull request; if it is red, the finding returns to the Planner rather than being
+resolved by skipping the job.
 
 **Verifications to perform before writing the SHAs.** That `actions/checkout` and
 `actions/setup-python` at their current majors are drop-in for this workflow, and that
@@ -3912,10 +4089,16 @@ not planned_.
 `dependabot_security_updates: enabled`, and `gh api repos/<r>/dependabot/alerts` returns a list
 rather than the 403 it returns today.
 
-**Verify before writing `dependabot.yml` in T9.** That `uv` is the accepted `package-ecosystem`
-value, against GitHub's supported-ecosystems table. D18 rests on two changelog entries because
-that table could not be read cleanly. If `uv` is unavailable, the fallback is **not** `pip` — it
-is reopening D18.
+~~**Verify before writing `dependabot.yml` in T9.** That `uv` is the accepted `package-ecosystem`
+value, against GitHub's supported-ecosystems table.~~ **Settled 2026-08-19:** GitHub's
+_Dependabot options reference_ lists **UV** among the accepted values. D18 is not reopened.
+
+**Partly reversed by T18, and deliberately left standing here.** The security-updates half
+enabled by this task is turned off on 2026-08-19 — see D18's amendment for what implementing this
+task exposed and why the narrower configuration replaces it. This entry is not edited to match,
+because the sequence is the finding: the default configuration was enabled on purpose, and it was
+narrowed on purpose once its cost was measured. Anyone tempted to re-enable security updates
+"because monitoring looks incomplete" should read D18's amendment first.
 
 ---
 
@@ -3959,9 +4142,76 @@ took.
 
 ---
 
+## T18 — Turn off Dependabot security updates, and clear the four pull requests it opened
+
+**Implements:** the repository half of D18 **as amended 2026-08-19**. **Runs before T9**, and
+before any merge to `main`.
+
+**This task has no file either**, for the reason T15 had none: both halves live in the
+repository's settings, which no diff records and no clone restores. It is a separate task rather
+than an edit to T15 so the trail stays readable — the default configuration was enabled
+deliberately on 2026-08-18, and it is narrowed deliberately on 2026-08-19 because implementing it
+measured what the default costs.
+
+**Where.** Repository **Settings → Advanced Security**. Every toggle named below is on that one
+page.
+
+**Do.**
+
+- Turn **Dependabot security updates** off. It is the only toggle that changes.
+- Leave **Dependabot alerts** on, and leave **Dependency graph** on — the alert stream is the
+  detection half this plan keeps, and it does not exist without the graph.
+- **Do not touch Dependabot version updates on this page, and do not create the file it offers.**
+  Version updates is not a toggle: the control opens a web editor holding GitHub's starter
+  `dependabot.yml` template, and saving it commits that file **to the default branch**. T9 writes
+  the real file in this branch instead, for two reasons. `main` today carries
+  `django_version/requirements.txt` and neither `pyproject.toml` nor `uv.lock`, so a `uv` entry
+  committed there would point at a manifest that does not yet exist on that branch — _stated as
+  reasoning, not measured: the expected result is a failing Dependabot update job rather than any
+  damage._ And a file created on `main` while T9 creates the same path here is a merge conflict
+  bought for nothing. The template also defaults to `interval: "weekly"` and `directory: "/"`,
+  neither of which is what D18's amendment decided.
+- Touch nothing else on the page — **Dependabot rules**, malware alerts, grouped security updates,
+  private vulnerability reporting, code scanning and secret protection are all outside this task.
+- Close pull requests `#6`, `#7`, `#8` and `#9`. `#7` (`sqlparse` in `/django_version`) closes on
+  the same evidence as the other three: `uv.lock` on this branch already resolves the patched
+  0.6.0, so the pull request would apply a fix to a file the merge deletes.
+
+**The latency cost D18's amendment accepted is smaller than it recorded, and GitHub's own settings
+page is the source.** The Dependabot alerts toggle is described there as _"Receive alerts for
+vulnerabilities that affect your dependencies **and manually generate Dependabot pull requests** to
+resolve these vulnerabilities."_ So with alerts on and security updates off, the fix pull request
+is still available on demand from the alert, for an advisory worth acting on immediately. The
+monthly cycle becomes the default path rather than the only one.
+
+**One thing to look at while on that page, and it can reopen D18's amendment.** The page shows
+_"Dependabot rules — 1 rule enabled"_, which is the auto-triage surface; the enabled rule is
+expected to be GitHub's preset rather than a custom one. D18's amendment set aside the manifest-path
+rule because custom rules are documented as licence-gated. **If that screen offers creating a custom
+rule with a manifest-path condition on this repository, say so before finishing this task** — that
+option is strictly better than the one decided here, because it filters `oop_version/` while keeping
+security fixes immediate for `django_version`. If it does not, proceed as decided; the decision was
+taken knowing this was the fallback.
+
+**Acceptance.**
+
+- `gh api repos/<r> --jq '.security_and_analysis.dependabot_security_updates.status'` reports
+  `disabled`.
+- `gh api repos/<r>/dependabot/alerts` still returns a list rather than a 403 — alerts survived
+  the change.
+- `gh pr list` shows no open pull request authored by `app/dependabot`.
+
+**Do not** dismiss the four open `sqlparse` alerts to tidy the Security tab. _Stated as reasoning,
+not measured:_ they are expected to close on their own once the merge removes
+`django_version/requirements.txt` from the default branch. Dismissing a real high-severity finding
+by hand is a habit worth not starting, and if they do not close on their own, that is worth
+knowing rather than hiding.
+
+---
+
 # Order of execution
 
-Three things constrain the order; everything else is free.
+Four things constrain the order; everything else is free.
 
 1. **T1 before T2**, because T1 edits `requirements.txt` and T2 deletes it.
 2. **T2 before almost everything**, because it creates `pyproject.toml`, which nine other tasks
@@ -3969,29 +4219,35 @@ Three things constrain the order; everything else is free.
 3. **T3 immediately after T2**, in the same session. D16 bought its diagnostic value with commit
    ordering, not with calendar time: if the two land together a red suite is ambiguous, and if
    they are separated by days the separation is no longer a sequence.
+4. **T18 before T9, and both before any merge to `main`.** T18 is server-side and takes effect the
+   moment the toggle flips, so it stops new pull requests immediately; T9's `dependabot.yml` is
+   inert until it reaches the default branch, which is also the merge that deletes the manifest
+   `django_version`'s current monitoring is computed from. Reversing the two would leave security
+   updates producing `oop_version` pull requests for the whole span of the remaining work.
 
 | #   | Task                                                           | Waits on | Why                                                                                                                                        |
 | --- | -------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | **T15** — enable Dependabot                                    | —        | Free, server-side, and nothing watches dependencies today. Doing it first means the alert stream exists while the rest of the work happens |
-| 2   | **T1** — `Dockerfile` cleanup                                  | —        | `requirements.txt` must still exist                                                                                                        |
-| 3   | **T2** — uv migration                                          | T1       | D16 commit 1                                                                                                                               |
-| 4   | **T3** — stack bump                                            | T2       | D16 commit 2, same session, once green                                                                                                     |
-| 5   | **T4** — migrations in the suite, `--reuse-db` and markers out | T3       | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                           |
-| 6   | **T5** — ruff                                                  | T2       | Touches many source files; landing it before the type work keeps the two diffs separable                                                   |
-| 7   | **T6** — fix the 18 mypy errors                                | T3, T5   | django-stubs 6.1.0 targets Django 6.1                                                                                                      |
-| 8   | **T7** — mypy CI step                                          | T6       | Enters build-failing, so the errors must be gone                                                                                           |
-| 9   | **T8** — coverage                                              | T4       | Measures the final test regime, not the interim one                                                                                        |
-| 10  | **T9** — CI hardening + `dependabot.yml`                       | T2       | T2 already rewrote the install steps; hardening the same file afterwards keeps the diffs readable                                          |
-| 11  | **T10** — Django's two checks                                  | T3, T9   | `check --deploy` must be measured under 6.1 first                                                                                          |
-| 12  | **T11** — `docker build` step                                  | T1, T2   | Measured against the cleaned, migrated image                                                                                               |
-| 13  | **T13** — non-root user                                        | T2, T11  | T11 is the automated gate on getting the ownership wrong                                                                                   |
-| 14  | **T12** — gitleaks                                             | T9       | Independent of everything else; grouped with the CI work                                                                                   |
-| 15  | **T14** — pre-commit hooks                                     | T2, T5   | The ruff configuration must exist for the hooks to run it                                                                                  |
-| 16  | **T16** — editor configuration                                 | T2       | The interpreter path depends on where the environment ends up                                                                              |
-| 17  | **T17** — tech debt entries                                    | all      | Records what happened                                                                                                                      |
+| 1   | ~~**T15** — enable Dependabot~~ **done 2026-08-18**            | —        | Free, server-side, and nothing watched dependencies before it. Its security half is narrowed by T18                                        |
+| 2   | ~~**T1** — `Dockerfile` cleanup~~ **done**                     | —        | `requirements.txt` must still exist                                                                                                        |
+| 3   | ~~**T2** — uv migration~~ **done**                             | T1       | D16 commit 1                                                                                                                               |
+| 4   | ~~**T3** — stack bump~~ **done 2026-08-19**                    | T2       | D16 commit 2, same session, once green                                                                                                     |
+| 5   | **T18** — narrow Dependabot to `/django_version`               | —        | Server-side and immediate. Every day it waits is another closed-directory pull request and another red run on a portfolio repository       |
+| 6   | **T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`| T2, T18  | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing          |
+| 7   | **T4** — migrations in the suite, `--reuse-db` and markers out | T3       | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                           |
+| 8   | **T5** — ruff                                                  | T2       | Touches many source files; landing it before the type work keeps the two diffs separable                                                   |
+| 9   | **T6** — fix the 18 mypy errors                                | T3, T5   | django-stubs 6.1.0 targets Django 6.1                                                                                                      |
+| 10  | **T7** — mypy CI step                                          | T6       | Enters build-failing, so the errors must be gone                                                                                           |
+| 11  | **T8** — coverage                                              | T4       | Measures the final test regime, not the interim one                                                                                        |
+| 12  | **T10** — Django's two checks                                  | T3, T9   | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                 |
+| 13  | **T11** — `docker build` step                                  | T1, T2   | Measured against the cleaned, migrated image                                                                                               |
+| 14  | **T13** — non-root user                                        | T2, T11  | T11 is the automated gate on getting the ownership wrong                                                                                   |
+| 15  | **T12** — gitleaks                                             | T9       | Independent of everything else; grouped with the CI work                                                                                   |
+| 16  | **T14** — pre-commit hooks                                     | T2, T5   | The ruff configuration must exist for the hooks to run it                                                                                  |
+| 17  | **T16** — editor configuration                                 | T2       | The interpreter path depends on where the environment ends up                                                                              |
+| 18  | **T17** — tech debt entries                                    | all      | Records what happened                                                                                                                      |
 
-**Independent of each other, in any order:** T9, T12, T14, T16. **Independent of the whole
-sequence:** T15.
+**Independent of each other, in any order:** T12, T14, T16. **Independent of the whole sequence:**
+T18, which needs no file to exist and no task to precede it.
 
 **The two places where a task can stop and return to the Planner**, rather than being finished by
 a judgement call: the `QuerySet[BaseUser]` annotation in T6, and `mail.E001` firing under Django
