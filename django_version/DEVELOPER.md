@@ -124,8 +124,7 @@ Never write a field definition and its validation in isolation.
 When writing code (after approval):
 
 - CURRENT APIs ONLY. Use only non-deprecated APIs for the exact versions
-  pinned in `requirements.txt` (Python 3.14, Django 6.0.x, psycopg 3.3.x,
-  pytest-django 4.12.x). If you are unsure whether an API is current, say so
+  pinned in `pyproject.toml`. Read this file and if you are unsure whether an API is current, say so
   and ask the user to verify against the official documentation before
   writing it. Never write code you suspect may be deprecated.
 - clean() PATTERN. Every `clean()` that enforces an invariant follows the

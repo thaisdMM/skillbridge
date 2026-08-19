@@ -88,8 +88,7 @@ Audit the target against, in this order of authority:
 1. ARCHITECTURE.md and conventions.md — project-specific decisions take
    precedence over Django defaults.
 2. Current best practices for the exact stack versions pinned in
-   `requirements.txt` (Python 3.14, Django 6.0.x, psycopg 3.3.x,
-   pytest-django 4.12.x). If unsure whether an API is current for the
+   `pyproject.toml`. Read this file and if unsure whether an API is current for the
    pinned version, say so and flag it — do not assume.
 3. GDPR / PII exposure — logging, `__repr__` / `__str__`, error messages,
    admin display, field design.
