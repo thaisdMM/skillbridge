@@ -11,31 +11,47 @@ writing or modifying tests.
 
 ## Stack and versions
 
-Versions below are pinned in `django_version/requirements.txt`. Do not
-modify versions without explicit approval — version changes are
+No version number is restated in this file. Each one has exactly one
+authoritative file, listed below. Read the file when you need the value;
+never copy the value into a second place.
+
+| What | Where it is pinned |
+| ---- | ------------------ |
+| Direct Python dependencies — production and `dev` | `django_version/pyproject.toml`, under `[project].dependencies` and `[dependency-groups].dev`. Every entry carries an exact `==` pin |
+| The Python interpreter, to the patch | `django_version/.python-version` |
+| PostgreSQL | `django_version/docker-compose.yml`, the `db` service image |
+| `uv` itself | `django_version/Dockerfile` (the `COPY --from=ghcr.io/astral-sh/uv:<version>` line) and `.github/workflows/ci.yml` (the `setup-uv` `version` input). The two must agree |
+| Transitive dependencies | `django_version/uv.lock` — read it only under the rule below |
+
+Do not modify a version without explicit approval. Version changes are
 architectural decisions, not maintenance updates.
 
-| Technology     | Version pinned in requirements.txt |
-| -------------- | ---------------------------------- |
-| Python         | 3.14                               |
-| Django         | 6.0.7                              |
-| PostgreSQL     | 17 (docker-compose)                |
-| psycopg        | 3.3.4                              |
-| psycopg-binary | 3.3.4                              |
-| psycopg-pool   | 3.3.1                              |
-| argon2-cffi    | 25.1.0                             |
-| pytest         | 9.1.1                              |
-| pytest-django  | 4.12.0                             |
-| python-dotenv  | 1.2.2                              |
-| pillow         | 12.3.0                             |
+### Reading `uv.lock` — ask first
+
+`uv.lock` resolves every transitive dependency and is larger than every other
+file named in this section put together. Reading it consumes a significant
+share of the session's context, and it answers exactly one kind of question:
+which version of a package *nobody declared* ended up installed.
+
+- **Default: do not open it.** To answer "which version of X is this project
+  on", read `pyproject.toml`. Any package the project chose deliberately is
+  declared there with an exact pin.
+- **When the task genuinely needs a transitive version** — a security advisory
+  against an undeclared package, a resolution conflict, a bug traced into a
+  dependency of a dependency — reading it is legitimate. Ask the user for
+  permission first, and state which package you are looking up and why.
+- **Never** open it to confirm something `pyproject.toml` already states, and
+  never open it speculatively "for context".
 
 **Not yet installed — pin exact version on install:**
 
 - DRF (Django REST Framework)
 - drf-spectacular
 
-Never reference these as "latest compatible" in code or documentation.
-When installed, update this table with the exact pinned version.
+Never reference these as "latest compatible" in code or documentation. When
+installed, declare them in `django_version/pyproject.toml` with an exact `==`
+pin — production dependencies under `[project].dependencies`, development
+tooling under the `dev` group.
 
 ---
 

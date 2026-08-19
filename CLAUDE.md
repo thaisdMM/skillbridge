@@ -37,8 +37,9 @@ Python 3.14, Django 6.x, PostgreSQL 17, psycopg3, Argon2id, pytest-django,
 Docker, GitHub Actions CI. DRF and drf-spectacular are planned but **not yet
 installed**.
 
-Exact pinned versions are authoritative in `.claude/rules/conventions.md`
-("Stack and versions"). Do not duplicate version numbers here.
+`.claude/rules/conventions.md` ("Stack and versions") names the one
+authoritative file for each version, and the rule for reading `uv.lock`. Do
+not duplicate version numbers here or there.
 
 ---
 

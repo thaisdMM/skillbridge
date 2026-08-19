@@ -14,7 +14,8 @@ behavior rules across the project, consult `CLAUDE.md`.
 - **pytest-django** — no `unittest.TestCase`, no Django test client unless
   explicitly required.
 - All tests run inside Docker: `docker-compose exec web pytest`.
-- Configuration lives in `pytest.ini`. Active flags: `--no-migrations`,
+- Configuration lives in the `[tool.pytest]` table of
+  `django_version/pyproject.toml`. Active flags: `--no-migrations`,
   `--reuse-db`, `--strict-markers`, `--tb=short`, `-v`.
 
 ---
@@ -484,7 +485,7 @@ benefit for typical tests.
 
 ### Note on `--no-migrations` and data migrations
 
-`pytest.ini` runs the suite with `--no-migrations`. This means
+`addopts` in `[tool.pytest]` runs the suite with `--no-migrations`. This means
 pytest-django creates the test database schema directly from the current
 state of the models (`syncdb`), skipping all migration files. The suite
 runs faster, but with a consequence:
