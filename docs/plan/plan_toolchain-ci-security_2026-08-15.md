@@ -4,7 +4,7 @@
 **Persona:** Planner
 **Tree:** `feature/django-refactor`
 **Status:** Complete as a plan, as of 2026-08-17. The Decision log runs D1–D20 with nothing
-open; the task entries T1–T17 and the *Order of execution* are written; the deferrals are
+open; the task entries T1–T17 and the _Order of execution_ are written; the deferrals are
 recorded in `docs/tech_debt/006`–`010`. What remains is implementation, by the Developer
 persona, starting at T15 and T1.
 **Files modified by this session:** this plan only. No production file was touched.
@@ -33,7 +33,7 @@ destroy the decision trail they audit.
   onward act on that audit and say so.
 
 The superseded plan was rebuilt rather than patched for two reasons. Four of the audit's
-findings change what the tasks *are*, not how they are worded. And the user reopened the
+findings change what the tasks _are_, not how they are worded. And the user reopened the
 dependency-management decision the superseded plan's Task 1 rested on — with that decision
 changed, its Tasks 1–6 and 8 no longer describe the work to be done.
 
@@ -82,14 +82,14 @@ came with it — the situation the `pillow` removal already walks into.
 **Nothing keeps any environment matching the file.** Measured this session with
 `django_version/.venv/bin/pip list` against `requirements.txt`:
 
-| Package | Pinned | Installed in `.venv` |
-| --- | --- | --- |
-| Django | 6.0.7 | 6.0.3 |
-| pytest | 9.1.1 | 9.0.2 |
-| pytest-django | 4.12.0 | 4.11.1 |
-| psycopg | 3.3.4 | 3.3.2 |
-| pillow | 12.3.0 | 12.1.1 |
-| Pygments | 2.20.0 | 2.19.2 |
+| Package       | Pinned | Installed in `.venv` |
+| ------------- | ------ | -------------------- |
+| Django        | 6.0.7  | 6.0.3                |
+| pytest        | 9.1.1  | 9.0.2                |
+| pytest-django | 4.12.0 | 4.11.1               |
+| psycopg       | 3.3.4  | 3.3.2                |
+| pillow        | 12.3.0 | 12.1.1               |
+| Pygments      | 2.20.0 | 2.19.2               |
 
 Every checked package diverges. The venv additionally contains `uv 0.11.30`, which
 `requirements.txt` does not declare at all. `.claude/rules/conventions.md` names
@@ -107,20 +107,20 @@ already false today: such a hook would run pytest 9.0.2 while CI runs 9.1.1.
 
 **The deferral rationale did not survive checking.** The superseded plan deferred
 `pyproject.toml` partly on the cost of choosing a build backend. uv's official documentation
-(*Configuring projects*) states that a `[project]` table without a `[build-system]` table causes
+(_Configuring projects_) states that a `[project]` table without a `[build-system]` table causes
 uv to install the project's dependencies without attempting to build the project itself. A
 Django application needs no build backend, so that cost does not exist.
 
 ### Verified against official documentation this session
 
 - Installing uv into an image: `COPY --from=ghcr.io/astral-sh/uv:<version> /uv /uvx /bin/`,
-  with the version pinned — uv docs, *Using uv in Docker*.
+  with the version pinned — uv docs, _Using uv in Docker_.
 - A bind-mounted project directory colliding with the container's `.venv` is a documented
   problem with documented remedies (an anonymous volume over `/app/.venv`, or directing the
   project environment elsewhere) — same page. This is the subject of D3.
 - Dependency groups follow PEP 735 `[dependency-groups]`; `--dev` is shorthand for
   `--group dev`; `uv sync --no-dev`, `--group`, `--only-group`, `--no-default-groups` select
-  them — uv docs, *Managing dependencies*.
+  them — uv docs, _Managing dependencies_.
 - `uv run --directory <dir>` changes directory before executing the command (confirmed against
   `uv run --help` on this machine, uv 0.11.30). This is the mechanism that closes audit Issue 4
   under D2 option A.
@@ -147,8 +147,8 @@ Django application needs no build backend, so that cost does not exist.
   the same destination in two steps instead of one.
 - **`pyproject.toml` with PEP 735 `dependency-groups`, installed by `pip`** — viable;
   `pip 26.1.2` on this machine supports `pip install --group` (confirmed via `pip install
-  --help`). Set aside: it produces no lockfile, so exact transitive versions stop being pinned
-  and reproducibility gets *worse* than today unless a separate locking step is added.
+--help`). Set aside: it produces no lockfile, so exact transitive versions stop being pinned
+  and reproducibility gets _worse_ than today unless a separate locking step is added.
 
 ### Open questions carried to the tasks
 
@@ -178,7 +178,7 @@ as `ruff.toml`". The two tools do not discover configuration the same way:
 
 - **Ruff** resolves configuration hierarchically from each checked file's directory upward, so
   a config in `django_version/` is found even when Ruff is invoked from the repository root.
-- **mypy** searches from the **current working directory** and walks *upward* only
+- **mypy** searches from the **current working directory** and walks _upward_ only
   (`mypy/config_parser.py` → `_find_config_file`). Invoked from the repository root, it walks
   toward the filesystem root and never descends into `django_version/`.
 
@@ -248,30 +248,30 @@ has a failure mode, and it is silent by construction.
 
 **Deleting the file is mandatory, not stylistic.** pytest's configuration reference lists the
 candidates in precedence order — `pytest.toml`, `.pytest.toml`, `pytest.ini`, `.pytest.ini`,
-`pyproject.toml`, `tox.ini`, `setup.cfg` — and states that *"pytest.ini files take precedence
-over other files (except pytest.toml and .pytest.toml), even when empty"* and that *"options
-from multiple configfiles candidates are never merged - the first match wins."* With
+`pyproject.toml`, `tox.ini`, `setup.cfg` — and states that _"pytest.ini files take precedence
+over other files (except pytest.toml and .pytest.toml), even when empty"_ and that _"options
+from multiple configfiles candidates are never merged - the first match wins."_ With
 `pytest.ini` left in place, a `[tool.pytest]` table in `pyproject.toml` is never read at all,
 and nothing warns. Moving the content without removing the file produces a configuration that
 looks authoritative and governs nothing.
 
 **The table is `[tool.pytest]`, not `[tool.pytest.ini_options]`.** Both exist and they are
-different: *"Use [tool.pytest] to leverage native TOML types (supported since pytest 9.0)"*
-versus *"Use [tool.pytest.ini_options] for INI-style configuration (supported since pytest
-6.0)"*. The project pins pytest 9.1.1, so the native form is available. Under it `addopts`
+different: _"Use [tool.pytest] to leverage native TOML types (supported since pytest 9.0)"_
+versus _"Use [tool.pytest.ini_options] for INI-style configuration (supported since pytest
+6.0)"_. The project pins pytest 9.1.1, so the native form is available. Under it `addopts`
 and `markers` become TOML arrays rather than INI strings — the migration reads better than the
 file it replaces, which removes the only cost this option was thought to carry.
 
-**`rootdir` does not move.** *"If one is matched, it becomes the configfile and its directory
-becomes the rootdir."* D2 places `pyproject.toml` in `django_version/`, which is where
+**`rootdir` does not move.** _"If one is matched, it becomes the configfile and its directory
+becomes the rootdir."_ D2 places `pyproject.toml` in `django_version/`, which is where
 `pytest.ini` sits today.
 
 **Instruction to the Developer:** write `[tool.pytest]` only. Do not add a
 `[tool.pytest.ini_options]` table alongside it — pytest's documentation does not state what
 happens when both are present, and this plan does not depend on finding out.
 
-**One live rule file follows the move.** `.claude/rules/testing.md` states *"Configuration
-lives in `pytest.ini`"* and lists the active flags, and it refers to `pytest.ini` again when
+**One live rule file follows the move.** `.claude/rules/testing.md` states _"Configuration
+lives in `pytest.ini`"_ and lists the active flags, and it refers to `pytest.ini` again when
 explaining the `--no-migrations` consequence for data migrations. It is auto-loaded into every
 session, so leaving it pointing at a deleted file sends every future agent to a path that does
 not exist. It is rewritten in the same change, and it is the only rule file this amendment
@@ -310,7 +310,7 @@ uv's default is to create the project environment as `.venv` **inside the projec
 
 1. `uv sync` at image build time creates `/app/.venv` with Linux binaries; at runtime the mount
    replaces it with the host's macOS/arm64 `.venv`, which cannot execute in the container.
-2. `uv sync` run *inside* the container writes through the mount into the host's
+2. `uv sync` run _inside_ the container writes through the mount into the host's
    `django_version/.venv`, replacing the developer's working environment with Linux binaries.
 
 The second is the serious one: it damages the host machine, and it is a single command that
@@ -345,28 +345,28 @@ anyone — or any agent — would run without suspicion.
 The decision stands. The reason recorded for excluding the system-environment option did not,
 and it was the only discriminator D3 offered.
 
-**What was wrong.** D3 set the option aside on the grounds that uv's documentation *"describes
-the variable as pointing at a virtual environment and does not confirm a system prefix"*. uv's
-*Using uv in Docker* guide — the same page D3 cites for its other three claims — says the
-opposite: *"Alternatively, the `UV_PROJECT_ENVIRONMENT` setting can be set before syncing to
-install to the system Python environment and skip environment activation entirely."* An option
+**What was wrong.** D3 set the option aside on the grounds that uv's documentation _"describes
+the variable as pointing at a virtual environment and does not confirm a system prefix"_. uv's
+_Using uv in Docker_ guide — the same page D3 cites for its other three claims — says the
+opposite: _"Alternatively, the `UV_PROJECT_ENVIRONMENT` setting can be set before syncing to
+install to the system Python environment and skip environment activation entirely."_ An option
 was rejected for being undocumented while being documented.
 
 **A second correction, this one to the audit rather than to the plan.** The audit's own
-preference for the chosen option rests on it being *"the only option where both failure modes
-are impossible rather than merely avoided"*. That does not separate the two: a system prefix is
+preference for the chosen option rests on it being _"the only option where both failure modes
+are impossible rather than merely avoided"_. That does not separate the two: a system prefix is
 also outside `/app`, so the bind mount cannot reach it either, and both failure modes are
 structurally removed under either. What separates them is something else.
 
 **The real discriminator, and it is the reason D3 keeps its outcome.** `uv sync` exists to make
-the environment *match the lockfile exactly* — that property is the whole basis of D1, recorded
+the environment _match the lockfile exactly_ — that property is the whole basis of D1, recorded
 there as "the environment either matches `uv.lock` or the command fails". Pointed at the image's
 system prefix, "matches exactly" comes to include removing the `pip`, `setuptools` and `wheel`
 that the `python:*-slim` base image ships. The option would trade the guarantee D1 was adopted
 for against a risk to the image's own base. Isolation between the application's dependencies
 and the interpreter's is the second, smaller reason.
 
-*Labelled as reasoning, not measurement:* uv's pruning behavior against a system prefix
+_Labelled as reasoning, not measurement:_ uv's pruning behavior against a system prefix
 specifically was not executed. It is inferred from `uv sync`'s documented semantics. If uv
 treats a system prefix as a special case and does not prune, this argument weakens and the
 option deserves re-examination — on that ground, not on the documentation one.
@@ -384,7 +384,7 @@ adjusting a configuration, which is well outside this plan's scope.
 
 **Carried to D15.** `/opt/venv` has an owner, and the non-root user decision has to reconcile
 that. If it concludes the ownership handling is awkward, revisiting the system-environment
-option on *that* ground is legitimate — on ownership, never on documentation.
+option on _that_ ground is legitimate — on ownership, never on documentation.
 
 ### Open questions carried to the task
 
@@ -448,7 +448,7 @@ migration and reports both numbers. Measured on this machine at planning time,
 `skillbridge-web:latest` is 285 MB. This is instrumentation, not a threshold — no size limit is
 being set.
 
-*Note, not part of this decision:* `django_version-web:latest` (254 MB, four months old) is an
+_Note, not part of this decision:_ `django_version-web:latest` (254 MB, four months old) is an
 orphan image from before `name: skillbridge` was added to `docker-compose.yml`; Compose derives
 the image name from the directory when `name:` is absent. Removing it is the user's call and is
 not part of any task in this plan.
@@ -508,13 +508,13 @@ into every site that invokes the tool — `ci.yml`, a hook configuration — ins
 lockfile, and nothing guarantees those sites agree.
 
 **`required-version` is rejected, and the reason is worth recording because the argument for it
-is real.** ruff's settings reference documents it as *"Enforce a requirement on the version of
-Ruff, to enforce at runtime"*, and uv's settings reference documents the equivalent
-(`[tool.uv] required-version`, *"uv will exit with an error"*). The case for adopting it: a ruff
+is real.** ruff's settings reference documents it as _"Enforce a requirement on the version of
+Ruff, to enforce at runtime"_, and uv's settings reference documents the equivalent
+(`[tool.uv] required-version`, _"uv will exit with an error"_). The case for adopting it: a ruff
 invoked from outside the project environment — an editor extension shipping its own bundled
 binary is the concrete instance — can disagree with CI silently, which is the class of drift
-this plan exists to remove. *(Reasoning, not measured: the VS Code Ruff extension's bundling
-behavior was not verified against its documentation.)*
+this plan exists to remove. _(Reasoning, not measured: the VS Code Ruff extension's bundling
+behavior was not verified against its documentation.)_
 
 What defeats it is the strict form's cost. `required-version = "=="` would block
 `uvx ruff@<version>`, which is exactly how D9 produced its measurements and how the 2026-08-16
@@ -600,8 +600,8 @@ replaced it.
 read from the project rather than repeated in the workflow.
 
 uv's GitHub Actions guide documents all three pieces: installing uv via `astral-sh/setup-uv`
-(pinned by commit SHA in its own example, with *"It is considered best practice to pin to a
-specific uv version"*), caching via `enable-cache: true`, and providing Python either with
+(pinned by commit SHA in its own example, with _"It is considered best practice to pin to a
+specific uv version"_), caching via `enable-cache: true`, and providing Python either with
 `uv python install` or with `actions/setup-python` reading `python-version-file` from
 `.python-version` or `pyproject.toml`.
 
@@ -641,11 +641,11 @@ python-build-standalone distribution whose cold-runner cost was never measured.
 ### Amendment 2, 2026-08-17 — the build step stays uncached, and lands after the `Dockerfile` cleanup (closes Issue 2 of the 2026-08-16 audit)
 
 D6 preferred a plain build step over running the suite inside the image partly on this
-sentence: *"Layer caching does not persist between runner VMs, so an in-CI build starts from
-scratch each time."* That is true only of the default `docker` driver with no cache backend.
+sentence: _"Layer caching does not persist between runner VMs, so an in-CI build starts from
+scratch each time."_ That is true only of the default `docker` driver with no cache backend.
 Docker documents a GitHub Actions cache backend (`cache-from: type=gha`,
-`cache-to: type=gha,mode=max`), which requires a buildx builder — *"This cache storage backend
-is not supported with the default `docker` driver"*. The cost D6 treated as fixed is
+`cache-to: type=gha,mode=max`), which requires a buildx builder — _"This cache storage backend
+is not supported with the default `docker` driver"_. The cost D6 treated as fixed is
 configurable.
 
 **Decided:** the build step is a plain `docker build`, **uncached**, and it is added **after**
@@ -655,14 +655,14 @@ duration describes the final image rather than the current one.
 **What decided it, and neither reason is a preference.**
 
 1. **The cache expires faster than this project's working rhythm.** GitHub's dependency-caching
-   reference: *"GitHub will remove any cache entries that have not been accessed in over 7
-   days"*, with LRU eviction against a 10 GB per-repository budget. D8 Item 3 measured a
+   reference: _"GitHub will remove any cache entries that have not been accessed in over 7
+   days"_, with LRU eviction against a 10 GB per-repository budget. D8 Item 3 measured a
    47-day gap between runs on this repository (2026-05-31 → 2026-07-17). A cache with a 7-day
    idle life is cold on most returns to the project, so the caching option would be paid for
    and would deliver the uncached time anyway.
 2. **This plan is deleting the only expensive layer.** The `Dockerfile`'s cost is concentrated
    in `RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libjpeg-dev
-   zlib1g-dev`. The cleanup task already removes `libjpeg-dev` and `zlib1g-dev` with `pillow`,
+zlib1g-dev`. The cleanup task already removes `libjpeg-dev` and `zlib1g-dev` with `pillow`,
    and puts `libpq-dev` in question because `psycopg-binary` bundles its own libpq. If
    `libpq-dev` also goes, the `apt-get` step disappears entirely and the build reduces to
    pulling a slim base and running `uv sync` over roughly seven direct dependencies. There is
@@ -724,8 +724,8 @@ five reads migration state, and its security block excluded `config/` from the s
 no tool at all.
 
 **The missing-migration gap is structural, not incidental.** `pytest.ini` runs the suite with
-`--no-migrations`, which pytest-django's own help text describes as *"Disable Django migrations
-on test setup"*. The test schema is then built by inspecting the models, so it matches the models
+`--no-migrations`, which pytest-django's own help text describes as _"Disable Django migrations
+on test setup"_. The test schema is then built by inspecting the models, so it matches the models
 by construction and no test can fail because a migration is absent. `django_version/CLAUDE.md`
 Rule 10 requires explicit approval before generating a migration, which makes "model edited,
 migration deferred, migration forgotten" an ordinary path through this project's workflow rather
@@ -747,21 +747,21 @@ Two facts corrected against Django 6.0.7 running in the image:
   `except OperationalError`. The step therefore does not depend on CI's postgres service.
 
 `docker-compose exec web python manage.py check --deploy` → 7 warnings, **exit 0**. Confirmed
-against `manage.py check --help`: `--fail-level` *"Default is ERROR"*, so WARNING-level findings
+against `manage.py check --help`: `--fail-level` _"Default is ERROR"_, so WARNING-level findings
 never fail the command.
 
 All 7 warnings are outside this plan's scope boundary or are artifacts of a development
 environment:
 
-| Code | Setting | Owner |
-| --- | --- | --- |
-| W004 | `SECURE_HSTS_SECONDS` | hosting target (Phase 5) |
-| W008 | `SECURE_SSL_REDIRECT` | hosting target (Phase 5) |
-| W012 | `SESSION_COOKIE_SECURE` | hosting target (Phase 5) |
-| W016 | `CSRF_COOKIE_SECURE` | hosting target (Phase 5) |
-| W020 | `ALLOWED_HOSTS` empty | hosting target (Phase 5) |
-| W018 | `DEBUG=True` | local `.env`; CI leaves `DEBUG` unset, so it resolves to `False` |
-| W009 | `SECRET_KEY` | local `.env` |
+| Code | Setting                 | Owner                                                            |
+| ---- | ----------------------- | ---------------------------------------------------------------- |
+| W004 | `SECURE_HSTS_SECONDS`   | hosting target (Phase 5)                                         |
+| W008 | `SECURE_SSL_REDIRECT`   | hosting target (Phase 5)                                         |
+| W012 | `SESSION_COOKIE_SECURE` | hosting target (Phase 5)                                         |
+| W016 | `CSRF_COOKIE_SECURE`    | hosting target (Phase 5)                                         |
+| W020 | `ALLOWED_HOSTS` empty   | hosting target (Phase 5)                                         |
+| W018 | `DEBUG=True`            | local `.env`; CI leaves `DEBUG` unset, so it resolves to `False` |
+| W009 | `SECRET_KEY`            | local `.env`                                                     |
 
 W009 fires on the local key for one reason only. Measured without printing the value: 66
 characters, 34 distinct characters, prefixed `django-insecure-`. Django's own check module
@@ -814,7 +814,7 @@ recorded here as signals, not as tasks, per `PLANNER.md`'s rule against absorbin
 ## D8 — `ci.yml` triggers and hardening: explicit token permissions, SHA-pinned actions, a `pull_request` trigger
 
 **Decided:** 2026-08-15. Closes audit Issue 14 and the trigger half of Issue 15; the scheduled-run
-half is deferred, see *Item 3*.
+half is deferred, see _Item 3_.
 
 Three independent items, decided one at a time. All three land in `.github/workflows/ci.yml`.
 
@@ -828,8 +828,8 @@ $ gh api repos/thaisdMM/skillbridge/actions/permissions/workflow
 ```
 
 So the token today carries `contents: read` **and** `packages: read`. GitHub's workflow-syntax
-reference: *"If you specify the access for any of these permissions, all of those that are not
-specified are set to `none`."* Declaring `contents: read` therefore drops exactly one scope,
+reference: _"If you specify the access for any of these permissions, all of those that are not
+specified are set to `none`."_ Declaring `contents: read` therefore drops exactly one scope,
 `packages: read`, on a public repository that publishes no package.
 
 **The measured security delta is close to nothing, and the decision was taken knowing that.**
@@ -856,23 +856,23 @@ workflow publishes a release, comments on a pull request, or writes to the repos
 `permissions: contents: read` on the `test` job.
 
 **Why this is not the same decision as Item 1's, and not a stricter version of it either.**
-GitHub's workflow-syntax reference states that *"if you specify the access for any of these
-permissions, all of those that are not specified are set to `none`"*. So Item 1's
+GitHub's workflow-syntax reference states that _"if you specify the access for any of these
+permissions, all of those that are not specified are set to `none`"_. So Item 1's
 workflow-level `contents: read` already denies all fifteen other scopes. **In scopes granted
 today, this amendment and Item 1 are identical** — `ci.yml` has exactly one job, and that job
 ends up with `contents: read` either way.
 
 The single difference is what a job added later inherits when it declares nothing:
 
-| | the `test` job today | a new job with no `permissions` block |
-| --- | --- | --- |
-| Item 1 as written | `contents: read` | inherits `contents: read` silently |
-| This amendment | `contents: read` | gets nothing, and fails loudly on its first run |
+|                   | the `test` job today | a new job with no `permissions` block           |
+| ----------------- | -------------------- | ----------------------------------------------- |
+| Item 1 as written | `contents: read`     | inherits `contents: read` silently              |
+| This amendment    | `contents: read`     | gets nothing, and fails loudly on its first run |
 
 That is the whole value, and it is the reason to take it: the second row is a failure that
 announces itself at the moment the job is written, instead of a scope granted by inheritance
-that no review ever looks at. GitHub's own guidance is the standard being applied — *"As a good
-security practice, you should grant the `GITHUB_TOKEN` the least required access."*
+that no review ever looks at. GitHub's own guidance is the standard being applied — _"As a good
+security practice, you should grant the `GITHUB_TOKEN` the least required access."_
 
 **What a new job in this project would actually need**, so the pattern is not re-derived: a
 lint job or a `docker build` job needs `contents: read` and nothing else. Beyond that,
@@ -895,7 +895,7 @@ alerts and scan results, which are **not** public even on a public repository.
 `secrets.GIST_SECRET`, a separate credential. No `permissions` value touches it.
 
 **The one thing not verified, and how it settles.** Whether a job-level `permissions` block
-*replaces* the workflow-level one or is *intersected* with it is not stated on GitHub's
+_replaces_ the workflow-level one or is _intersected_ with it is not stated on GitHub's
 "Controlling permissions for GITHUB_TOKEN" or "Assigning permissions to jobs" pages, both read
 this session. Consistent secondary sources say it replaces. This amendment does not depend on
 resolving it by reading: if it intersects, the `test` job receives nothing, `actions/checkout`
@@ -919,17 +919,17 @@ revert is not a risk worth choosing the weaker option to avoid.
 
 `ci.yml` uses `schneegans/dynamic-badges-action@v1.9.0` and hands it `secrets.GIST_SECRET`
 (`ci.yml:62-64`). A Git tag is movable by the action's owner, so the credential is exposed to
-whatever that tag points at. GitHub's hardening guidance: *"Pinning an action to a full-length
-commit SHA is currently the only way to use an action as an immutable release."*
+whatever that tag points at. GitHub's hardening guidance: _"Pinning an action to a full-length
+commit SHA is currently the only way to use an action as an immutable release."_
 
 Resolved via the GitHub API this session — **the Developer re-resolves at implementation time
 rather than copying these**:
 
-| Action | Tag | Commit |
-| --- | --- | --- |
+| Action                             | Tag      | Commit                                     |
+| ---------------------------------- | -------- | ------------------------------------------ |
 | `schneegans/dynamic-badges-action` | `v1.9.0` | `28b0fa8bdeb46170ac397105ece0c1fe58f68910` |
-| `actions/checkout` | `v4` | `11d5960a326750d5838078e36cf38b85af677262` |
-| `actions/setup-python` | `v5` | `a26af69be951a213d495a4c3e4e4022e16d87065` |
+| `actions/checkout`                 | `v4`     | `11d5960a326750d5838078e36cf38b85af677262` |
+| `actions/setup-python`             | `v5`     | `a26af69be951a213d495a4c3e4e4022e16d87065` |
 
 **What decided all three rather than only the third-party one.** The repository-level Actions
 settings expose a toggle that the plan had not accounted for:
@@ -939,8 +939,8 @@ $ gh api repos/thaisdMM/skillbridge/actions/permissions
 {"enabled":true,"allowed_actions":"all","sha_pinning_required":false}
 ```
 
-GitHub's REST reference describes `sha_pinning_required` as controlling *"whether actions must be
-pinned to a full-length commit SHA."* Pinning only the third-party action leaves that toggle
+GitHub's REST reference describes `sha_pinning_required` as controlling _"whether actions must be
+pinned to a full-length commit SHA."_ Pinning only the third-party action leaves that toggle
 unusable, so the rule would rest on the maintainer remembering the criterion ("pin the ones that
 receive a secret") every time an action is added. Pinning all three makes the rule enforceable by
 the platform instead of by memory.
@@ -969,8 +969,8 @@ Item 2 identified SHA pinning as the right hardening measure and then applied it
 state nobody checked. Latest releases, read from `gh api repos/<r>/releases/latest`:
 `actions/checkout` is at **v7.0.1** (2026-07-20) and `actions/setup-python` at **v7.0.0**
 (2026-07-20). Item 2 pins v4 and v5, and its own instruction to re-resolve the SHA at
-implementation time does not help — re-resolving `v4` yields v4. SHA pinning converts *"the
-maintainer might not update this"* into *"this cannot update itself"*; applied to a major three
+implementation time does not help — re-resolving `v4` yields v4. SHA pinning converts _"the
+maintainer might not update this"_ into _"this cannot update itself"_; applied to a major three
 releases old, it freezes a stale dependency permanently.
 
 **Decided, three parts:**
@@ -987,8 +987,8 @@ releases old, it freezes a stale dependency permanently.
 **What changed the cost model.** Item 2 accepted permanent manual maintenance and left "whether
 Dependabot updates SHA-pinned actions" as a verification debt, because GitHub's page on keeping
 actions up to date does not mention SHA pinning. The GitHub changelog of 2022-10-31 closes it:
-*"Dependabot will now update the semver version in comments when updating Actions workflows
-with a commit SHA version."* It updates the SHA **and** the `# vX.Y.Z` comment beside it. The
+_"Dependabot will now update the semver version in comments when updating Actions workflows
+with a commit SHA version."_ It updates the SHA **and** the `# vX.Y.Z` comment beside it. The
 maintenance cost Item 2 accepted as permanent is bounded.
 
 The `sha_pinning_required` toggle read under Item 2 (`gh api repos/…/actions/permissions` →
@@ -1030,15 +1030,15 @@ data:
   three runs, because commits were pushed in batches. Raising CI frequency is a habit change, not
   a workflow change.
 
-**What `pull_request` adds that `push` cannot.** GitHub's event reference: *"Your CI tests run
-against the merged result, not just the head branch alone."* With `push` alone, an integration
+**What `pull_request` adds that `push` cannot.** GitHub's event reference: _"Your CI tests run
+against the merged result, not just the head branch alone."_ With `push` alone, an integration
 break is discovered after `main` already carries it; with `pull_request`, the PR shows red before
 the merge button is used. Both README badges point at `main`, so a broken `main` is publicly
 visible on a portfolio repository.
 
 **Cost accepted:** while a PR is open, each push produces two runs — one for the branch, one for
-the merge result. Verified as free of charge: *"GitHub Actions usage is free for … public
-repositories that use standard GitHub-hosted runners."* The cost is a noisier Actions history.
+the merge result. Verified as free of charge: _"GitHub Actions usage is free for … public
+repositories that use standard GitHub-hosted runners."_ The cost is a noisier Actions history.
 
 **The scheduled run is deferred, not rejected.** Audit Issue 15's point holds — `pip-audit` on
 `push` only detects a newly published advisory at the next push, and the measured gap between
@@ -1048,9 +1048,9 @@ be planning around a step that does not exist, the same reasoning D5 used to rej
 dependency groups. **The question returns when the `pip-audit` task is drafted** — not at D12,
 which covers static analysis rather than dependency auditing.
 
-One fact to carry into that decision, verified now so it is not re-derived: *"In a public
+One fact to carry into that decision, verified now so it is not re-derived: _"In a public
 repository, scheduled workflows are automatically disabled when no repository activity has
-occurred in 60 days."* A schedule would cover gaps up to that limit and switch itself off beyond
+occurred in 60 days."_ A schedule would cover gaps up to that limit and switch itself off beyond
 it.
 
 **Alternatives considered**
@@ -1077,11 +1077,9 @@ request is open, and superseded runs executing to completion. Both have a standa
    and its `pull_request` counterpart do not cancel each other — the two events carry different
    `github.ref` values for the same branch. The exact expression is written against GitHub's
    workflow-syntax reference at implementation time rather than copied from here.
-2. **`paths-ignore` covering `docs/**` and the Markdown files at the repository root.** This
-   repository commits documentation heavily — the working tree during this planning session
-   carried seven untracked files under `docs/` — and with D6's amendment 2 adding a
-   `docker build` step, a documentation-only push would otherwise pay a base-image pull, an
-   `apt-get` and a `uv sync` for nothing.
+2. **`paths-ignore` covering `docs/**`and the Markdown files at the repository root.** This
+repository commits documentation heavily — the working tree during this planning session
+carried seven untracked files under`docs/`— and with D6's amendment 2 adding a`docker build`step, a documentation-only push would otherwise pay a base-image pull, an`apt-get`and a`uv sync` for nothing.
 
 **What is deliberately left OUT of the path filter, and this is the load-bearing part:**
 `.claude/rules/**` and `specs/**` are **not** ignored. The rule files are project rules that
@@ -1114,7 +1112,7 @@ filter, so a push mixing code and documentation still runs — which is the desi
 `allowed_actions: "all"` and `sha_pinning_required: false` are repository/account settings, not
 files. They cannot be versioned, reviewed in a diff, or restored by a clone, so no task in this
 plan can own them. `allowed_actions: "all"` is what permits this workflow to run at all and is
-correct as it stands; tightening it would control *which* action may run, never *which version*,
+correct as it stands; tightening it would control _which_ action may run, never _which version_,
 so it is not a substitute for Item 2.
 
 ### Open questions carried to the task
@@ -1139,8 +1137,8 @@ alongside it. `line-length` stays at the tool's default.
 
 ### What was wrong in the superseded plan
 
-It specified `select = ["E", "F", "I"]` and described that as *"ruff's own default rule set …
-the standard starting point documented by the tool itself, not a contested choice"*. Three
+It specified `select = ["E", "F", "I"]` and described that as _"ruff's own default rule set …
+the standard starting point documented by the tool itself, not a contested choice"_. Three
 separate errors in one sentence:
 
 - The full `E` prefix is not the default, and selecting it enables `E501` (line-too-long).
@@ -1153,12 +1151,12 @@ Both the audit and the verification state that ruff's default enables only `E722
 `W605` from pycodestyle. That was accurate until July 2026 and is now stale.
 
 **ruff v0.16.0, released 2026-07-23, replaced the default rule set — 413 rules by default, up
-from 59** (Astral blog, *Ruff v0.16.0*). The same release *removed* 18 opinionated rules from
+from 59** (Astral blog, _Ruff v0.16.0_). The same release _removed_ 18 opinionated rules from
 the default (`E401`, `E402`, `E701`, `E702`, `E703`, `E711`, `E712`, `E713`, `E714`, `E721`,
 `E731`, `E741`, `E742`, `E743`, `F403`, `F405`, `F406`, `F722`). The current release is
 **0.16.3** (PyPI JSON API, read this session).
 
-Read directly from ruff's *Default Rules* page this session, which now lists **416 rules**:
+Read directly from ruff's _Default Rules_ page this session, which now lists **416 rules**:
 
 - `E501` is **not** in the default. From pycodestyle only `E722` and `E902` appear.
 - `I001` **is** in the default.
@@ -1171,20 +1169,20 @@ but the correct destination is not the set either document assumed.
 
 ### The formatter conflict, in the tool's own words
 
-Ruff's formatter documentation: *"The formatter only makes a best-effort attempt to wrap lines
+Ruff's formatter documentation: _"The formatter only makes a best-effort attempt to wrap lines
 at the configured line-length. As such, formatted code may exceed the line length, leading to
-E501 errors."* With `ruff check` and `ruff format --check` both wired as build-failing steps,
+E501 errors."_ With `ruff check` and `ruff format --check` both wired as build-failing steps,
 an `E501` the formatter cannot fix leaves no green path.
 
 That is not hypothetical here. Measured on this repository with `awk 'length > 88'` over
 `accounts/`, `profiles/`, `config/` and `manage.py` — 68 files, **176 lines over 88 characters**,
 longest 253:
 
-| Area | Lines > 88 |
-| --- | --- |
-| `*/migrations/` | 59 |
-| `*/tests/` | 101 |
-| Production code | 16 |
+| Area            | Lines > 88 |
+| --------------- | ---------- |
+| `*/migrations/` | 59         |
+| `*/tests/`      | 101        |
+| Production code | 16         |
 
 The 16 production lines are almost all docstrings and single string literals, which the
 formatter does not split — `config/settings.py:94` (the `UserAttributeSimilarityValidator`
@@ -1196,12 +1194,12 @@ would mean rewriting docstrings by hand to satisfy a linter.
 Run this session with `uvx ruff@0.16.3` from `django_version/`. Nothing was installed into the
 project and no file was modified.
 
-| Configuration | Findings | Auto-fixable |
-| --- | --- | --- |
-| Default set, whole project | **67** | 26 |
-| Default set, excluding `migrations/` | **38** | 25 |
-| `select = ["E4","E7","E9","F","I"]` (the pre-0.16 default) | 17 | 15 |
-| `select = ["E501"]` alone | **176** | 0 |
+| Configuration                                              | Findings | Auto-fixable |
+| ---------------------------------------------------------- | -------- | ------------ |
+| Default set, whole project                                 | **67**   | 26           |
+| Default set, excluding `migrations/`                       | **38**   | 25           |
+| `select = ["E4","E7","E9","F","I"]` (the pre-0.16 default) | 17       | 15           |
+| `select = ["E501"]` alone                                  | **176**  | 0            |
 
 The last row is what decided against every variant that turns `E501` on: one rule produces
 nearly three times the findings of the entire 416-rule default, and not one of them is
@@ -1209,16 +1207,16 @@ auto-fixable.
 
 The 38 findings outside `migrations/`, by rule:
 
-| Rule | Count | Auto-fixable |
-| --- | --- | --- |
-| `I001` unsorted-imports | 12 | yes |
-| `RUF012` mutable-class-default | 10 | no |
-| `SIM117` multiple-with-statements | 6 | yes |
-| `RUF022` unsorted-dunder-all | 3 | yes |
-| `F401` unused-import | 2 | yes |
-| `F821` undefined-name | 2 | no |
-| `PIE790` unnecessary-placeholder | 2 | yes |
-| `SIM102` collapsible-if | 1 | no |
+| Rule                              | Count | Auto-fixable |
+| --------------------------------- | ----- | ------------ |
+| `I001` unsorted-imports           | 12    | yes          |
+| `RUF012` mutable-class-default    | 10    | no           |
+| `SIM117` multiple-with-statements | 6     | yes          |
+| `RUF022` unsorted-dunder-all      | 3     | yes          |
+| `F401` unused-import              | 2     | yes          |
+| `F821` undefined-name             | 2     | no           |
+| `PIE790` unnecessary-placeholder  | 2     | yes          |
+| `SIM102` collapsible-if           | 1     | no           |
 
 Thirteen findings need a human. Ten of those are the same `RUF012`, a mechanical annotation
 change concentrated in `accounts/admin.py`, `profiles/models/skill.py` and the model modules.
@@ -1269,12 +1267,12 @@ keeps the plan and the file in agreement** — leaving D9 unqualified while `pyp
 carries an `extend-select` is precisely the documentation-versus-reality drift this replanning
 exists to stop.
 
-**What actually changed, and what did not.** The *rule-set* decision stands entirely: the
+**What actually changed, and what did not.** The _rule-set_ decision stands entirely: the
 default set is adopted unmodified, no rule is removed from it, `line-length` stays at the
 tool's default, and `E501` stays off. What is added is one prefix the default deliberately
 omits, for a purpose D9 did not cover. D9 recorded the relevant fact itself: of the
 `flake8-bandit` family, only `S102`, `S110` and `S112` are in the default — three rules, not
-the prefix — *"This is an input to D12, not a decision taken here."* That input has now been
+the prefix — _"This is an input to D12, not a decision taken here."_ That input has now been
 spent.
 
 **The precise form after D12:**
@@ -1307,10 +1305,10 @@ its `src` setting, so with no configuration anywhere, `accounts` and `profiles` 
 first-party from `django_version/` and third-party from the root, and import ordering is judged
 differently.
 
-**This does not survive D2, and needs no `src` declaration.** Ruff's *Configuration* page,
-under config file discovery: *"the 'closest' config file in the directory hierarchy is used for
+**This does not survive D2, and needs no `src` declaration.** Ruff's _Configuration_ page,
+under config file discovery: _"the 'closest' config file in the directory hierarchy is used for
 every individual file, with all paths in the config file (e.g., `exclude` globs, `src` paths)
-being resolved relative to the directory containing that config file."* With `pyproject.toml`
+being resolved relative to the directory containing that config file."_ With `pyproject.toml`
 in `django_version/`, the default `src = [".", "src"]` resolves to `django_version` regardless
 of the invocation directory.
 
@@ -1324,9 +1322,9 @@ $ cd ..   && ruff check --select I001 .   → All checks passed!   (from the par
 ```
 
 **What remains for D14, and it is a different problem.** Hierarchical configuration configures
-a subdirectory; it does not exclude one, and the same page states that *"Ruff does not merge
+a subdirectory; it does not exclude one, and the same page states that _"Ruff does not merge
 settings across configuration files; instead, the 'closest' configuration file is used, and any
-parent configuration files are ignored."* Run from the monorepo root, ruff still reads
+parent configuration files are ignored."_ Run from the monorepo root, ruff still reads
 `oop_version/` — 49 findings there, 123 in total — under default settings, since no config file
 sits near those files. `ci.yml` already sets `working-directory: django_version` and D2 places
 the configuration there, so both decided paths are clean. Only a hook runner invoking ruff from
@@ -1384,15 +1382,15 @@ migration written in the future.
 
 All 29 findings inside `accounts/migrations/` and `profiles/migrations/`, listed individually:
 
-| Finding | Count | Where |
-| --- | --- | --- |
-| `RUF012` mutable-class-default | 28 | `dependencies = [...]` and `operations = [...]`, in all 14 files |
-| `I001` unsorted-imports | 1 | `accounts/migrations/0001_initial.py`, auto-fixable |
+| Finding                        | Count | Where                                                            |
+| ------------------------------ | ----- | ---------------------------------------------------------------- |
+| `RUF012` mutable-class-default | 28    | `dependencies = [...]` and `operations = [...]`, in all 14 files |
+| `I001` unsorted-imports        | 1     | `accounts/migrations/0001_initial.py`, auto-fixable              |
 
 `RUF012` fires on the two attributes Django's `Migration` class requires. They are present in
 every migration, hand-written ones included: in `profiles/migrations/0002_seed_skills.py` — a
-`RunPython` data migration authored by hand, recorded in `ARCHITECTURE.md` under *Skill Seed —
-bulk_create Without clean() Validation* — the two findings sit on `dependencies` and
+`RunPython` data migration authored by hand, recorded in `ARCHITECTURE.md` under _Skill Seed —
+bulk_create Without clean() Validation_ — the two findings sit on `dependencies` and
 `operations`, and nothing in the hand-written `SKILLS_TO_SEED` list, `seed_skills` or
 `remove_skills` is flagged at all.
 
@@ -1431,16 +1429,16 @@ This is the same shape as audit Open Decision 3, which asks whether all of `test
 from the security scanner to silence one hardcoded-password rule. ~~That question is still open
 under D12.~~ **Closed 2026-08-17: D12 decided it the same way** — `per-file-ignores` for `S101`
 and `S106` under `*/tests/*`, with `config/` kept in scope — so this plan carries one principle
-rather than two. `.claude/rules/conventions.md` → *Layer ownership* is the reason to prefer
+rather than two. `.claude/rules/conventions.md` → _Layer ownership_ is the reason to prefer
 scoping a suppression to the rule it is actually about.
 
 ### Amendment, 2026-08-17 — the "least protected code" premise is weakened (required by D17)
 
-D9a's *Why this path* section opens with: *"Migrations are the least protected code in the
+D9a's _Why this path_ section opens with: _"Migrations are the least protected code in the
 repository. `pytest.ini` runs the suite with `--no-migrations`, so as `.claude/rules/testing.md`
 records, migration files are never executed by the test suite — the 14 files in
 `accounts/migrations/` and `profiles/migrations/` are the one place where a defect reaches a real
-database without a test having run over it."*
+database without a test having run over it."_
 
 D17 removes `--no-migrations`, so the migration files **are** executed on every construction of
 the test database. The strong form of that sentence no longer holds.
@@ -1452,8 +1450,8 @@ there, and a blanket `extend-exclude` would discard the second along with the fi
 never depended on how protected the directory was, and one of the 14 files is hand-written
 regardless.
 
-**What survives of the premise, stated precisely.** After D17 the migrations are *exercised*, not
-*verified*: a file that raises, or that produces a schema the models disagree with, now turns the
+**What survives of the premise, stated precisely.** After D17 the migrations are _exercised_, not
+_verified_: a file that raises, or that produces a schema the models disagree with, now turns the
 suite red — but no test asserts anything about a migration's content, and the seed migration's
 data is deleted before any test can see it (D17, cost 3). So migrations remain the least directly
 tested code in the repository; they are no longer the untouched code the original sentence
@@ -1476,28 +1474,28 @@ second task, after the errors the first task fixes are gone.
 ### Why the plugin decides the tool
 
 `django-stubs`' own README states the support levels, read this session: **mypy** gets
-*"full and complete support with multiple advanced features with our custom mypy plugin"*,
-while **pyright**, **pyrefly** and **ty** each get *"basic support, checked in CI"*. Those
+_"full and complete support with multiple advanced features with our custom mypy plugin"_,
+while **pyright**, **pyrefly** and **ty** each get _"basic support, checked in CI"_. Those
 three consume the stubs; none loads the plugin.
 
 The plugin is the entire reason to type-check a Django project — it resolves model fields,
 related managers and settings. Every alternative delivers the generic half of the check
-(*does this return a `str`?*) and discards the Django half (*is this a `QuerySet[Freelancer]`?*).
+(_does this return a `str`?_) and discards the Django half (_is this a `QuerySet[Freelancer]`?_).
 
-*(Aside: a mypy plugin is code that runs inside the checker and teaches it things the type
+_(Aside: a mypy plugin is code that runs inside the checker and teaches it things the type
 system cannot express on its own — for instance that `Freelancer.objects` yields `Freelancer`,
-which no amount of annotation in your own files would establish.)*
+which no amount of annotation in your own files would establish.)_
 
 **The compatibility question the superseded plan never asked is now answered**, from the same
 README:
 
-| django-stubs | mypy | Django | Python |
-| --- | --- | --- | --- |
-| **6.1.0** | 1.13 – 2.3 | **6.1** | **3.11 – 3.14** |
-| 6.0.9 | 1.13 – 2.3 | 6.0 | 3.10 – 3.14 |
+| django-stubs | mypy       | Django  | Python          |
+| ------------ | ---------- | ------- | --------------- |
+| **6.1.0**    | 1.13 – 2.3 | **6.1** | **3.11 – 3.14** |
+| 6.0.9        | 1.13 – 2.3 | 6.0     | 3.10 – 3.14     |
 
 6.1.0 covers D16's destination exactly — Django 6.1, Python 3.14 — and mypy 2.3.1 sits inside
-its supported range. This settles the *"django-stubs support for Django 6.0.7 and Python 3.14"*
+its supported range. This settles the _"django-stubs support for Django 6.0.7 and Python 3.14"_
 verification debt; the version it had to be checked against changed under D16, and the answer
 is clean.
 
@@ -1505,8 +1503,9 @@ is clean.
 
 Run 2026-08-17 from `django_version/` via `uvx`, nothing installed into the project and no file
 modified: `mypy 2.3.1` + `django-stubs[compatible-mypy] 6.1.0` + `django 6.1` + `psycopg[binary]`
-+ `argon2-cffi` + `python-dotenv`, plugin enabled, default (non-strict) settings, over
-`accounts profiles config manage.py` — 68 source files.
+
+- `argon2-cffi` + `python-dotenv`, plugin enabled, default (non-strict) settings, over
+  `accounts profiles config manage.py` — 68 source files.
 
 **120 errors in 22 files, exit 1.** Of those, 18 are `Cannot find implementation or library stub
 for module named "pytest"`, an artifact of the disposable environment carrying no `pytest`; they
@@ -1514,17 +1513,17 @@ do not exist when the check runs inside the project environment. The 2026-08-17 
 independent run, which had `pytest` present, reported 102 with an otherwise identical breakdown —
 the two measurements agree.
 
-| Area | Errors |
-| --- | --- |
+| Area                | Errors |
+| ------------------- | ------ |
 | **Production code** | **18** |
-| Test code | 102 |
+| Test code           | 102    |
 
-| Production file | Errors | Nature |
-| --- | --- | --- |
-| `accounts/admin.py` | 12 | mixed; see the open question below |
-| `accounts/models/base.py` | 4 | one fix — the manager's `TypeVar` has no bound |
-| `profiles/admin.py` | 1 | isolated |
-| `config/settings.py` | 1 | `ALLOWED_HOSTS = []` needs an annotation; Phase 5 rewrites that line anyway |
+| Production file           | Errors | Nature                                                                      |
+| ------------------------- | ------ | --------------------------------------------------------------------------- |
+| `accounts/admin.py`       | 12     | mixed; see the open question below                                          |
+| `accounts/models/base.py` | 4      | one fix — the manager's `TypeVar` has no bound                              |
+| `profiles/admin.py`       | 1      | isolated                                                                    |
+| `config/settings.py`      | 1      | `ALLOWED_HOSTS = []` needs an annotation; Phase 5 rewrites that line anyway |
 
 **`migrations/` produced zero errors** and is therefore not excluded. The original open item
 asked for an `exclude` covering the generated migration directories; measured, there is nothing
@@ -1565,8 +1564,8 @@ is refused. It buys silence by making the annotation weaker than what the projec
 
 ### The environment coupling — corrected, and what it constrains
 
-The open item stated that the plugin *"imports the module named by `django_settings_module`"*
-and that *"in any context without `.env` or the environment variables mypy aborts"*. Both halves
+The open item stated that the plugin _"imports the module named by `django_settings_module`"_
+and that _"in any context without `.env` or the environment variables mypy aborts"_. Both halves
 were wrong, in opposite directions.
 
 - **Narrower than stated.** `config/settings.py` derives `BASE_DIR` from its own location and
@@ -1583,12 +1582,12 @@ were wrong, in opposite directions.
 **A type check therefore requires the project's entire production dependency set installed.**
 Three consequences:
 
-| Context | Works? |
-| --- | --- |
-| Inside the image (D4 installs everything) | yes |
-| On the CI runner, after `uv sync --locked` (D6) | yes |
-| In a hook | **only** if the hook executes inside the project environment (`uv run …`) |
-| As a standalone `uvx mypy` step | never |
+| Context                                         | Works?                                                                    |
+| ----------------------------------------------- | ------------------------------------------------------------------------- |
+| Inside the image (D4 installs everything)       | yes                                                                       |
+| On the CI runner, after `uv sync --locked` (D6) | yes                                                                       |
+| In a hook                                       | **only** if the hook executes inside the project environment (`uv run …`) |
+| As a standalone `uvx mypy` step                 | never                                                                     |
 
 The third row is a hard constraint on **D14**, and is the reason D10 is decided before it.
 
@@ -1633,7 +1632,7 @@ strictness decision taken without its own measurement would repeat the supersede
 - **`ty` (Astral) 0.0.72** — one vendor with `uv` and `ruff`, one config, one mental model, and
   10×–100× faster by Astral's own benchmark. Set aside on two grounds: no plugin, so the
   Django-aware half of the check is unavailable; and its own version policy states that
-  *"breaking changes, including changes to diagnostics, may occur between any two versions"* —
+  _"breaking changes, including changes to diagnostics, may occur between any two versions"_ —
   which is the D9 risk without D9's stable-release floor. Recorded as the option to revisit if
   `ty` reaches a stable series and django-stubs' support level for it changes.
 - **`pyright` / `basedpyright`** — best editor story of the four, and django-stubs checks
@@ -1652,7 +1651,7 @@ strictness decision taken without its own measurement would repeat the supersede
 
 - **D14 inherits a constraint**, not a preference: whichever runner it selects, a mypy hook must
   invoke the tool inside the project environment. `uvx mypy` is ruled out by measurement.
-- **The `.gitignore` / `.dockerignore` item under *Items that need no decision* is now
+- **The `.gitignore` / `.dockerignore` item under _Items that need no decision_ is now
   concrete**: the cache directory is `.mypy_cache/`, which is what that item already names. Had
   D10 gone to `ty`, `pyright` or `pyrefly`, that line would have been wrong.
 - **D16's second argument is corrected, not its outcome** — see the note appended to that entry.
@@ -1663,7 +1662,7 @@ strictness decision taken without its own measurement would repeat the supersede
   is an annotation error and stops at anything that requires choosing how a queryset over two
   independent concrete models should be typed — that returns to the Planner.
 - **Whether `django-stubs-ext` is needed, and if so where it belongs.** Upstream describes it as
-  a *production* dependency enabling runtime support for generic annotations, and separately
+  a _production_ dependency enabling runtime support for generic annotations, and separately
   notes that having it installed makes model `Meta` classes type-check without further changes.
   Whether `django-stubs` already pulls it in transitively was **not verified**. If it turns out
   to be required explicitly, it is the one dependency in this plan that would land in
@@ -1691,28 +1690,28 @@ Run 2026-08-17 in a disposable container (`docker-compose run --rm`), so nothing
 into the project or into the running `web` container; `.coverage` was deleted afterwards and the
 working tree left unchanged.
 
-| Scope | Statements | Missed | Coverage |
-| --- | --- | --- | --- |
-| **Production code** (no `tests/`, no `migrations/`) | 598 | 20 | **97%** |
-| Production plus tests, no `migrations/` | 2318 | 20 | 99% |
-| Everything measured | 2391 | 93 | 96% |
+| Scope                                               | Statements | Missed | Coverage |
+| --------------------------------------------------- | ---------- | ------ | -------- |
+| **Production code** (no `tests/`, no `migrations/`) | 598        | 20     | **97%**  |
+| Production plus tests, no `migrations/`             | 2318       | 20     | 99%      |
+| Everything measured                                 | 2391       | 93     | 96%      |
 
 `branch = true` does not move the number: production carries 96 branches with 3 partial, and the
 production figure is 97% either way. It is rigour at no measured cost.
 
 The 20 uncovered production statements, so the number is not read as a mystery:
 
-| File | Statements | What they are |
-| --- | --- | --- |
-| `accounts/admin.py` | 8 | the only real gap |
-| `config/asgi.py` + `config/wsgi.py` | 4 + 4 | Django scaffolding; no test imports either module |
-| `accounts/views.py` + `profiles/views.py` | 1 + 1 | empty modules — the import line only |
-| `config/settings.py` | 1 | the `raise ValueError` guarding a missing `SECRET_KEY` |
-| `profiles/models/base.py` | 1 | one line |
+| File                                      | Statements | What they are                                          |
+| ----------------------------------------- | ---------- | ------------------------------------------------------ |
+| `accounts/admin.py`                       | 8          | the only real gap                                      |
+| `config/asgi.py` + `config/wsgi.py`       | 4 + 4      | Django scaffolding; no test imports either module      |
+| `accounts/views.py` + `profiles/views.py` | 1 + 1      | empty modules — the import line only                   |
+| `config/settings.py`                      | 1          | the `raise ValueError` guarding a missing `SECRET_KEY` |
+| `profiles/models/base.py`                 | 1          | one line                                               |
 
-**The measurement inverts the audit's own conditional.** Open Decision 2 recorded that *"if the
+**The measurement inverts the audit's own conditional.** Open Decision 2 recorded that _"if the
 real number is very low (say under 50 %), option C becomes much more attractive than my
-recommendation"* — option C being a changed-lines gate. At 97% that option loses its premise: it
+recommendation"_ — option C being a changed-lines gate. At 97% that option loses its premise: it
 exists to give a project with no baseline something to enforce, and this baseline is high.
 
 ### Issue 5 does not hold, and it was settled by running it rather than by reading
@@ -1721,20 +1720,20 @@ Issue 5 states that `pytest-cov` overrides coverage's `parallel`, `source` and `
 of the `[tool.coverage.*]` table D2 moves into `pyproject.toml` would be inert. Three runs in a
 disposable container, with the configuration written to `/tmp` so no project file was touched:
 
-| Configuration under test | Result |
-| --- | --- |
-| `branch = true` in the config file, **no** `--cov-branch` on the command line | **honoured** — Branch and BrPart columns appear |
-| `source = ["accounts"]` in the config, `--cov=profiles` on the command line | **overridden** — only `profiles` files reported |
-| `source` + `branch` + `omit` in the config, **`--cov` with no value** | **all three honoured** — only `accounts`, no tests, no migrations, branch on |
+| Configuration under test                                                      | Result                                                                       |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `branch = true` in the config file, **no** `--cov-branch` on the command line | **honoured** — Branch and BrPart columns appear                              |
+| `source = ["accounts"]` in the config, `--cov=profiles` on the command line   | **overridden** — only `profiles` files reported                              |
+| `source` + `branch` + `omit` in the config, **`--cov` with no value**         | **all three honoured** — only `accounts`, no tests, no migrations, branch on |
 
 pytest-cov's own configuration page is conditional, and the conditions were dropped in the
 reading that produced the finding:
 
-> *"If you use the `--cov=something` option (**with a value**) then coverage's `source` option
-> will also get overridden."*
-> *"**If you use the `--cov-branch` option** then coverage's `branch` option will also get
-> overridden."*
-> *"This plugin overrides the `parallel` option of coverage."*
+> _"If you use the `--cov=something` option (**with a value**) then coverage's `source` option
+> will also get overridden."_
+> _"**If you use the `--cov-branch` option** then coverage's `branch` option will also get
+> overridden."_
+> _"This plugin overrides the `parallel` option of coverage."_
 
 Only `parallel` is overridden unconditionally, and this project runs the suite in one process,
 so it would not set that key in the first place. **D2's `[tool.coverage.*]` table therefore moves
@@ -1767,16 +1766,16 @@ denominator and dilutes the signal. Measured, they contribute 1720 statements at
 `*/migrations/*` is omitted, and the reason survives either outcome of the still-open
 `--no-migrations` question — which is why D11 did not have to wait for it:
 
-| Regime | What happens to migrations | Why they stay out of the count |
-| --- | --- | --- |
-| With `--no-migrations` (today) | never executed → 0% | including them **depresses** the number; it would measure a runner flag, not missing tests |
-| Without `--no-migrations` | executed during database setup → effectively complete | including them **inflates** the number; it would measure Django's migration executor |
+| Regime                         | What happens to migrations                            | Why they stay out of the count                                                             |
+| ------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| With `--no-migrations` (today) | never executed → 0%                                   | including them **depresses** the number; it would measure a runner flag, not missing tests |
+| Without `--no-migrations`      | executed during database setup → effectively complete | including them **inflates** the number; it would measure Django's migration executor       |
 
 Measured under today's regime: of the 93 uncovered statements in the whole project, **73 are
 migrations**, and 13 of those are `profiles/migrations/0002_seed_skills.py` — a hand-written data
 migration that no test has ever executed.
 
-Neither exclusion is the shape D9a rules out. D9a refuses silencing a *directory* to hide a rule's
+Neither exclusion is the shape D9a rules out. D9a refuses silencing a _directory_ to hide a rule's
 findings; here the directories carry no findings to hide, and the exclusion is about what the
 denominator is meant to represent.
 
@@ -1793,7 +1792,7 @@ denominator is meant to represent.
   baseline to work around, and it would add a third tool, a base ref to diff against on a
   long-lived feature branch, and a second definition of "covered" to maintain.
 - **Measure and report with no gate, deferring the floor** — the audit's own recommendation,
-  which paired option A with staging so the floor could be set *"from the measured number"*. Set
+  which paired option A with staging so the floor could be set _"from the measured number"_. Set
   aside because that measurement has now been taken: the only thing staging bought was waiting for
   it, and what remains is a deferral to record in `docs/tech_debt/` in exchange for nothing.
   **This is the one point where this entry departs from the audit's stated preference.**
@@ -1846,10 +1845,10 @@ appended to that entry.
 Measured 2026-08-17 from `django_version/`, both tools run disposably via `uvx`, nothing
 installed into the project and no file modified:
 
-| Tool | Whole project | **Production code only** |
-| --- | --- | --- |
-| `ruff 0.16.3 check --select S` | 356 — 355 × `S101` assert, 1 × `S106` | **0** |
-| `bandit 1.9.4` | 363 — 355 × `B101` assert, 7 × `B105`, 1 × `B106` | **0** |
+| Tool                           | Whole project                                     | **Production code only** |
+| ------------------------------ | ------------------------------------------------- | ------------------------ |
+| `ruff 0.16.3 check --select S` | 356 — 355 × `S101` assert, 1 × `S106`             | **0**                    |
+| `bandit 1.9.4`                 | 363 — 355 × `B101` assert, 7 × `B105`, 1 × `B106` | **0**                    |
 
 Both find nothing in production code. This codebase has no `subprocess`, no `eval`, no raw
 SQL, and reads `SECRET_KEY` from the environment. Every finding is `assert` in a test, which
@@ -1866,12 +1865,12 @@ option chosen.
 --output-format json`, filtered to the `S` prefix): **73 rules**. The Django-relevant ones are
 all present:
 
-| Code | Rule |
-| --- | --- |
+| Code   | Rule                         |
+| ------ | ---------------------------- |
 | `S308` | `suspicious-mark-safe-usage` |
-| `S610` | `django-extra` |
-| `S611` | `django-raw-sql` |
-| `S608` | `hardcoded-sql-expression` |
+| `S610` | `django-extra`               |
+| `S611` | `django-raw-sql`             |
+| `S608` | `hardcoded-sql-expression`   |
 
 The 2026-08-17 audit measured bandit's inventory at 75 distinct IDs and the genuine
 bandit-only set, for a Django project, at **three rules** — `B613` trojansource, `B614`
@@ -1907,7 +1906,7 @@ extend-select = ["S"]
 "*/tests/*" = ["S101", "S106"]
 ```
 
-Neither suppressed rule is a concession. `S101` objects to `assert`, which pytest *requires*
+Neither suppressed rule is a concession. `S101` objects to `assert`, which pytest _requires_
 as its assertion mechanism — 355 of them. `S106` fires on a fixture password that
 `.claude/rules/testing.md` documents as deliberately fake. The two codes are exactly what was
 measured; nothing was suppressed pre-emptively.
@@ -1952,7 +1951,7 @@ revisited or it will fail silently in the safe direction (reporting, not hiding)
 ### Open questions and verification debts carried to the task
 
 - **Behavioural parity with bandit is not established, and this entry does not claim it.** The
-  comparison is by rule *number* on ruff's side plus one spot check (`B703` → `S308`). The
+  comparison is by rule _number_ on ruff's side plus one spot check (`B703` → `S308`). The
   `B105` / `S105` divergence measured above is proof that two rules can share a number and
   differ in what they detect. A rule-by-rule behavioural comparison was not performed and is
   real work; it is not a prerequisite for this decision, because the production yield of both
@@ -1990,12 +1989,12 @@ secret_scanning_validity_checks:        disabled
 ```
 
 A scanner already runs on every push and already blocks. GitHub's documentation establishes that
-non-provider patterns are *"available for organization-owned repositories on GitHub Team with
-GitHub Secret Protection enabled"* — this repository is personally owned, so that tier is not a
+non-provider patterns are _"available for organization-owned repositories on GitHub Team with
+GitHub Secret Protection enabled"_ — this repository is personally owned, so that tier is not a
 toggle the user can flip. The `disabled` above is a ceiling, not a setting.
 
-*(The alerts endpoint returned HTTP 503 twice this session, so the audit's measurement of zero
-open alerts was **not** re-confirmed here.)*
+_(The alerts endpoint returned HTTP 503 twice this session, so the audit's measurement of zero
+open alerts was **not** re-confirmed here.)_
 
 ### The hook contract, read verbatim from upstream
 
@@ -2018,7 +2017,7 @@ open alerts was **not** re-confirmed here.)*
 Three facts follow, and the second is what removed the hook from this decision:
 
 1. **`pass_filenames: false` is confirmed** on the two primary hooks. A `files:` key can decide
-   *whether the hook runs*, never *what it reads* — exactly as the open item recorded.
+   _whether the hook runs_, never _what it reads_ — exactly as the open item recorded.
 2. **No variant is free.** `golang` makes the runner build gitleaks from source with a Go
    toolchain; `docker_image` requires Docker running at commit time; `system` requires the binary
    already installed. There is no cheap way to host this in a hook.
@@ -2032,21 +2031,21 @@ written to a scratch directory outside the repository. Twenty Django-shaped `SEC
 across four shapes — with and without the `django-insecure-` prefix, with Django's own punctuated
 charset and with an alphanumeric one, in `.py` assignment form and in `.env` form:
 
-| Secret class | GitHub push protection | gitleaks, default rules | gitleaks + custom rule |
-| --- | --- | --- | --- |
-| Provider tokens (GitHub PAT, Stripe, AWS access key) | **blocks** | catches | catches |
-| High-entropy generic secret (random DB password, connection string) | no | **catches** (`generic-api-key`) | catches |
-| **Django `SECRET_KEY`** | no | **0 of 20** | **10 of 10** |
-| Low-entropy human-chosen password | no | misses | catches, by variable name |
+| Secret class                                                        | GitHub push protection | gitleaks, default rules         | gitleaks + custom rule    |
+| ------------------------------------------------------------------- | ---------------------- | ------------------------------- | ------------------------- |
+| Provider tokens (GitHub PAT, Stripe, AWS access key)                | **blocks**             | catches                         | catches                   |
+| High-entropy generic secret (random DB password, connection string) | no                     | **catches** (`generic-api-key`) | catches                   |
+| **Django `SECRET_KEY`**                                             | no                     | **0 of 20**                     | **10 of 10**              |
+| Low-entropy human-chosen password                                   | no                     | misses                          | catches, by variable name |
 
-**This is the correction to Issue 3.** That finding framed the gap as *"a Django `SECRET_KEY`, a
+**This is the correction to Issue 3.** That finding framed the gap as _"a Django `SECRET_KEY`, a
 `DB_PASSWORD`, or the contents of `.env` are exactly the non-provider class… that is the gap D13
-should be sized against"*, and treated gitleaks as the thing that closes it. Measured, the default
-rule set does not close it for the `SECRET_KEY`. The question was never *"gitleaks or nothing?"*
+should be sized against"_, and treated gitleaks as the thing that closes it. Measured, the default
+rule set does not close it for the `SECRET_KEY`. The question was never _"gitleaks or nothing?"_
 — it is **"what has to be written for it to catch anything that matters here?"**, and the answer
 is roughly twelve lines.
 
-*Labelled as reasoning, not measurement:* the mechanism behind the miss was **not** isolated.
+_Labelled as reasoning, not measurement:_ the mechanism behind the miss was **not** isolated.
 Prefix and charset were tested independently and both shapes were missed, so no single explanation
 survives. What is established is the rate, and it reproduced across every shape tried.
 
@@ -2070,10 +2069,10 @@ Both are starting points written during planning, not reviewed regexes — see t
 `gitleaks git` over all **261 commits**, which is the mode CI and the hook use — as opposed to
 `dir`, which reads the working tree including files `.gitignore` excludes:
 
-| Rule set | Findings across the whole history |
-| --- | --- |
-| gitleaks default | **0** |
-| default + the two custom rules | **7, none of them a leak** |
+| Rule set                       | Findings across the whole history |
+| ------------------------------ | --------------------------------- |
+| gitleaks default               | **0**                             |
+| default + the two custom rules | **7, none of them a leak**        |
 
 All seven, itemised: two in `.github/workflows/ci.yml` (the postgres service password, hardcoded
 by design and not a secret), three in `.env.example` files (deliberate placeholders, committed on
@@ -2095,10 +2094,10 @@ of them configuration or documentation.
 
 Measured with `git check-ignore`:
 
-| Path | Ignored today |
-| --- | --- |
-| `.env`, `.env.local`, `django_version/.env` | yes |
-| `.env.prod`, `.env.production`, `.env.ci`, `django_version/.env.prod` | **no** |
+| Path                                                                  | Ignored today |
+| --------------------------------------------------------------------- | ------------- |
+| `.env`, `.env.local`, `django_version/.env`                           | yes           |
+| `.env.prod`, `.env.production`, `.env.ci`, `django_version/.env.prod` | **no**        |
 
 The ignore list protects two exact names, not the family. Replacing them with `.env*` plus
 `!.env.example` closes the most likely leak vector outright, costs one line, and is independent of
@@ -2149,8 +2148,8 @@ every option below — it would be worth doing even under option A.
 **Decided:** 2026-08-17. Closes the D14 open item and Open Decision 5 of
 `docs/audits/2026-08-17-audit-plan-toolchain-d10-d15.md`. Also closes two conditionals other
 entries left open — D13's gitleaks-hook upgrade and D5's `required-version` — both of them
-negative. **This entry departs from the audit's stated preference**; see *Where this diverges
-from the audit*.
+negative. **This entry departs from the audit's stated preference**; see _Where this diverges
+from the audit_.
 
 A `.pre-commit-config.yaml` at the **repository root** declares two hooks, both `repo: local`,
 both invoking the project's own tools through `uv run --project django_version`: `ruff format`
@@ -2173,12 +2172,12 @@ decides this entry.
    table below.
 2. **Ruff's configuration half was settled by D9, by execution.** With `pyproject.toml` in
    `django_version/`, ruff resolves `src` relative to the config file, so an invocation from the
-   parent directory produces the same answer as one from inside. What D9 left open was *scope*,
+   parent directory produces the same answer as one from inside. What D9 left open was _scope_,
    not configuration.
 3. **A hook receives staged files, not a directory.** `oop_version/` is closed, so no commit
    stages a file there, and a hook that lints the staged paths never reaches it — whatever the
    runner. The 49 findings are a property of `ruff check .`, not of a hook.
-   *(Reasoning from documented behaviour, not measured; recorded as a verification debt below.)*
+   _(Reasoning from documented behaviour, not measured; recorded as a verification debt below.)_
 
 The working-directory defect — the reason D14 existed as a decision at all — is therefore paid
 by no option. What remains is a smaller question: is the convenience worth a recurring
@@ -2186,14 +2185,14 @@ dependency, and which runner costs least to keep.
 
 ### What runs at commit time, and why nothing else does
 
-| Check | Where | What excludes it from the hook |
-| --- | --- | --- |
-| `ruff format` | hook **and** CI | — |
-| `ruff check --fix` | hook **and** CI | — |
-| `mypy` | CI only | D10: needs the entire production dependency set, and its answer is a whole-project answer, not a per-file one |
-| `pytest`, coverage | CI only | needs the postgres service; D11's own measurement runs the suite in ~10 s |
-| `makemigrations --check`, `check --deploy` | CI only | D7, and after D16 `check` accesses the database |
-| `gitleaks` | CI only | D13, fact 2 of the hook contract — see *Consequences* |
+| Check                                      | Where           | What excludes it from the hook                                                                                |
+| ------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------- |
+| `ruff format`                              | hook **and** CI | —                                                                                                             |
+| `ruff check --fix`                         | hook **and** CI | —                                                                                                             |
+| `mypy`                                     | CI only         | D10: needs the entire production dependency set, and its answer is a whole-project answer, not a per-file one |
+| `pytest`, coverage                         | CI only         | needs the postgres service; D11's own measurement runs the suite in ~10 s                                     |
+| `makemigrations --check`, `check --deploy` | CI only         | D7, and after D16 `check` accesses the database                                                               |
+| `gitleaks`                                 | CI only         | D13, fact 2 of the hook contract — see _Consequences_                                                         |
 
 The two that remain are the two whose failure is trivial to fix at the moment it is reported and
 irritating to receive as a red CI run minutes later. That is the whole value being bought here.
@@ -2203,11 +2202,11 @@ irritating to receive as a red CI run minutes later. That is the whole value bei
 D2's amendment established `uv run --directory django_version <tool>` as the mechanism that puts
 a hook inside the project. uv documents two flags, and they are not interchangeable:
 
-- `--directory` — *"Change to the given directory prior to running the command. Relative paths
-  are resolved with the given directory as the base."*
-- `--project` — *"Discover a project in the given directory. … Other command-line arguments (such
+- `--directory` — _"Change to the given directory prior to running the command. Relative paths
+  are resolved with the given directory as the base."_
+- `--project` — _"Discover a project in the given directory. … Other command-line arguments (such
   as relative paths) will be resolved relative to the current working directory. See
-  `--directory` to change the working directory entirely."*
+  `--directory` to change the working directory entirely."_
 
 pre-commit executes hooks from the repository root and appends staged filenames relative to it.
 With `--directory`, the working directory moves into `django_version/` and those paths stop
@@ -2218,8 +2217,8 @@ found and the paths still resolve.
 for a whole-project invocation that passes none.** D2's amendment is not wrong; it is the right
 flag for the case it was written about (`mypy`, whole project, `pass_filenames: false`).
 
-One further property, from uv's project documentation: *"When using `run`, uv will ensure that
-the project environment is up-to-date before running the given command."* A hook can therefore
+One further property, from uv's project documentation: _"When using `run`, uv will ensure that
+the project environment is up-to-date before running the given command."_ A hook can therefore
 never execute a ruff other than the one `uv.lock` pins — which is what removes pre-commit's
 second cost, below.
 
@@ -2247,41 +2246,41 @@ repos:
 Two details the Developer must not copy from an older tutorial:
 
 - **`language: unsupported`, not `language: system`.** pre-commit's supported-languages
-  reference, read this session: *"new in 4.4.0: previously `language: system`. the alias will be
-  removed in a future version"*. The equivalent rename applies to `script` → `unsupported_script`.
+  reference, read this session: _"new in 4.4.0: previously `language: system`. the alias will be
+  removed in a future version"_. The equivalent rename applies to `script` → `unsupported_script`.
   Write the spelling current for the version pinned.
 - **`files: ^django_version/` decides whether the hook runs, and narrows what it receives.** It
   is the key doing the job D9's `oop_version` input asked for, and it is the same distinction
   D13 recorded about gitleaks: `files:` governs the file list a hook is given, which is exactly
-  what is wanted here because these hooks *do* accept filenames.
+  what is wanted here because these hooks _do_ accept filenames.
 
 ### Why `pre-commit` rather than `lefthook` or `prek`
 
 The distinguishing feature of each alternative addresses the defect established above as not
 being paid.
 
-**`prek` 0.4.14** — its workspace mode is documented as *"Hooks run within their project's root
-directory"* and *"Only files within the project's directory tree are passed to its hooks"*, with
-`files`/`exclude` *"matched against the file path relative to the project root — i.e. the
-directory containing the configuration file"*. That is genuinely the cleanest answer to the
+**`prek` 0.4.14** — its workspace mode is documented as _"Hooks run within their project's root
+directory"_ and _"Only files within the project's directory tree are passed to its hooks"_, with
+`files`/`exclude` _"matched against the file path relative to the project root — i.e. the
+directory containing the configuration file"_. That is genuinely the cleanest answer to the
 working-directory problem, and it uses `uv` internally, which fits D1. It is set aside because
 the property it is chosen for is not needed here, and its cost is not nothing: a 0.4.x release
 line on a repository whose purpose is to be read by someone else.
 
 **`lefthook` v2.1.10** — **two corrections to the audit, both from documentation read this
-session.** The audit recorded that `root:` is *"listed in the command-level reference, but its
-behaviour is not documented on the page I read"*. It is documented, on its own page: `root`
-*"change the CWD for the command you execute"*; *"For `pre-push` and `pre-commit` hooks and for
-the custom `files` command `root` option is used to filter file paths"*; and *"Globs are always
-calculated from the actual root of the git repo — `root` does not affect glob matching."* The
+session.** The audit recorded that `root:` is _"listed in the command-level reference, but its
+behaviour is not documented on the page I read"_. It is documented, on its own page: `root`
+_"change the CWD for the command you execute"_; _"For `pre-push` and `pre-commit` hooks and for
+the custom `files` command `root` option is used to filter file paths"_; and _"Globs are always
+calculated from the actual root of the git repo — `root` does not affect glob matching."_ The
 audit also treated it as a Go binary outside the Python ecosystem; it is published on PyPI at
 2.1.10, the same version as its GitHub release, so installability is not a cost. What remains
 true is the audit's real objection: lefthook does not run tools itself, so every command is a
 shell line written and maintained by hand.
 
 **What makes `pre-commit`'s own recorded costs evaporate here.** The audit's two objections were
-the working-directory limitation and *"the versions in `.pre-commit-config.yaml` and in
-`uv.lock` are two sources of truth"*. The second is a property of using upstream hook
+the working-directory limitation and _"the versions in `.pre-commit-config.yaml` and in
+`uv.lock` are two sources of truth"_. The second is a property of using upstream hook
 repositories, which carry a `rev:`. With every hook declared `repo: local` and executed through
 `uv run`, there is no `rev:` anywhere and `uv.lock` is the only pin — the same guarantee D1 was
 adopted for.
@@ -2292,17 +2291,17 @@ a different binary.
 
 ### Where this diverges from the audit
 
-The audit recommended *"D, or C"* — no runner, or `prek`. This entry takes `pre-commit`.
+The audit recommended _"D, or C"_ — no runner, or `prek`. This entry takes `pre-commit`.
 
 The agreement is complete on the part that matters most: a hook layer is convenience, not
 control. Hooks are skippable with `--no-verify`, so CI has to run everything regardless, and this
 plan has already made CI comprehensive.
 
-The disagreement is narrow. The audit chose `prek` *for* its workspace mode — *"the only option
-that removes the working-directory defect at the source instead of routing around it"*. That
+The disagreement is narrow. The audit chose `prek` _for_ its workspace mode — _"the only option
+that removes the working-directory defect at the source instead of routing around it"_. That
 defect is not paid by this project's hook set, so the property is bought and unused, while its
-cost lands on the axis the audit itself named: *"`pre-commit` on a CV means something; `prek`
-means nothing yet."*
+cost lands on the axis the audit itself named: _"`pre-commit` on a CV means something; `prek`
+means nothing yet."_
 
 ### The costs accepted
 
@@ -2351,20 +2350,20 @@ task here.
   configuration that creates the two-sources-of-truth cost the audit charged against pre-commit,
   and nothing compares the `rev:` with `uv.lock`.
 - **Adding `mypy` to the hook set** — technically available: `uv run --directory django_version
-  mypy` with `pass_filenames: false` satisfies D10's constraint. Set aside on commit latency
+mypy` with `pass_filenames: false` satisfies D10's constraint. Set aside on commit latency
   against value: the 2026-08-17 audit measured a full run at ≈7 s including download, and mypy's
   answer is a whole-project answer that CI already produces on every push. Recorded as a cheap
   addition if the CI round trip on type errors proves annoying in practice.
 
 ### Consequences for other entries
 
-- **D13's conditional closes negative.** D13 recorded the gitleaks hook as *"the upgrade to
-  revisit if D14 selects a runner that can host gitleaks cheaply"*. `pre-commit` does not: the
+- **D13's conditional closes negative.** D13 recorded the gitleaks hook as _"the upgrade to
+  revisit if D14 selects a runner that can host gitleaks cheaply"_. `pre-commit` does not: the
   upstream contract's three variants require a Go build, a Docker daemon at commit time, or a
   pre-installed binary, and that is a property of the hook definition rather than of the runner —
   no runner choice would have changed it. D13 stands as written, CI-only.
-- **D5's `required-version` stays declined.** D5 recorded it as the cheap defence *"if D14
-  selects a hook runner that invokes tools from outside the project environment"*. It does not:
+- **D5's `required-version` stays declined.** D5 recorded it as the cheap defence _"if D14
+  selects a hook runner that invokes tools from outside the project environment"_. It does not:
   `uv run --project` executes inside it, and syncs first.
 - **D10's constraint is satisfied by not being exercised.** D10 required that a mypy hook invoke
   the tool inside the project environment; no mypy hook exists. If one is added later, the
@@ -2416,11 +2415,11 @@ modified, and the probe file each run created was removed inside the same run (v
 `no probe files left`).
 
 | `--user` requested | How the mount presents `manage.py` inside the container | File / directory / subdirectory write |
-| --- | --- | --- |
-| `0:0` | `uid=0 gid=0` | OK |
-| `1000:1000` | `uid=1000 gid=1000` | OK |
-| `1234:1234` | `uid=1234 gid=1234` | OK |
-| `4242:4242` | `uid=4242 gid=4242` | OK |
+| ------------------ | ------------------------------------------------------- | ------------------------------------- |
+| `0:0`              | `uid=0 gid=0`                                           | OK                                    |
+| `1000:1000`        | `uid=1000 gid=1000`                                     | OK                                    |
+| `1234:1234`        | `uid=1234 gid=1234`                                     | OK                                    |
+| `4242:4242`        | `uid=4242 gid=4242`                                     | OK                                    |
 
 Host-side the same file is `uid=501 gid=20`, before and after.
 
@@ -2433,15 +2432,15 @@ Two conclusions follow, and they point in opposite directions.
 1. **The risk that could have defeated this decision does not exist on this machine.** A non-root
    user cannot break the bind-mount workflow here — a migration written by `makemigrations`,
    pytest creating `.pytest_cache/`, a tool cache — all succeed under any UID. Had the probe come
-   back `DENIED`, the option taken would have been *stay root*.
+   back `DENIED`, the option taken would have been _stay root_.
 2. **The acceptance criterion the audit proposed cannot fail here either.** See below.
 
 ### The criterion, and why the audit's replacement had to be replaced in turn
 
-Issue 4 was right about the inherited criterion: *"bind-mounted files stay usable from the host"*
-cannot fail on this machine, because Docker Desktop *"will succeed, but `stat` will not be
-affected"* on `chown`. It proposed testing instead *"the container able to write `__pycache__`,
-`.pytest_cache` and migration files into the bind mount"*. Measured, **that passes for every
+Issue 4 was right about the inherited criterion: _"bind-mounted files stay usable from the host"_
+cannot fail on this machine, because Docker Desktop _"will succeed, but `stat` will not be
+affected"_ on `chown`. It proposed testing instead _"the container able to write `__pycache__`,
+`.pytest_cache` and migration files into the bind mount"_. Measured, **that passes for every
 possible UID**, including a nonsensical one — the same defect one level deeper. Replacing a
 criterion that always passes with another criterion that always passes would leave this entry
 certifying nothing while appearing rigorous.
@@ -2455,10 +2454,10 @@ introduce, and the `pyproject.toml` / `uv.lock` half of a `docker-compose exec w
 
 **The criterion this entry adopts, split by what can and cannot fail:**
 
-| Half | Status | How it is checked |
-| --- | --- | --- |
-| `/opt/venv` readable and executable by the new user, and writable by `uv sync` | **Real — fails loudly when wrong**, because it is inside the image, where Linux permissions are enforced | the image build fails, or `docker-compose exec web pytest` cannot find its interpreter |
-| Anything the container writes into the bind mount | **Unverifiable on this machine**, measured above | recorded as `docs/tech_debt/010-non-root-user-bind-mount-behaviour-is-unverifiable-on-macos.md`, naming where it *would* be verified: a Linux host, or the Phase 5 production image |
+| Half                                                                           | Status                                                                                                   | How it is checked                                                                                                                                                                   |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/opt/venv` readable and executable by the new user, and writable by `uv sync` | **Real — fails loudly when wrong**, because it is inside the image, where Linux permissions are enforced | the image build fails, or `docker-compose exec web pytest` cannot find its interpreter                                                                                              |
+| Anything the container writes into the bind mount                              | **Unverifiable on this machine**, measured above                                                         | recorded as `docs/tech_debt/010-non-root-user-bind-mount-behaviour-is-unverifiable-on-macos.md`, naming where it _would_ be verified: a Linux host, or the Phase 5 production image |
 
 Naming the second half unverifiable is the point of this entry, not an omission from it.
 
@@ -2494,7 +2493,7 @@ mount, which is Phase 5's problem rather than this task's.
   `Dockerfile` three times (the `pillow` cleanup, the uv migration, D16's base bump), the
   addition is small, and the one way it could have gone wrong on this machine was measured and
   does not occur.
-- **Non-root *and* reopening D3's system-environment option on the ownership ground** — D3's
+- **Non-root _and_ reopening D3's system-environment option on the ownership ground** — D3's
   amendment explicitly invites this. Set aside: D3's real discriminator is `uv sync` pruning
   `pip`/`setuptools` from the base image, which ownership does not touch, and reopening on
   ownership would also require measuring the pruning claim D3 labelled as reasoning. Nothing
@@ -2522,18 +2521,18 @@ mount, which is Phase 5's problem rather than this task's.
 **Decided:** 2026-08-17. Closes Open Decision I of
 `docs/audits/2026-08-16-audit-plan-toolchain-d2-d9a.md`.
 
-Numbered 16 because D10–D15 are already reserved in *Planning state* for the still-open
+Numbered 16 because D10–D15 are already reserved in _Planning state_ for the still-open
 topics. This entry is a version decision, not one of those.
 
 The stack moves to the current releases as part of this migration:
 
-| Component | Was | Becomes |
-| --- | --- | --- |
-| Django | 6.0.7 | **6.1** |
+| Component      | Was    | Becomes    |
+| -------------- | ------ | ---------- |
+| Django         | 6.0.7  | **6.1**    |
 | Python (image) | 3.14.6 | **3.14.7** |
-| pytest-django | 4.12.0 | **4.14.0** |
+| pytest-django  | 4.12.0 | **4.14.0** |
 
-`.claude/rules/conventions.md` → *Stack and versions* makes a version change an architectural
+`.claude/rules/conventions.md` → _Stack and versions_ makes a version change an architectural
 decision requiring explicit approval rather than a maintenance update. This entry is that
 approval, recorded as a decision instead of happening as a side effect of the uv migration.
 
@@ -2555,19 +2554,19 @@ name.
 codebase, by searching the code rather than by reading the list.** Measured 2026-08-17 over
 `accounts/`, `profiles/`, `config/` and `manage.py`:
 
-| 6.1 change | Present in this codebase | Consequence |
-| --- | --- | --- |
-| Admin `wide` class removed | No — only `"collapse"` is used, in `accounts/admin.py` | none |
-| `select_related()` with no arguments deprecated | Not used anywhere | none |
-| `values_list(flat=True)` with no field name deprecated | Used only *with* a field name, in `FreelancerProfile.get_display_info` and `ClientProfile.get_display_info` | none |
-| `first()` / `last()` ordering change | Neither method is used | none |
-| `ModelAdmin.list_select_related` deprecation | Not used | none |
-| Overriding `ModelAdmin.get_actions()` deprecated | Not overridden; the admin classes only set `actions = [...]` | none |
-| `EMAIL_*` settings deprecated in favour of `MAILERS` | `config/settings.py` declares no `EMAIL_*` setting at all | none |
-| New `security.W027` (CSP nonce without context processor) | `MIDDLEWARE` contains no `ContentSecurityPolicyMiddleware` | never fires |
-| PostgreSQL 14 support dropped; 6.1 requires 15+ | `docker-compose.yml` runs `postgres:17.10` | none |
-| PBKDF2 default iterations 1,200,000 → 1,500,000 | `Argon2PasswordHasher` is primary; PBKDF2 is the legacy fallback with no stored hashes | none |
-| Signed-cookie salt derivation; `SIGNED_COOKIE_LEGACY_SALT_FALLBACK` now `False` | No deployed environment, no live signed cookie | none |
+| 6.1 change                                                                      | Present in this codebase                                                                                    | Consequence |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------- |
+| Admin `wide` class removed                                                      | No — only `"collapse"` is used, in `accounts/admin.py`                                                      | none        |
+| `select_related()` with no arguments deprecated                                 | Not used anywhere                                                                                           | none        |
+| `values_list(flat=True)` with no field name deprecated                          | Used only _with_ a field name, in `FreelancerProfile.get_display_info` and `ClientProfile.get_display_info` | none        |
+| `first()` / `last()` ordering change                                            | Neither method is used                                                                                      | none        |
+| `ModelAdmin.list_select_related` deprecation                                    | Not used                                                                                                    | none        |
+| Overriding `ModelAdmin.get_actions()` deprecated                                | Not overridden; the admin classes only set `actions = [...]`                                                | none        |
+| `EMAIL_*` settings deprecated in favour of `MAILERS`                            | `config/settings.py` declares no `EMAIL_*` setting at all                                                   | none        |
+| New `security.W027` (CSP nonce without context processor)                       | `MIDDLEWARE` contains no `ContentSecurityPolicyMiddleware`                                                  | never fires |
+| PostgreSQL 14 support dropped; 6.1 requires 15+                                 | `docker-compose.yml` runs `postgres:17.10`                                                                  | none        |
+| PBKDF2 default iterations 1,200,000 → 1,500,000                                 | `Argon2PasswordHasher` is primary; PBKDF2 is the legacy fallback with no stored hashes                      | none        |
+| Signed-cookie salt derivation; `SIGNED_COOKIE_LEGACY_SALT_FALLBACK` now `False` | No deployed environment, no live signed cookie                                                              | none        |
 
 Two items that read as threatening in the notes and are not:
 
@@ -2586,7 +2585,7 @@ D10 to choose between an older stubs release and partial support.~~
 
 **Withdrawn 2026-08-17** (Issue 1 of `docs/audits/2026-08-17-audit-plan-toolchain-d10-d15.md`,
 re-verified against the upstream compatibility matrix while deciding D10). **`django-stubs`
-6.0.9 exists and lists Django 6.0 under *full* support**, with the same mypy range (1.13 – 2.3)
+6.0.9 exists and lists Django 6.0 under _full_ support**, with the same mypy range (1.13 – 2.3)
 and the same Python range as 6.1.0. Staying on Django 6.0 would have forced no compromise on
 D10 at all. The claim was false when written.
 
@@ -2610,7 +2609,7 @@ None of these blocks the upgrade; each is a verification the Developer performs.
 2. **`check` now supplies all databases when none is specified**, so the command should be
    expected to access the database. D7's recorded reasoning that its two steps are
    database-independent stays true for `makemigrations --check` and stops being true for
-   `check --deploy`. CI has the `postgres` service, so the step works; the *reasoning* in D7 is
+   `check --deploy`. CI has the `postgres` service, so the step works; the _reasoning_ in D7 is
    amended by this entry, not the step.
 3. **D7's measured baseline moves.** "7 warnings, exit 0" was measured on 6.0.7. It is
    re-measured under 6.1 as part of commit 2. `security.W027` is ruled out above; the rest of
@@ -2618,7 +2617,7 @@ None of these blocks the upgrade; each is a verification the Developer performs.
 4. **The admin change-form layout changed** — fields below labels, help text before the input,
    validation errors between them. The suite has 272 tests, some of which run a real request
    cycle and read `response.content` (the profile-section tests under
-   `accounts/tests/admin/`). Those assert that an error *string* appears in the response, which
+   `accounts/tests/admin/`). Those assert that an error _string_ appears in the response, which
    is layout-independent, so the expected impact is nil. Running the suite settles it in
    seconds, and commit ordering makes any failure attributable.
 
@@ -2648,16 +2647,16 @@ subtask.
 
 **Category A — live statements of the pinned stack. Rewritten by commit 2.**
 
-| File | What it states today | Note |
-| --- | --- | --- |
-| `django_version/Dockerfile` | `FROM python:3.14.6-slim` | must agree with the project's Python pin |
-| `.github/workflows/ci.yml` | `python-version: "3.14.6"` on the `setup-python` step | superseded by the D6 amendment, which replaces the literal with `python-version-file` |
-| `.claude/rules/conventions.md` → *Stack and versions* | the whole table — Django `6.0.7`, `pytest-django 4.12.0`, `pillow 12.3.0` | also names `requirements.txt` as where versions are pinned, which stops being true |
-| `README.md` | "Django 6.0.7 + PostgreSQL 17" | the only version literal in the README |
+| File                                                  | What it states today                                                      | Note                                                                                  |
+| ----------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `django_version/Dockerfile`                           | `FROM python:3.14.6-slim`                                                 | must agree with the project's Python pin                                              |
+| `.github/workflows/ci.yml`                            | `python-version: "3.14.6"` on the `setup-python` step                     | superseded by the D6 amendment, which replaces the literal with `python-version-file` |
+| `.claude/rules/conventions.md` → _Stack and versions_ | the whole table — Django `6.0.7`, `pytest-django 4.12.0`, `pillow 12.3.0` | also names `requirements.txt` as where versions are pinned, which stops being true    |
+| `README.md`                                           | "Django 6.0.7 + PostgreSQL 17"                                            | the only version literal in the README                                                |
 
 `django_version/requirements.txt` is not listed because D1 removes it.
 
-**Category B — statements about the *series*, which 6.0 → 6.1 does not invalidate. Left
+**Category B — statements about the _series_, which 6.0 → 6.1 does not invalidate. Left
 alone.** Root `CLAUDE.md` and `django_version/CLAUDE.md` both say "Python 3.14, Django 6.x,
 PostgreSQL 17"; `ARCHITECTURE.md` refers to "PostgreSQL 17" and "Python 3.14". All remain
 true. `docker-compose.yml`'s `postgres:17.10` is unaffected — Django 6.1 drops PostgreSQL 14
@@ -2681,7 +2680,7 @@ agrees with the project's Python pin.
 - The exact Django 6.1 patch release, the exact `pytest-django` release, and the exact Python
   patch are fixed at implementation time per `conventions.md`, not copied from this table.
 - Whether `pillow` is removed before or during commit 1 — the removal is already listed under
-  *Items that need no decision*, and it touches the same `conventions.md` table this subtask
+  _Items that need no decision_, and it touches the same `conventions.md` table this subtask
   rewrites.
 
 ---
@@ -2689,7 +2688,7 @@ agrees with the project's Python pin.
 ## D17 — The test suite runs the migrations, with the seeded vocabulary emptied by a session fixture
 
 **Decided:** 2026-08-17. Closes the first of the three `pytest.ini` observations D7 flagged and
-deliberately left to the user, and the *Open questions for the user* entry asking whether those
+deliberately left to the user, and the _Open questions for the user_ entry asking whether those
 observations become a decision of their own.
 
 Numbered 17 because D13–D15 stay reserved for the still-open topics.
@@ -2701,14 +2700,14 @@ Numbered 17 because D13–D15 stay reserved for the still-open topics.
 
 ### What the flag was actually buying, measured rather than assumed
 
-`--no-migrations` is documented by pytest-django as *"disable Django migrations and create the
-database by inspecting all models"*. The reason usually given for it is speed. Measured on this
+`--no-migrations` is documented by pytest-django as _"disable Django migrations and create the
+database by inspecting all models"_. The reason usually given for it is speed. Measured on this
 codebase, 2026-08-17, both runs rebuilding the database from scratch:
 
-| Invocation | Result | Wall time |
-| --- | --- | --- |
-| `pytest --create-db` (schema built from the models) | 304 passed | 10.35 s |
-| `pytest --create-db --migrations` (schema built by replaying the 14 files) | 304 passed | 10.19 s |
+| Invocation                                                                 | Result     | Wall time |
+| -------------------------------------------------------------------------- | ---------- | --------- |
+| `pytest --create-db` (schema built from the models)                        | 304 passed | 10.35 s   |
+| `pytest --create-db --migrations` (schema built by replaying the 14 files) | 304 passed | 10.19 s   |
 
 The difference is inside the noise. **Speed was never what the flag was buying here.** What it was
 buying is an empty `Skill` table: `profiles/migrations/0002_seed_skills.py` is a data migration
@@ -2747,17 +2746,17 @@ plus the two expecting `IntegrityError` from a direct `.update()` — the `Check
 Those constraints were installed by migrations: `accounts/migrations/0006_…` and
 `profiles/migrations/0007_skill_skill_unique_name_case_insensitive.py`. Under `--no-migrations`
 the database those tests run against is built from `Meta.constraints`, so what they verify is the
-model *declaration*. They do not verify that the migration installed anything.
+model _declaration_. They do not verify that the migration installed anything.
 
 The failure mode that follows is silent in every direction: a migration hand-edited so a
 constraint disappears from it leaves the model still declaring it, the test still green, and the
 production database — which is built by replaying migrations — without the constraint. Neither
 the suite (it builds from the models), nor D7's `makemigrations --check` (it compares models to
-migration *files* and never executes one), nor CI catches that today.
+migration _files_ and never executes one), nor CI catches that today.
 
-*(Aside: `makemigrations --check` and this decision guard different things. The first asks "does a
+_(Aside: `makemigrations --check` and this decision guard different things. The first asks "does a
 model change lack its migration file?". This one asks "does the file, when run, produce the
-database the models describe?")*
+database the models describe?")_
 
 ### The shape, verified by execution
 
@@ -2772,9 +2771,9 @@ def django_db_setup(django_db_setup, django_db_blocker):
 ```
 
 This is pytest-django's documented pattern for touching the test database once it exists:
-*"Notice `django_db_setup` in the argument list. This triggers the original pytest-django fixture
-to create the test database"*, and *"`django_db_blocker` is the object which can allow specific
-code paths to have access to the database"*. The deletion happens at session setup, outside the
+_"Notice `django_db_setup` in the argument list. This triggers the original pytest-django fixture
+to create the test database"_, and _"`django_db_blocker` is the object which can allow specific
+code paths to have access to the database"_. The deletion happens at session setup, outside the
 per-test transaction, so it is not rolled back and each test still starts from an empty table.
 
 Run 2026-08-17 with the fixture placed outside the project tree so no project file was written:
@@ -2802,28 +2801,28 @@ tested and risks `AppRegistryNotReady`. A Google-style docstring is required per
 2. **The divergence from production becomes deliberate.** Tests already run against an empty
    `Skill` table, a state the deployed application never has; this decision does not remove that,
    it makes it explicit and puts it in one place. Removing it is the alternative rejected below.
-3. **Seed *data* correctness becomes unverifiable.** The fixture deletes the 30 rows before any
+3. **Seed _data_ correctness becomes unverifiable.** The fixture deletes the 30 rows before any
    test sees them, so what is validated is that `seed_skills` runs without raising, not that it
    produced the right vocabulary. Its reverse, `remove_skills`, still never executes. The escape
    hatch, if this ever matters, is a test importing `seed_skills` and calling it directly.
-4. **`.claude/rules/testing.md` is rewritten in the same change**, not later. Its section *"Note
-   on `--no-migrations` and data migrations"* becomes false in full, its list of active `addopts`
-   flags changes, and its *Common mistakes* row about assuming data migrations have run inverts.
+4. **`.claude/rules/testing.md` is rewritten in the same change**, not later. Its section _"Note
+   on `--no-migrations` and data migrations"_ becomes false in full, its list of active `addopts`
+   flags changes, and its _Common mistakes_ row about assuming data migrations have run inverts.
    It is auto-loaded into every session, so leaving it stale sends every future agent to the wrong
    conclusion — the same reasoning D2's amendment used for the `pytest.ini` path.
 
 ### What this does not fix
 
 The stale-database trap belongs to `--reuse-db`, which is a separate flag and is **not** changed
-here. pytest-django is explicit: *"`--reuse-db` will not pick up schema changes between test runs.
+here. pytest-django is explicit: _"`--reuse-db` will not pick up schema changes between test runs.
 You must run the tests with `--reuse-db --create-db` to re-create the database according to the
-new schema."* ~~After a model change, `pytest --create-db` remains a manual step, and the error it
+new schema."_ ~~After a model change, `pytest --create-db` remains a manual step, and the error it
 saves you from still arrives as a confusing `column … does not exist` rather than as a message
 about a stale schema. That is the second of D7's three observations and stays open.~~
 
 **Amended 2026-08-17 by D19.** `--reuse-db` is removed, so the trap described above is removed
 with it and `pytest --create-db` stops being a manual step. This section's first sentence — that
-the trap belongs to a separate flag not changed *here* — remains accurate about D17 itself; what
+the trap belongs to a separate flag not changed _here_ — remains accurate about D17 itself; what
 is superseded is its conclusion that the trap stays. D17's outcome is untouched, and D19 records
 the cost the removal accepts.
 
@@ -2848,8 +2847,8 @@ the cost the removal accepts.
 
 - **D9a's stated reason is amended** — see the amendment appended to that entry. Its outcome is
   untouched.
-- **D7's first flagged observation is resolved.** *"The D7 check covers the dangerous case (a model
-  without its migration) but not a migration that is present and broken"* — the second half is now
+- **D7's first flagged observation is resolved.** _"The D7 check covers the dangerous case (a model
+  without its migration) but not a migration that is present and broken"_ — the second half is now
   covered on every run, locally and in CI.
 - **D11 is unaffected.** `omit = ["*/migrations/*"]` was written to survive this decision: the
   second column of its regime table is the one that now applies, and migrations stay out of the
@@ -2905,19 +2904,19 @@ dependency monitoring — it is the decision to have any.
 
 ### Dependabot supports `uv` natively, which the audit left as an open risk
 
-Two official changelog entries settle it. Version updates: *"Dependabot version updates now
-support uv in general availability"* (2025-03-13), configured as `package-ecosystem: "uv"`.
-Security alerts and updates: *"Dependabot now supports security alerts and updates for uv. When
+Two official changelog entries settle it. Version updates: _"Dependabot version updates now
+support uv in general availability"_ (2025-03-13), configured as `package-ecosystem: "uv"`.
+Security alerts and updates: _"Dependabot now supports security alerts and updates for uv. When
 vulnerabilities are detected in your uv dependencies, Dependabot can automatically open security
-alerts and pull requests to update to secure versions."* (2025-12-16).
+alerts and pull requests to update to secure versions."_ (2025-12-16).
 
-That answers the audit's recorded reservation — *"Only covers what Dependabot parses; D8's
+That answers the audit's recorded reservation — _"Only covers what Dependabot parses; D8's
 amendment creates `.github/dependabot.yml` for `github-actions` only, so the Python ecosystem
-would need adding"*. The Python ecosystem is added as `uv`, reading this project's own
+would need adding"_. The Python ecosystem is added as `uv`, reading this project's own
 `pyproject.toml` and `uv.lock`, with none of the impedance mismatch of declaring it as `pip`.
 
 **Verification debt, recorded because the reading was not clean.** GitHub's supported-ecosystems
-*table* could not be read directly — it returned truncated twice, and one of those readings
+_table_ could not be read directly — it returned truncated twice, and one of those readings
 asserted that `uv` was absent from it. The claim above rests on the two changelog entries, which
 are unambiguous. The Developer confirms the exact `package-ecosystem` value against that table
 before writing the file. If `uv` should turn out to be unavailable, the fallback is **not**
@@ -2925,17 +2924,17 @@ before writing the file. If `uv` should turn out to be unavailable, the fallback
 
 ### `uv audit` is in preview, and that is what decided against it
 
-The audit recommended *"use `uv audit` as the CI gate"*, on the ground that the command *"is
-listed in uv's CLI reference with no preview or experimental marker"*. Astral's own announcement
-of the feature says the opposite: *"Both of these features are in preview for now. They're
-considered unstable and there may be breaking changes as we iterate on their design."* The
+The audit recommended _"use `uv audit` as the CI gate"_, on the ground that the command _"is
+listed in uv's CLI reference with no preview or experimental marker"_. Astral's own announcement
+of the feature says the opposite: _"Both of these features are in preview for now. They're
+considered unstable and there may be breaking changes as we iterate on their design."_ The
 command reads uv's locked resolution and queries OSV; support for `requirements.txt` and PEP
 751's `pylock.toml` is described as planned, not present.
 
 **What rules it out today is consistency inside this plan, not novelty aversion.** D10 rejected
-`ty` — Astral's type checker — quoting its version policy, *"breaking changes, including changes
-to diagnostics, may occur between any two versions"*, and calling it *"the D9 risk without D9's
-stable-release floor"*. `uv audit` carries the identical property. Adopting it here while
+`ty` — Astral's type checker — quoting its version policy, _"breaking changes, including changes
+to diagnostics, may occur between any two versions"_, and calling it _"the D9 risk without D9's
+stable-release floor"_. `uv audit` carries the identical property. Adopting it here while
 rejecting `ty` there would apply two standards inside one plan, and a build-failing gate is the
 worst place to accept a diagnostic surface that may move between versions.
 
@@ -2946,28 +2945,28 @@ by an advisory published against code nobody touched, on a push about something 
 alerts enabled, the same advisory arrives as a pull request carrying its own fix, without a
 workflow run — so the marginal detection is small and the marginal failure mode is not.
 
-`pip-audit` 2.10.1 stays the correct choice *if* a gate is wanted before `uv audit` stabilises:
+`pip-audit` 2.10.1 stays the correct choice _if_ a gate is wanted before `uv audit` stabilises:
 PyPA-maintained, stable, known interface. Its cost here is one more `dev` dependency and one
 more pin, plus a translation step — it does not read `uv.lock`, so it audits either the
 environment already synced by `uv sync --locked` (invoked through `uv run`) or a `uv export`ed
-requirements file. *Both forms are expected to work; neither was executed.*
+requirements file. _Both forms are expected to work; neither was executed._
 
 ### What this closes elsewhere, and it is the most useful part of the entry
 
 **D8 Item 3's deferred `schedule:` trigger is closed as unnecessary.** D8 deferred it because
-*"`pip-audit` on `push` only detects a newly published advisory at the next push"*, with a
-measured 47-day gap between runs on this repository, and stated that *"the question returns when
-the `pip-audit` task is drafted"*. It has now been drafted and the answer is that the beneficiary
+_"`pip-audit` on `push` only detects a newly published advisory at the next push"_, with a
+measured 47-day gap between runs on this repository, and stated that _"the question returns when
+the `pip-audit` task is drafted"_. It has now been drafted and the answer is that the beneficiary
 is not being added: Dependabot's alerts arrive without any workflow run, which removes the
 latency the schedule existed to cover. D8's own carried-forward fact reinforces it — in a public
-repository, *"scheduled workflows are automatically disabled when no repository activity has
-occurred in 60 days"*, a limit the alert stream does not have.
+repository, _"scheduled workflows are automatically disabled when no repository activity has
+occurred in 60 days"_, a limit the alert stream does not have.
 
 ### An action no task can own
 
 Enabling the two toggles is a repository setting, not a file. It belongs to the same class as
-`allowed_actions` and `sha_pinning_required` under D8's *Recorded but not planned — settings that
-live outside the repository*: not versionable, not visible in a diff, not restored by a clone.
+`allowed_actions` and `sha_pinning_required` under D8's _Recorded but not planned — settings that
+live outside the repository_: not versionable, not visible in a diff, not restored by a clone.
 The `dependabot.yml` entry is a file and belongs to a task; the toggles are the user's action,
 and the task's acceptance criterion is the API reporting them enabled.
 
@@ -2993,14 +2992,14 @@ the moment to reopen this entry. Until then, a gate means `pip-audit`.
 
 - **The two halves of Dependabot are configured in different places, and only one is a file.**
   The security half follows from the repository toggles; the `uv` entry in `.github/dependabot.yml`
-  governs routine **version** updates on a schedule. *Stated as reasoning — GitHub's page
-  distinguishing the two was not read this session.* The Developer confirms it, because it
+  governs routine **version** updates on a schedule. _Stated as reasoning — GitHub's page
+  distinguishing the two was not read this session._ The Developer confirms it, because it
   decides whether the file entry is required for the security coverage this entry is being taken
   for, or is an addition on top of it.
 - ~~**Whether routine version-update pull requests are wanted at all**~~ **Decided 2026-08-17:
   yes, at `interval: monthly`**, matching the shape D8's amendment reached for on the
   `github-actions` ecosystem. The reason is a rule specific to this project rather than a general
-  preference: `.claude/rules/conventions.md` → *Stack and versions* makes a version change an
+  preference: `.claude/rules/conventions.md` → _Stack and versions_ makes a version change an
   architectural decision requiring explicit approval, not a maintenance update. A Dependabot pull
   request is exactly that shape — it changes nothing on its own and arrives as a proposal to
   approve or close — so the rule gains a mechanism instead of depending on someone remembering to
@@ -3027,7 +3026,7 @@ the end. `pytest --create-db` stops being a step anyone has to remember.
 `--reuse-db` keeps the test database between runs. Combined with a model change, the reused
 database keeps the previous schema, and the failure surfaces as `column … does not exist` — an
 error that describes a symptom and names neither the cause nor the cure. pytest-django is explicit
-that *"`--reuse-db` will not pick up schema changes between test runs"* and that `--create-db` is
+that _"`--reuse-db` will not pick up schema changes between test runs"_ and that `--create-db` is
 the override.
 
 This project is more exposed to it than most: `django_version/CLAUDE.md` Rule 10 requires explicit
@@ -3049,10 +3048,10 @@ That reasoning is sound on the evidence available, and the evidence has a hole w
 
 D17 measured two full rebuilds of the test database, both at 304 tests:
 
-| Invocation | Result | Wall time |
-| --- | --- | --- |
-| `pytest --create-db` | 304 passed | 10.35 s |
-| `pytest --create-db --migrations` | 304 passed | 10.19 s |
+| Invocation                        | Result     | Wall time |
+| --------------------------------- | ---------- | --------- |
+| `pytest --create-db`              | 304 passed | 10.35 s   |
+| `pytest --create-db --migrations` | 304 passed | 10.19 s   |
 
 **So the cost of the regime this decision adopts is known: roughly 10 s**, and D17 established that
 replaying the 14 migrations is inside the noise, which matters because D17 also turned migrations
@@ -3082,9 +3081,9 @@ return costs one line in `addopts`, and the trap it reintroduces is documented i
 
 ### Consequences for other entries
 
-- **D17's *What this does not fix* section is amended.** It states that the stale-database trap
-  *"belongs to `--reuse-db`, which is a separate flag and is **not** changed here"*, and that
-  `pytest --create-db` *"remains a manual step"*. Both sentences are superseded by this entry.
+- **D17's _What this does not fix_ section is amended.** It states that the stale-database trap
+  _"belongs to `--reuse-db`, which is a separate flag and is **not** changed here"_, and that
+  `pytest --create-db` _"remains a manual step"_. Both sentences are superseded by this entry.
   D17's outcome is untouched.
 - **`.claude/rules/testing.md` is now edited by three decisions**, not two. Its list of active
   flags loses `--reuse-db` here, loses `--no-migrations` under D17, and its `pytest.ini` references
@@ -3149,57 +3148,57 @@ adds a second rewrite of `.claude/rules/testing.md` that must be sequenced with 
 **The 2026-08-16 audit is fully worked through as of 2026-08-17** — all 5 Issues and all 9 Open
 Decisions (A–I), each decided with the user and each amending its entry in place:
 
-| Audit item | Decided | Landed in |
-| --- | --- | --- |
-| Open Decision I — stack update | Django 6.1, Python 3.14.7, pytest-django 4.14.0, in a second commit | **D16** (new) |
-| Open Decision A / Issue 3 — how CI gets `uv` and Python | `astral-sh/setup-uv` with `enable-cache`, keep `setup-python` but read `python-version-file` | D6, amendment 1 |
-| Open Decision B / Issue 2 — whether and how CI builds the image | plain uncached `docker build`, added after the `Dockerfile` cleanup | D6, amendment 2 |
-| Open Decision C / Issue 4 — action pinning | bump to current majors first, SHA-pin four actions, add `dependabot.yml` | D8 Item 2, amendment |
-| Open Decision D — token permissions | `permissions: {}` at the workflow, `contents: read` on the job | D8 Item 1, amendment |
-| Open Decision E — trigger shape and run volume | keep the triggers, add `concurrency` + `cancel-in-progress` and a `docs/**` path filter | D8 Item 3, amendment |
-| Open Decision F / Issue 5 — pytest's configuration home | delete `pytest.ini`, move to `[tool.pytest]` | D2, amendment |
-| Open Decision G / Issue 1 — the container's environment | outcome unchanged; the rejection of the system-prefix option re-argued | D3, amendment |
-| Open Decision H — how the tools are provisioned | the `dev` group; `uvx` and `required-version` both declined, with reasons | D5, amendment |
+| Audit item                                                      | Decided                                                                                      | Landed in            |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------- |
+| Open Decision I — stack update                                  | Django 6.1, Python 3.14.7, pytest-django 4.14.0, in a second commit                          | **D16** (new)        |
+| Open Decision A / Issue 3 — how CI gets `uv` and Python         | `astral-sh/setup-uv` with `enable-cache`, keep `setup-python` but read `python-version-file` | D6, amendment 1      |
+| Open Decision B / Issue 2 — whether and how CI builds the image | plain uncached `docker build`, added after the `Dockerfile` cleanup                          | D6, amendment 2      |
+| Open Decision C / Issue 4 — action pinning                      | bump to current majors first, SHA-pin four actions, add `dependabot.yml`                     | D8 Item 2, amendment |
+| Open Decision D — token permissions                             | `permissions: {}` at the workflow, `contents: read` on the job                               | D8 Item 1, amendment |
+| Open Decision E — trigger shape and run volume                  | keep the triggers, add `concurrency` + `cancel-in-progress` and a `docs/**` path filter      | D8 Item 3, amendment |
+| Open Decision F / Issue 5 — pytest's configuration home         | delete `pytest.ini`, move to `[tool.pytest]`                                                 | D2, amendment        |
+| Open Decision G / Issue 1 — the container's environment         | outcome unchanged; the rejection of the system-prefix option re-argued                       | D3, amendment        |
+| Open Decision H — how the tools are provisioned                 | the `dev` group; `uvx` and `required-version` both declined, with reasons                    | D5, amendment        |
 
 The 2026-08-16 audit raised five Issues against the entries above. **All five are closed**, each
 taken with the user as its own decision, and each amending the entry it corrects in place. In
-every case the audit's finding held; in no case did the decision's *outcome* change, which is
+every case the audit's finding held; in no case did the decision's _outcome_ change, which is
 the point worth carrying forward — the defects were in evidence, cost models and omissions, not
 in the destinations:
 
-| Issue | Entry it corrects | Status |
-| --- | --- | --- |
-| 1 — the system-prefix alternative was rejected on a documentation claim uv contradicts | D3 | **closed 2026-08-17** — see D3's amendment |
-| 2 — the "no layer cache in CI" cost model is configurable, not fixed | D6 | **closed 2026-08-17** — see D6's amendment 2 |
-| 3 — nothing states how `uv` reaches the CI runner, and dependency caching vanished with `pip` | D6 | **closed 2026-08-17** — see D6's amendment |
-| 4 — SHA-pinning `actions/checkout@v4` and `setup-python@v5` freezes stale majors | D8 Item 2 | **closed 2026-08-17** — see the amendment to Item 2 |
-| 5 — `pytest.ini` was never assigned a home once `pyproject.toml` lands | D2 | **closed 2026-08-17** — see D2's amendment |
+| Issue                                                                                         | Entry it corrects | Status                                              |
+| --------------------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------- |
+| 1 — the system-prefix alternative was rejected on a documentation claim uv contradicts        | D3                | **closed 2026-08-17** — see D3's amendment          |
+| 2 — the "no layer cache in CI" cost model is configurable, not fixed                          | D6                | **closed 2026-08-17** — see D6's amendment 2        |
+| 3 — nothing states how `uv` reaches the CI runner, and dependency caching vanished with `pip` | D6                | **closed 2026-08-17** — see D6's amendment          |
+| 4 — SHA-pinning `actions/checkout@v4` and `setup-python@v5` freezes stale majors              | D8 Item 2         | **closed 2026-08-17** — see the amendment to Item 2 |
+| 5 — `pytest.ini` was never assigned a home once `pyproject.toml` lands                        | D2                | **closed 2026-08-17** — see D2's amendment          |
 
 **The 2026-08-17 audit is being worked through, starting with the entry that constrains the
 others.** `docs/audits/2026-08-17-audit-plan-toolchain-d10-d15.md` raised 5 Issues and 7 Open
 Decisions against D10–D15 and the deferrals.
 
-| Audit item | Decided | Landed in |
-| --- | --- | --- |
-| Open Decision 1 — type checker and scope | `mypy` + `django-stubs`, production code only, blocking in a second task | **D10** (new) |
-| Issue 2 — D10's environment coupling described wrongly in both directions | corrected against a measured run; carried to D14 as a constraint | D10, *The environment coupling* |
-| Issue 1 — D16 rejects Django 6.0 partly on a false `django-stubs` fact | argument withdrawn, outcome unchanged | D16, *Why the upgrade rather than staying on 6.0* |
-| Open Decision 3 — static security analysis, tool and scope | ruff's `S` rules via `extend-select`, `S101`/`S106` suppressed under `*/tests/*`, `config/` kept in scope | **D12** (new), plus an amendment to **D9** |
-| Open Decision 2 — coverage measurement and floor | `pytest-cov` in `addopts`, `branch = true`, 95% floor blocking from the first run, one task | **D11** (new) |
-| Issue 5 — `[tool.coverage.*]` partly inert once `pytest-cov` is chosen | **does not hold.** Verified by execution: only `parallel` is overridden unconditionally, so D2's table moves whole | D11, *Issue 5 does not hold* |
-| Open Decision 4 / Issue 3 — secret scanning, sized against the platform baseline | `gitleaks` in CI with custom Django rules, no hook, plus a widened `.gitignore`; the history scan was performed rather than planned | **D13** (new) |
-| Issue 3's premise — that gitleaks closes the non-provider gap | **corrected.** Measured: the default rule set misses a Django `SECRET_KEY` 20 times out of 20; a ~12-line custom rule catches 10 of 10 | D13, *What decided it* |
-| Open Decision 5 — hook runner, and what it runs | `pre-commit` with `repo: local` hooks through `uv run --project django_version`, running `ruff format` and `ruff check --fix` only | **D14** (new) |
-| Open Decision 5, two claims about `lefthook` | **corrected.** Its `root:` key *is* documented on its own page, and it *is* published on PyPI at the same version as its GitHub release | D14, *Why `pre-commit` rather than* |
-| Open Decision 6 / Issue 4 — non-root user, and an acceptance criterion that cannot fail | non-root `USER` owning `/opt/venv`; the criterion split into the half that can fail and the half recorded as unverifiable here | **D15** (new) |
-| Issue 4's replacement criterion | **also does not hold.** Measured: VirtioFS presents the mount as owned by whichever UID accesses it, so a bind-mount write test passes for every UID, 4242 included | D15, *What was measured* |
-| Open Decision 7 — dependency auditing | Dependabot alerts and security updates, `package-ecosystem: "uv"`, **no CI gate**; D8's `schedule:` question closed as unnecessary | **D18** (new) |
-| Open Decision 7's premise — that `uv audit` carries no preview marker | **corrected.** Astral's own announcement: *"in preview … considered unstable and there may be breaking changes as we iterate"* — the same ground D10 used to reject `ty` | D18, *`uv audit` is in preview* |
-| Open Decision 7's baseline | **worse than recorded.** Dependabot *alerts* are disabled, not only security updates: the alerts endpoint returns 403 *"Dependabot alerts are disabled for this repository"* | D18, *The baseline* |
+| Audit item                                                                              | Decided                                                                                                                                                                      | Landed in                                         |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Open Decision 1 — type checker and scope                                                | `mypy` + `django-stubs`, production code only, blocking in a second task                                                                                                     | **D10** (new)                                     |
+| Issue 2 — D10's environment coupling described wrongly in both directions               | corrected against a measured run; carried to D14 as a constraint                                                                                                             | D10, _The environment coupling_                   |
+| Issue 1 — D16 rejects Django 6.0 partly on a false `django-stubs` fact                  | argument withdrawn, outcome unchanged                                                                                                                                        | D16, _Why the upgrade rather than staying on 6.0_ |
+| Open Decision 3 — static security analysis, tool and scope                              | ruff's `S` rules via `extend-select`, `S101`/`S106` suppressed under `*/tests/*`, `config/` kept in scope                                                                    | **D12** (new), plus an amendment to **D9**        |
+| Open Decision 2 — coverage measurement and floor                                        | `pytest-cov` in `addopts`, `branch = true`, 95% floor blocking from the first run, one task                                                                                  | **D11** (new)                                     |
+| Issue 5 — `[tool.coverage.*]` partly inert once `pytest-cov` is chosen                  | **does not hold.** Verified by execution: only `parallel` is overridden unconditionally, so D2's table moves whole                                                           | D11, _Issue 5 does not hold_                      |
+| Open Decision 4 / Issue 3 — secret scanning, sized against the platform baseline        | `gitleaks` in CI with custom Django rules, no hook, plus a widened `.gitignore`; the history scan was performed rather than planned                                          | **D13** (new)                                     |
+| Issue 3's premise — that gitleaks closes the non-provider gap                           | **corrected.** Measured: the default rule set misses a Django `SECRET_KEY` 20 times out of 20; a ~12-line custom rule catches 10 of 10                                       | D13, _What decided it_                            |
+| Open Decision 5 — hook runner, and what it runs                                         | `pre-commit` with `repo: local` hooks through `uv run --project django_version`, running `ruff format` and `ruff check --fix` only                                           | **D14** (new)                                     |
+| Open Decision 5, two claims about `lefthook`                                            | **corrected.** Its `root:` key _is_ documented on its own page, and it _is_ published on PyPI at the same version as its GitHub release                                      | D14, _Why `pre-commit` rather than_               |
+| Open Decision 6 / Issue 4 — non-root user, and an acceptance criterion that cannot fail | non-root `USER` owning `/opt/venv`; the criterion split into the half that can fail and the half recorded as unverifiable here                                               | **D15** (new)                                     |
+| Issue 4's replacement criterion                                                         | **also does not hold.** Measured: VirtioFS presents the mount as owned by whichever UID accesses it, so a bind-mount write test passes for every UID, 4242 included          | D15, _What was measured_                          |
+| Open Decision 7 — dependency auditing                                                   | Dependabot alerts and security updates, `package-ecosystem: "uv"`, **no CI gate**; D8's `schedule:` question closed as unnecessary                                           | **D18** (new)                                     |
+| Open Decision 7's premise — that `uv audit` carries no preview marker                   | **corrected.** Astral's own announcement: _"in preview … considered unstable and there may be breaking changes as we iterate"_ — the same ground D10 used to reject `ty`     | D18, _`uv audit` is in preview_                   |
+| Open Decision 7's baseline                                                              | **worse than recorded.** Dependabot _alerts_ are disabled, not only security updates: the alerts endpoint returns 403 _"Dependabot alerts are disabled for this repository"_ | D18, _The baseline_                               |
 
 D10 also settles two things listed elsewhere as open: the `migrations/` exclusion the original
 open item asked for is **not** added, because migrations measure zero errors; and the
-`.mypy_cache/` line under *Items that need no decision* is confirmed as the right cache
+`.mypy_cache/` line under _Items that need no decision_ is confirmed as the right cache
 directory now that the tool is chosen.
 
 The test-scope half of D10 is deferred and recorded as
@@ -3287,7 +3286,7 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
   D4's own instrumentation: that entry asks the Developer to record `docker image ls` before and
   after the migration and report both numbers, and an orphan whose name is one character from the
   real image is what makes someone report the wrong one.
-- Rewrite `.claude/rules/conventions.md` → *Stack and versions*: its version numbers change
+- Rewrite `.claude/rules/conventions.md` → _Stack and versions_: its version numbers change
   under D16, and it names `django_version/requirements.txt` as where versions are pinned, which
   stops being true once `pyproject.toml` lands (2026-08-16 audit, Observation O4).
 - ~~Record every deferral in this plan as a `docs/tech_debt/` entry, continuing the existing
@@ -3295,13 +3294,13 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
   required it holds: a deferral recorded only inside a plan file is not durable once the plan
   stops being read.
 
-  | Entry | Deferral | Decision |
-  | --- | --- | --- |
-  | `006-tests-excluded-from-type-checking-…` | test code stays outside the type checker | D10 |
-  | `007-single-dev-dependency-group-…` | one `dev` group instead of named groups | D5 |
-  | `008-no-dependency-audit-gate-in-ci` | no build-failing audit until `uv audit` stabilises | D18 |
-  | `009-web-service-has-no-healthcheck` | no `HEALTHCHECK` until a `/health/` endpoint exists | *Items that need no decision* |
-  | `010-non-root-user-bind-mount-…` | the bind-mount half of D15 cannot be verified on macOS | D15 |
+  | Entry                                     | Deferral                                               | Decision                      |
+  | ----------------------------------------- | ------------------------------------------------------ | ----------------------------- |
+  | `006-tests-excluded-from-type-checking-…` | test code stays outside the type checker               | D10                           |
+  | `007-single-dev-dependency-group-…`       | one `dev` group instead of named groups                | D5                            |
+  | `008-no-dependency-audit-gate-in-ci`      | no build-failing audit until `uv audit` stabilises     | D18                           |
+  | `009-web-service-has-no-healthcheck`      | no `HEALTHCHECK` until a `/health/` endpoint exists    | _Items that need no decision_ |
+  | `010-non-root-user-bind-mount-…`          | the bind-mount half of D15 cannot be verified on macOS | D15                           |
 
   T17 remains open for anything a task turns up during implementation.
 
@@ -3310,9 +3309,9 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
 - Whether the `docker build` step added in D6 runs on every push or only on pushes to `main`.
   To be answered with the measured build duration in hand, not before (D6).
 - ~~Whether `.vscode/settings.json` is versioned (D2).~~ **Answered 2026-08-17: it is** — see
-  *Items that need no decision*.
+  _Items that need no decision_.
 - ~~Whether the orphan `django_version-web:latest` image is removed.~~ **Answered 2026-08-17: it
-  is** — see *Items that need no decision*.
+  is** — see _Items that need no decision_.
 - ~~Whether the three `pytest.ini` observations flagged under D7 enter this plan as a decision of
   their own.~~ **Fully answered 2026-08-17.** All three became decisions: **D17** (migrations run
   in the suite), **D19** (`--reuse-db` removed), **D20** (the unused markers dropped). D7's
@@ -3348,7 +3347,7 @@ single verification step of this kind. These must not be inherited:
   fires with no `MAILERS` defined, and what the new warning baseline is. D7 blocks at ERROR, so
   this must be measured before that step is made build-failing (D16).
 - ~~Ruff's actual default rule selection for the version pinned.~~ **Settled under D9**, against
-  ruff's *Default Rules* page and the v0.16.0 release notes, and measured by running
+  ruff's _Default Rules_ page and the v0.16.0 release notes, and measured by running
   `ruff@0.16.3` on this codebase. Both audits' description of that default is stale: v0.16.0
   replaced it. The Developer re-reads the page for whatever version is finally pinned.
 - ~~`django-stubs` support for Django 6.0.7 and Python 3.14 (D10).~~ **Settled 2026-08-17**
@@ -3356,13 +3355,13 @@ single verification step of this kind. These must not be inherited:
   under D16: `django-stubs` 6.1.0 supports Django 6.1, mypy 1.13 – 2.3 and Python 3.11 – 3.14.
   Recorded in D10.
 - **Whether `django-stubs-ext` is required explicitly, or arrives transitively with
-  `django-stubs`.** Upstream describes it as a *production* dependency. If it must be declared,
+  `django-stubs`.** Upstream describes it as a _production_ dependency. If it must be declared,
   it is the one package in this plan that lands in `[project].dependencies` rather than the
   `dev` group, which D5 should note deliberately (D10).
 - **Ruff's `S` rule completeness against upstream `bandit`** — **partially settled 2026-08-17
   under D12, and deliberately left open on one axis.** Measured: ruff ships **73** `S` rules
   (read from `ruff rule --all`), all Django-specific ones present; both tools yield **0** on
-  this project's production code. What is *not* established is behavioural parity rule by rule:
+  this project's production code. What is _not_ established is behavioural parity rule by rule:
   the comparison is by rule number, and the measured `B105` / `S105` divergence proves two
   rules can share a number and differ. D12 does not depend on closing this, because the
   production yield of both tools is currently zero — but a future finding in `jobs` or a DRF
@@ -3414,7 +3413,7 @@ single verification step of this kind. These must not be inherited:
 
 ## How these entries are written, and where they deliberately differ from `PLANNER.md`
 
-`PLANNER.md` prescribes *WHY THIS PATH* and *ALTERNATIVES CONSIDERED* on every task entry. Those
+`PLANNER.md` prescribes _WHY THIS PATH_ and _ALTERNATIVES CONSIDERED_ on every task entry. Those
 sections are **not repeated here**. This plan's Decision log already carries them at length, with
 the evidence that produced each one, and duplicating that content would double a file that agents
 load in full. Each task names the decision it implements; the decision is where the reasoning
@@ -3437,9 +3436,9 @@ than being resolved by the Developer.
 kept dropped — a full rebuild without it gave 304 passed, confirming `psycopg-binary` bundles its
 own libpq. **Image size: 311 MB → 244 MB.** D4's 285 MB is a planning-time figure; 311 MB is what
 this task measured immediately before editing, and is the one the 244 MB compares against. The
-now-empty `apt-get` step was left in place deliberately — see *Open questions*.
+now-empty `apt-get` step was left in place deliberately — see _Open questions_.
 
-**Implements:** *Items that need no decision*. **Blocks:** T11 (D6's build step is measured
+**Implements:** _Items that need no decision_. **Blocks:** T11 (D6's build step is measured
 against the cleaned image).
 
 **Problem.** `requirements.txt` pins `pillow==12.3.0` and the `Dockerfile` installs `libjpeg-dev`
@@ -3496,7 +3495,7 @@ T1's 244 MB, not the 285 MB the acceptance criteria below quote, which predates 
 - `actions/setup-python` stayed at `@v5` although `v7.0.0` is current, and `astral-sh/setup-uv`
   entered on a tag rather than a SHA. Both are deliberate: version moves belong to D16, and SHA
   pinning to D8.
-- Item 7 was taken further than "rewrite what became false": *Stack and versions* in
+- Item 7 was taken further than "rewrite what became false": _Stack and versions_ in
   `.claude/rules/conventions.md` no longer restates any version number, naming the one
   authoritative file for each instead, and it gained a rule requiring permission before reading
   `uv.lock`. Root `CLAUDE.md`'s pointer to that section followed — one file beyond this task's
@@ -3524,7 +3523,7 @@ its amendment 1. This is **D16's commit 1**: no version moves in this task.
    `django_version/.dockerignore`.
 7. Rewrite the two rule files that state something this task makes false:
    `.claude/rules/testing.md` (its `pytest.ini` references) and `.claude/rules/conventions.md` →
-   *Stack and versions* (it names `requirements.txt` as where versions are pinned).
+   _Stack and versions_ (it names `requirements.txt` as where versions are pinned).
 
 **Scope.** `django_version/pyproject.toml`, `django_version/uv.lock`,
 `django_version/requirements.txt` (deleted), `django_version/pytest.ini` (deleted),
@@ -3535,6 +3534,7 @@ its amendment 1. This is **D16's commit 1**: no version moves in this task.
 change is one; the `Dockerfile` is one; `ci.yml` is one; each rule file is its own.
 
 **Acceptance.**
+
 - `uv sync --locked` succeeds on the host and in the image.
 - `docker-compose exec web pytest` → 304 passed, invoked exactly as it is today.
 - `[tool.pytest]` actually governs the run — verified by setting a key and observing it take
@@ -3561,8 +3561,8 @@ rather than the `dev` group, and D5 records the exception deliberately rather th
 the same session, once the suite is green.
 
 **Do.** Move the three pins in `pyproject.toml`, run `uv lock`, and bump the `Dockerfile` base
-tag. Then rewrite the Category A files D16 lists: `.claude/rules/conventions.md` → *Stack and
-versions*, and `README.md`'s single version literal. `ci.yml` needs no edit — T2 replaced its
+tag. Then rewrite the Category A files D16 lists: `.claude/rules/conventions.md` → _Stack and
+versions_, and `README.md`'s single version literal. `ci.yml` needs no edit — T2 replaced its
 literal with `python-version-file`.
 
 **Scope.** `django_version/pyproject.toml`, `django_version/uv.lock`,
@@ -3592,12 +3592,12 @@ function and a Google-style docstring.
 
 **Acceptance.** 304 passed with migrations executing. The `Skill` table is empty when the first
 test runs. **No test file is modified** — if a test needs changing, the decision returns to the
-Planner. `.claude/rules/testing.md` no longer contains its *"Note on `--no-migrations` and data
-migrations"* section, its list of active flags matches the file, and its *Common mistakes* row
+Planner. `.claude/rules/testing.md` no longer contains its _"Note on `--no-migrations` and data
+migrations"_ section, its list of active flags matches the file, and its _Common mistakes_ row
 about assuming data migrations have run is inverted.
 
 **Out of scope.** Rewriting the 44 tests that collide with the seeded vocabulary — D17 considered
-and rejected that. Verifying the seed *data*: D17 records that as a knowingly accepted cost.
+and rejected that. Verifying the seed _data_: D17 records that as a knowingly accepted cost.
 
 **Instruction the Developer must not optimise away.** The fixture must live in `conftest.py`. D17
 measured that the identical fixture loaded with `pytest -p <module>` never runs, because
@@ -3708,6 +3708,36 @@ with them uncovered.
 
 **Implements:** D8, all three items and all three amendments; and the file half of D18.
 
+**Discovered during T2, 2026-08-19. Recorded as evidence, not decided here.**
+
+Enabling Dependabot produced four security-update pull requests on 2026-08-18, all targeting
+`main`, and with them three facts this plan does not cover.
+
+1. **Every Dependabot-triggered run fails, for a reason unrelated to the code under test.**
+   GitHub does not expose repository secrets to workflows triggered by Dependabot — the run log
+   reports `Secret source: Dependabot` — so `secrets.SECRET_KEY` arrives empty and
+   `config/settings.py` raises the `ValueError` it is written to raise. All four runs failed this
+   way. D8's planned `pull_request` trigger does not change it: Dependabot pull requests carry the
+   restricted secret source under both events. This defeats what D18 enabled Dependabot for, since
+   a check that is red for an unrelated reason cannot gate a dependency bump. The minimal fix is
+   registering `SECRET_KEY` as a Dependabot secret — a repository setting rather than a diff, the
+   same class as T15. Skipping the job for the `dependabot[bot]` actor removes the gate instead of
+   repairing it.
+
+2. **Dependabot watches `oop_version/`, which root `CLAUDE.md` declares closed.** Three of the four
+   pull requests target `oop_version/requirements.txt`. Their alerts were dismissed as `not_used`
+   and the pull requests closed on 2026-08-19. Whether `dependabot.yml` can keep security updates
+   out of that directory, or whether dismissal is the only lever available, is unverified.
+
+3. **Merging this branch to `main` removes the only manifest Dependabot reads for the active
+   project.** The four open `sqlparse` alerts — three of them high — are computed from
+   `django_version/requirements.txt` as it stands on `main`, which this branch deletes. `uv.lock`
+   already resolves `sqlparse` to the patched 0.6.0, so the fix travels with the merge; the
+   monitoring does not. Until this task's `dependabot.yml` declares `package-ecosystem: "uv"`, and
+   until the verification T15 left open confirms `uv` is an accepted value, the merge would leave
+   `django_version` with no dependency monitoring at all. **This task therefore runs immediately
+   after T3 and precedes any merge to `main`.**
+
 **Do.** `permissions: {}` at the workflow level and `permissions: contents: read` on the `test`
 job. Bump `actions/checkout` and `actions/setup-python` to their current majors **first**, then
 SHA-pin all four actions with the version in a trailing comment. Add the `pull_request` trigger,
@@ -3779,7 +3809,7 @@ ignored, and `.env.example` as **not** ignored. The CI step passes on the curren
 Django `SECRET_KEY` committed to a scratch branch is caught, and that branch is deleted.
 
 **Do not.** Add a hook — D14 closed that conditional negative. Allowlist a whole file when the
-finding is one rule: the allowlist is scoped by rule *and* path.
+finding is one rule: the allowlist is scoped by rule _and_ path.
 
 **Treat as a starting point.** The two custom regexes were written during planning and are
 unreviewed. They produced 8 working-tree findings on this repository, all explainable. Tune
@@ -3837,8 +3867,8 @@ the root-relative paths stop resolving. Add `mypy`, `pytest` or `gitleaks` to th
 **Implements:** D18, its repository half.
 
 **This task has no file.** It is two toggles in the repository's security settings, which no diff
-records and no clone restores — the same class as `sha_pinning_required` under D8's *Recorded but
-not planned*.
+records and no clone restores — the same class as `sha_pinning_required` under D8's _Recorded but
+not planned_.
 
 **Acceptance.** `gh api repos/<r> --jq '.security_and_analysis'` reports
 `dependabot_security_updates: enabled`, and `gh api repos/<r>/dependabot/alerts` returns a list
@@ -3853,7 +3883,7 @@ is reopening D18.
 
 ## T16 — Version the editor configuration
 
-**Implements:** the decided item under *Items that need no decision*. **Requires T2.**
+**Implements:** the decided item under _Items that need no decision_. **Requires T2.**
 
 **Do.** In the root `.gitignore`, keep `.vscode/` ignored and add an exception for
 `.vscode/settings.json`. Write that file with the interpreter and test working directory pointed
@@ -3869,7 +3899,7 @@ path appears in the file.
 
 ## T17 — Record the deferrals in `docs/tech_debt/`
 
-**Implements:** the last item under *Items that need no decision*. **Runs last**, so it records
+**Implements:** the last item under _Items that need no decision_. **Runs last**, so it records
 what actually happened rather than what was planned.
 
 **Already written on 2026-08-17**, before implementation began: `007` (the single `dev` group),
@@ -3902,25 +3932,25 @@ Three things constrain the order; everything else is free.
    ordering, not with calendar time: if the two land together a red suite is ambiguous, and if
    they are separated by days the separation is no longer a sequence.
 
-| # | Task | Waits on | Why |
-| --- | --- | --- | --- |
-| 1 | **T15** — enable Dependabot | — | Free, server-side, and nothing watches dependencies today. Doing it first means the alert stream exists while the rest of the work happens |
-| 2 | **T1** — `Dockerfile` cleanup | — | `requirements.txt` must still exist |
-| 3 | **T2** — uv migration | T1 | D16 commit 1 |
-| 4 | **T3** — stack bump | T2 | D16 commit 2, same session, once green |
-| 5 | **T4** — migrations in the suite, `--reuse-db` and markers out | T3 | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0 |
-| 6 | **T5** — ruff | T2 | Touches many source files; landing it before the type work keeps the two diffs separable |
-| 7 | **T6** — fix the 18 mypy errors | T3, T5 | django-stubs 6.1.0 targets Django 6.1 |
-| 8 | **T7** — mypy CI step | T6 | Enters build-failing, so the errors must be gone |
-| 9 | **T8** — coverage | T4 | Measures the final test regime, not the interim one |
-| 10 | **T9** — CI hardening + `dependabot.yml` | T2 | T2 already rewrote the install steps; hardening the same file afterwards keeps the diffs readable |
-| 11 | **T10** — Django's two checks | T3, T9 | `check --deploy` must be measured under 6.1 first |
-| 12 | **T11** — `docker build` step | T1, T2 | Measured against the cleaned, migrated image |
-| 13 | **T13** — non-root user | T2, T11 | T11 is the automated gate on getting the ownership wrong |
-| 14 | **T12** — gitleaks | T9 | Independent of everything else; grouped with the CI work |
-| 15 | **T14** — pre-commit hooks | T2, T5 | The ruff configuration must exist for the hooks to run it |
-| 16 | **T16** — editor configuration | T2 | The interpreter path depends on where the environment ends up |
-| 17 | **T17** — tech debt entries | all | Records what happened |
+| #   | Task                                                           | Waits on | Why                                                                                                                                        |
+| --- | -------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **T15** — enable Dependabot                                    | —        | Free, server-side, and nothing watches dependencies today. Doing it first means the alert stream exists while the rest of the work happens |
+| 2   | **T1** — `Dockerfile` cleanup                                  | —        | `requirements.txt` must still exist                                                                                                        |
+| 3   | **T2** — uv migration                                          | T1       | D16 commit 1                                                                                                                               |
+| 4   | **T3** — stack bump                                            | T2       | D16 commit 2, same session, once green                                                                                                     |
+| 5   | **T4** — migrations in the suite, `--reuse-db` and markers out | T3       | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                           |
+| 6   | **T5** — ruff                                                  | T2       | Touches many source files; landing it before the type work keeps the two diffs separable                                                   |
+| 7   | **T6** — fix the 18 mypy errors                                | T3, T5   | django-stubs 6.1.0 targets Django 6.1                                                                                                      |
+| 8   | **T7** — mypy CI step                                          | T6       | Enters build-failing, so the errors must be gone                                                                                           |
+| 9   | **T8** — coverage                                              | T4       | Measures the final test regime, not the interim one                                                                                        |
+| 10  | **T9** — CI hardening + `dependabot.yml`                       | T2       | T2 already rewrote the install steps; hardening the same file afterwards keeps the diffs readable                                          |
+| 11  | **T10** — Django's two checks                                  | T3, T9   | `check --deploy` must be measured under 6.1 first                                                                                          |
+| 12  | **T11** — `docker build` step                                  | T1, T2   | Measured against the cleaned, migrated image                                                                                               |
+| 13  | **T13** — non-root user                                        | T2, T11  | T11 is the automated gate on getting the ownership wrong                                                                                   |
+| 14  | **T12** — gitleaks                                             | T9       | Independent of everything else; grouped with the CI work                                                                                   |
+| 15  | **T14** — pre-commit hooks                                     | T2, T5   | The ruff configuration must exist for the hooks to run it                                                                                  |
+| 16  | **T16** — editor configuration                                 | T2       | The interpreter path depends on where the environment ends up                                                                              |
+| 17  | **T17** — tech debt entries                                    | all      | Records what happened                                                                                                                      |
 
 **Independent of each other, in any order:** T9, T12, T14, T16. **Independent of the whole
 sequence:** T15.
