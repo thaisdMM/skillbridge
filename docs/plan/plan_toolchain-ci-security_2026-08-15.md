@@ -6,8 +6,9 @@
 **Status:** Complete as a plan, as of 2026-08-20. The Decision log runs D1–D21 with nothing
 open; the task entries T1–T19 and the _Order of execution_ are written; the deferrals are
 recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18 and T9 are implemented, and T9's
-acceptance is now complete in both halves.** The next step in the sequence is the **merge to
-`main`**, then **T19**.
+acceptance is now complete in both halves.** The **merge to `main` has landed**. **T19 is held at
+its own step 1** — the guard fired, no rule was created, and D18's amendment 3 records why and
+what re-measures it. The next task free to start is **T4**, which waits on T3 alone.
 
 Everything decided on 2026-08-19 came from implementation rather than from an audit: T15 showed
 that Dependabot's default configuration cannot be aimed by `dependabot.yml` (D18, amendment 1) and
@@ -3197,6 +3198,90 @@ left for the Developer to work out.
   the monthly cycle. Set aside for the same reason in reverse.
 - **Neither, as amendment 1 decided** — set aside now that the premise that forced it is corrected.
 
+### Amendment 3, 2026-08-20 — T18's unmeasured premise did not hold at the merge; T19 is held rather than re-decided
+
+**No decision is reopened.** Both auto-triage rules stay adopted, `dependabot.yml` is untouched,
+and security updates stay off. What this amendment records is that the moment T19 was written for
+has not arrived, why that is not a failure of any decision above, and what settles it.
+
+**What was measured, 2026-08-20, immediately after the merge of `feature/django-refactor` into
+`main`.** Every command below is read-only and was executed on this machine.
+
+- `contents/django_version/uv.lock` returns `uv.lock`; `contents/django_version/requirements.txt`
+  returns 404. The default branch describes the project through `uv`, as the merge intended.
+- T19 step 1's guard query — `dependabot/alerts?state=open`, manifest paths, unique — returned
+  `["django_version/requirements.txt"]`. **Not the empty list.** That is step 1's documented stop
+  condition, and it fired.
+- The unfiltered alert listing is seven rows: the three `oop_version` alerts `dismissed` by T18 on
+  2026-08-19, and **four `sqlparse` alerts still `open`** against
+  `django_version/requirements.txt`.
+
+**The four advisories, and the fact that settles the severity question.** `GHSA-prg7-hcfm-mfcr`
+(vulnerable `<= 0.5.6.dev0`), `GHSA-pwgv-4x5q-6m9f`, `GHSA-f2ff-p2ww-7p4p` and
+`GHSA-3496-9g83-7v6x` (all three vulnerable `<= 0.5.5`). **All four report
+`first_patched_version: 0.6.0`**, and `uv.lock` pins `sqlparse 0.6.0`. The lock file was opened
+under the one exception `.claude/rules/conventions.md` grants for it — a security advisory against
+an undeclared transitive package — for `sqlparse` alone.
+
+**There is no live vulnerability in `django_version`.** The stack bump of T3 carried the patched
+`sqlparse` in as a transitive dependency, so the merge fixed these advisories twice over: it
+removed the manifest they were computed from, and it raised the package past the patched version.
+The four open alerts are residue, not exposure.
+
+**Why they did not close, as far as it can be established.** The default branch's SBOM carries
+**two snapshots at once**: `django 6.1` / `pytest-django 4.14.0` / `sqlparse 0.6.0` from the new
+lock, and `django 6.0.7` / `pytest-django 4.12.0` / `sqlparse 0.5.5` from the deleted
+`requirements.txt`. The dependency graph therefore **ingested `uv.lock` but has not dropped the
+deleted manifest's snapshot**, and the alerts are computed from the snapshot that should be gone.
+Whether that removal is merely lagging or does not happen at all is **not established**, and this
+amendment does not guess: nothing read this session states what GitHub does with a manifest
+deleted from the default branch.
+
+**Decided: wait and re-measure, rather than dismiss.** No rule is created, no alert is dismissed,
+no file is edited. T19 stays exactly as written and resumes at its own step 1.
+
+**Why holding is close to free, and it is the _Order of execution_ that says so.** No row in that
+table names T19 as a predecessor — T4 waits on T3, T5 on T2, T10 on T3 and T9. T19 blocks nothing.
+The wait therefore costs no progress, and it buys the one thing a dismissal would destroy: a
+direct answer to whether this repository's dependency graph clears a deleted manifest on its own.
+That question outlives T19; it governs every future manifest move in this monorepo.
+
+**How it is re-measured**, in this order, all read-only:
+
+1. `contents/django_version/requirements.txt` — must still be 404. Anything else means the file was
+   restored, and that is a finding, not a retry.
+2. T19 step 1's guard query, unchanged and with `?state=open` intact. An empty list releases T19 to
+   its step 2. `["django_version/requirements.txt"]` again means the graph does not self-clear.
+3. On an empty list only: the SBOM query, which must now carry the new versions **without** the old
+   ones, confirming the stale snapshot is gone before any rule is filtered against a manifest path.
+4. `security_and_analysis.dependabot_security_updates.status` — must still be `disabled`, which is
+   T19 step 3's precondition.
+
+**What happens if it is unchanged.** The manual dismissal of the four alerts becomes the remaining
+path, and it returns here as a decision rather than being taken as a judgement call — because
+GitHub's dismissal reasons do not include _"already fixed"_. Whichever reason is chosen is a
+deliberate mis-fit and must be recorded as one. The exact list on offer is to be read from the
+screen, not from memory.
+
+**One thing checked and closed rather than carried.** All four security pull requests T15 produced
+are closed; `gh pr list --state open` returns only `#11`, a `python-dotenv` **version** update
+produced by the `dependabot.yml` T9 wrote. That is the configured behaviour working, and it is
+recorded here so the next session does not re-investigate it.
+
+**Alternatives considered**
+
+- **Dismiss the four alerts now and release T19** — immediate, one-off rather than recurring, and
+  truthful in substance since the advisories really are fixed. Set aside on two counts: it destroys
+  the only available measurement of T18's premise, and no dismissal reason on offer means
+  _"already fixed"_.
+- **Merge the Dependabot pull request bumping `sqlparse` 0.5.5 → 0.6.0** — it would let GitHub
+  close the alerts through its own auto-close path. Set aside: that pull request edits
+  `django_version/requirements.txt`, which T2 deleted on purpose, so merging it would resurrect the
+  file and undo T2. Moot in fact — it is already closed.
+- **Create T19's rules anyway, filtered on whatever the `manifest` autocomplete offers** — set
+  aside: step 1 forbids it, and a pull-request rule filtered on a dead manifest is precisely the
+  silent-failure mode the whole task is written to avoid.
+
 ---
 
 ## D19 — `--reuse-db` is removed: every run builds the test database
@@ -4372,6 +4457,12 @@ this plan has.
 ---
 
 ## T19 — Two Dependabot auto-triage rules: open pull requests for `django_version`, dismiss `oop_version`
+
+**Status: held at step 1 — 2026-08-20.** The merge landed and step 1's guard query returned
+`["django_version/requirements.txt"]` rather than the empty list, which is this entry's own stop
+condition. **No rule was created and no alert was dismissed.** D18's amendment 3 records the
+measurement, why the four `sqlparse` alerts are residue rather than exposure, and the read-only
+sequence that re-measures it. **Resume at step 1; nothing below is changed.**
 
 **Implements:** D18, amendment 2. **Runs after the merge to `main`, and not before** — step 1
 states why and how to confirm it.
