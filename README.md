@@ -13,22 +13,22 @@ This repository is structured as a monorepo documenting the full technical evolu
 
 Production-oriented backend, built with:
 
-- **Django 6.0.7** + **PostgreSQL 17** (psycopg3, connection pooling)
+- **Django 6.1** + **PostgreSQL 17** (psycopg3, connection pooling)
 - **Docker** + **docker-compose** for a reproducible dev environment
 - **CI/CD** via GitHub Actions — automated tests run on every push
 - **pytest** / **pytest-django** — automated test suite, live count tracked by the badge above
 - **Argon2id** password hashing, GDPR-aligned logging from day one
 - Custom user model, Abstract Base Classes over Multi-Table Inheritance — see [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-→ [`django_version/`](./django_version/) for setup instructions and full technical details.
+→ [`django_version/README.md`](./django_version/README.md) for setup instructions and full technical details.
 
 ---
 
 ## Repository Structure
 
 | Directory                              | Description                                                     |
-| --------------------------------------- | ------------------------------------------------------------------ |
-| [`django_version/`](./django_version/) | Django application — production-oriented, active development   |
+| -------------------------------------- | --------------------------------------------------------------- |
+| [`django_version/`](./django_version/) | Django application — production-oriented, active development    |
 | [`oop_version/`](./oop_version/)       | Pure Python implementation — OOP foundations, 100 tests, closed |
 
 Each directory contains its own `README.md` with setup instructions and technical details.

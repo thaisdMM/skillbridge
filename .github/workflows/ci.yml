@@ -3,10 +3,26 @@ name: CI
 on:
   push:
     branches: ["**"]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     defaults:
       run:
@@ -28,7 +44,6 @@ jobs:
           - 5432:5432
 
     env:
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
       DB_NAME: skillbridge_ci
       DB_USER: skillbridge_user
       DB_PASSWORD: skillbridge_pass
@@ -38,28 +53,38 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Generate a SECRET_KEY for this run
+        run: echo "SECRET_KEY=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.5"
+          enable-cache: true
+          working-directory: django_version
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14.6"
+          python-version-file: django_version/.python-version
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: uv sync --locked
 
       - name: Run tests
-        run: pytest
+        run: uv run pytest
 
       - name: Count tests for badge
         if: github.ref == 'refs/heads/main'
         id: test_count
-        run: echo "count=$(pytest --collect-only -q | tail -1 | grep -oE '[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
+        run: echo "count=$(uv run pytest --collect-only -q | tail -1 | grep -oE '[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
 
       - name: Update tests badge
         if: github.ref == 'refs/heads/main'
         continue-on-error: true
-        uses: schneegans/dynamic-badges-action@v1.9.0
+        uses: schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
         with:
           auth: ${{ secrets.GIST_SECRET }}
           gistID: ae3f8ce794a99531a58a906e10095831

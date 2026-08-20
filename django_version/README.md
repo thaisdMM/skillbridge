@@ -14,7 +14,7 @@ A freelancer marketplace platform connecting clients and freelancers. Built as a
 | Layer            | Technology                                                              |
 | ---------------- | ----------------------------------------------------------------------- |
 | Language         | Python 3.14                                                             |
-| Framework        | Django 6.0.7                                                            |
+| Framework        | Django 6.1                                                              |
 | Database         | PostgreSQL 17                                                           |
 | Auth             | Custom user model (`StaffUser` as `AUTH_USER_MODEL`, email-based login) |
 | Password hashing | Argon2id                                                                |

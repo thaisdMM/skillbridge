@@ -24,3 +24,7 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# Tool caches
+.ruff_cache/
+.mypy_cache/
