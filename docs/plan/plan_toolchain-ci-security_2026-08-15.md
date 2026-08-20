@@ -3,16 +3,28 @@
 **Date:** 2026-08-15
 **Persona:** Planner
 **Tree:** `feature/django-refactor`
-**Status:** Complete as a plan, as of 2026-08-19. The Decision log runs D1–D21 with nothing
+**Status:** Complete as a plan, as of 2026-08-20. The Decision log runs D1–D21 with nothing
 open; the task entries T1–T19 and the _Order of execution_ are written; the deferrals are
-recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18 and T9 are implemented.** The next
-step in the sequence is the **merge to `main`**, then **T19**.
+recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18 and T9 are implemented, and T9's
+acceptance is now complete in both halves.** The next step in the sequence is the **merge to
+`main`**, then **T19**.
 
 Everything decided on 2026-08-19 came from implementation rather than from an audit: T15 showed
 that Dependabot's default configuration cannot be aimed by `dependabot.yml` (D18, amendment 1) and
 that no Dependabot-triggered run can read a repository secret (D21); T18 then showed that the
 custom auto-triage rule amendment 1 had set aside is available on public repositories after all —
 a Planner error, corrected in place, and acted on by D18's amendment 2 and T19.
+
+**Revision pass, 2026-08-20**, acting on `docs/audits/2026-08-20-audit-t18-t9-conflict.md` and
+`docs/verifications/2026-08-20-verification-audit-t18-t9-conflict.md`. It confirmed that T18 and
+T9 do not conflict, and changed six things in this file: three verification debts are struck as
+settled by runs `32280676936` and `32281841857`; the job-level `permissions` debt is settled by
+the run log rather than by the green checkout that was about to be credited with it; T19 step 1's
+query gains `?state=open`, without which that step halts on every path; T9's `paths-ignore`
+criterion is completed by a deliberate documentation-only push; the _Order of execution_ stops
+calling T18 independent of the sequence it precedes; and a second premise in D18's amendment 1 —
+that `ignore` cannot reach security updates — is recorded as false. **No decision was reopened
+and no task was added, removed, reordered or re-scoped.**
 **Files modified by this session:** this plan only. No production file was touched.
 
 ## What this plan supersedes, and why it is a new file
@@ -3033,8 +3045,16 @@ request**, which is the fact that turns this from housekeeping into a decision.
 **Why the file D18 planned cannot fix it.** Read this session in GitHub's _Dependabot options
 reference_:
 
-- `ignore` carries the version-updates icon only, so an `/oop_version` entry with
-  `dependency-name: "*"` suppresses nothing on the security side.
+- ~~`ignore` carries the version-updates icon only, so an `/oop_version` entry with
+  `dependency-name: "*"` suppresses nothing on the security side.~~ **This bullet is false, and
+  the error was the Planner's — the second one in this amendment.** GitHub's _Dependabot options
+  reference_ marks `ignore` as applying to version updates **and** security updates, and
+  _Configuring Dependabot security updates_ states that a `dependabot.yml` file can _"override
+  the default behavior of Dependabot security updates"_ — subject to the very condition the
+  third bullet below quotes, which governs whether the **whole entry** reaches security updates,
+  not the `directory` key alone. So an `/oop_version` entry with `ignore` was available and was
+  set aside on a misreading. Verified 2026-08-20; the icon badges do not survive the page's
+  conversion to text, so this rests on the prose of both pages, read twice.
 - `open-pull-requests-limit: 0` is documented as disabling **version** updates.
 - `directory` / `directories` govern where version updates look; for security updates the
   reference says only that the directory _"must be the path to the manifest files"_ for the
@@ -3055,9 +3075,17 @@ auto-triage rules_ reads _"Custom auto-triage rules for Dependabot alerts are av
 repositories and on any organization-owned repositories in GitHub Team with GitHub Code Security
 enabled"_ — the gate applies to private and internal repositories, and this one is public. The
 sentence above was written from a summary of that page rather than from the sentence itself. See
-the Developer note below, and the second amendment that acts on it. **The rest of this amendment
-stands**: `dependabot.yml` still cannot filter security updates, and the configuration it decided
-is still what is in force.
+the Developer note below, and the second amendment that acts on it.
+
+**What survives both corrections, restated 2026-08-20 because two of this amendment's premises
+turned out to be false.** The decision stands and the configuration it produced is what is in
+force — but not for the reason originally given. `dependabot.yml` *can* reach security updates
+through `ignore`; what it cannot do is re-enable them once the repository toggle is off, and it
+declares no `oop_version` entry for an `ignore` to hang on. The decision is therefore carried by
+two mechanisms that were chosen on their own merits: the toggle, which is unconditional, and the
+auto-triage rules of amendment 2, which filter by manifest path and cost no latency. An
+`/oop_version` entry with `ignore` would be a third mechanism doing what those two already do.
+**Reopening this is available and is the user's call**; nothing below depends on it.
 
 **Decided.** Dependabot **security updates are disabled** at the repository toggle. Dependabot
 **alerts stay enabled**. `.github/dependabot.yml` declares `package-ecosystem: "uv"` at
@@ -3591,9 +3619,14 @@ The superseded plan pinned five tools and specified configuration for four of th
 single verification step of this kind. These must not be inherited:
 
 - The exact `uv` version to pin, and uv's current documented Docker layering pattern for it.
-- **Which file `actions/setup-python`'s `python-version-file` input accepts** — uv's guide
+- ~~**Which file `actions/setup-python`'s `python-version-file` input accepts** — uv's guide
   names `.python-version` and `pyproject.toml`; the authority is that action's own
-  documentation for the version pinned (D6 amendment).
+  documentation for the version pinned (D6 amendment).~~ **Settled 2026-08-19 by execution**,
+  in run `32280676936`. The `Set up Python` step log reads
+  `Resolved django_version/.python-version as 3.14.7` / `Successfully set up CPython (3.14.7)`.
+  It settles the file the workflow actually passes, not `pyproject.toml` — which is sufficient,
+  because D6's amendment already closed that branch: _"If only `.python-version` is supported,
+  that file is created — nothing else changes."_ The file exists.
 - **`manage.py check --deploy` under Django 6.1** — whether the new ERROR-level `mail.E001`
   fires with no `MAILERS` defined, and what the new warning baseline is. D7 blocks at ERROR, so
   this must be measured before that step is made build-failing (D16).
@@ -3652,17 +3685,37 @@ single verification step of this kind. These must not be inherited:
 - ~~Whether Dependabot updates actions pinned to a full commit SHA.~~ **Settled 2026-08-17**
   against the GitHub changelog of 2022-10-31: it updates the SHA and the version comment
   beside it. Item 2's amendment rests on this.
-- **Whether `actions/checkout@v7` and `actions/setup-python@v7` are drop-in for this
+- ~~**Whether `actions/checkout@v7` and `actions/setup-python@v7` are drop-in for this
   workflow.** The recent `checkout` majors changed the runner Node version, and `setup-python`
   v7 must accept the `python-version-file` input that D6's first amendment introduces. One
-  verification, taken once, before the SHAs are written (D8 Item 2 amendment).
+  verification, taken once, before the SHAs are written (D8 Item 2 amendment).~~ **Settled
+  2026-08-19 by execution.** `ci.yml` pins `checkout` at v7.0.1 and `setup-python` at v7.0.0,
+  and both steps report `success` in runs `32280676936` and `32281841857`.
 - ~~Whether `actions/checkout@v4` functions under `permissions: {}` on this repository.~~ **No
   longer load-bearing after Item 1's amendment**, which grants `contents: read` on the job
   rather than relying on implicit public-repository read.
-- **Whether a job-level `permissions` block replaces or is intersected with the workflow-level
+- ~~**Whether a job-level `permissions` block replaces or is intersected with the workflow-level
   one.** Not stated on either GitHub page read on 2026-08-17. Item 1's amendment is written so
   that the wrong answer produces a step-1 failure on the first push with a one-line revert, so
-  this settles empirically rather than by reading (D8 Item 1).
+  this settles empirically rather than by reading (D8 Item 1).~~ **Settled 2026-08-19: the
+  job-level block replaces.** The runner prints the grant it actually issued. From run
+  `32280676936`, the `Set up job` step:
+
+  ```
+  ##[group]GITHUB_TOKEN Permissions
+  Contents: read
+  Metadata: read
+  ```
+
+  `ci.yml` declares `permissions: {}` at the workflow level and `permissions: contents: read` on
+  the `test` job; under intersection the group would read `Contents: none`.
+
+  **The falsification test Item 1's amendment designed does not settle this, and must not be
+  cited as if it had.** It reasoned that intersection would fail `actions/checkout` on step 1.
+  This repository is `public`, so a token with no scopes may still read it — the question this
+  section itself records two bullets above, struck as no longer load-bearing and never answered.
+  A green checkout is consistent with both hypotheses. The log group is the evidence; the green
+  step is a coincidence.
 
 ---
 
@@ -4040,6 +4093,25 @@ at all. Closing the pull requests belongs to T18.
 40-character SHA. A documentation-only push produces no run; a push mixing documentation and code
 does. `.github/dependabot.yml` names no directory under `oop_version/`.
 
+**All four are met, and the `paths-ignore` criterion was completed on 2026-08-20 rather than on
+the day the task landed.** Runs `32280676936` and `32281841857` are both `success`, all four
+actions carry a 40-character SHA, and the file declares no `oop_version` directory.
+
+The path filter needed two pushes of opposite shape, and only one of them existed at first:
+
+- **Mixed push — verified 2026-08-19.** Run `32280676936` has `head_sha 46d31ce` and the run
+  before it `head_sha bab18f7`, so a single push carried seven commits spanning
+  `pyproject.toml`, the `Dockerfile`, `ci.yml` **and** three documentation commits. It ran.
+- **Documentation-only push — verified 2026-08-20.** `78a0a2f` touches
+  `docs/plan/plan_toolchain-ci-security_2026-08-15.md` and nothing else. Pushed alone; `gh run
+  list` afterwards still reports `32281841857` (`head_sha 3cc1871`) as the newest run. **No run
+  was created for `78a0a2f`.**
+
+The second half was taken deliberately, because D8 Item 3's amendment names this exact trap —
+_"A wrong path filter fails silently — it skips a run that was wanted, and nothing reports
+that."_ A filter that over-matches and a filter that works produce the same green history; only
+a push designed to be skipped tells them apart.
+
 **Deferred verification — it can only be taken after the merge.** That a Dependabot-authored pull
 request reports a **green** `test` check. It is the only proof that D21 works against the
 restricted secret source, and nothing on this branch can produce it. Record it against the first
@@ -4287,6 +4359,12 @@ not measured:_ they are expected to close on their own once the merge removes
 by hand is a habit worth not starting, and if they do not close on their own, that is worth
 knowing rather than hiding.
 
+**Who checks that the premise held, added 2026-08-20.** T19 step 1. Its query is filtered to
+`?state=open`, so after the merge an empty list means these four left the `open` state and
+`django_version/requirements.txt` means they did not. This clause used to carry the label
+_"stated as reasoning, not measured"_ with no owner, which every other unmeasured premise in
+this plan has.
+
 ---
 
 ## T19 — Two Dependabot auto-triage rules: open pull requests for `django_version`, dismiss `oop_version`
@@ -4312,13 +4390,30 @@ dependency graph on the default branch describes the project through `uv`.
 Then read the manifest path Dependabot itself uses, rather than assuming it:
 
 ```
-gh api repos/thaisdMM/skillbridge/dependabot/alerts \
+gh api "repos/thaisdMM/skillbridge/dependabot/alerts?state=open" \
   --jq '[.[] | .dependency.manifest_path] | unique'
 ```
 
-**If that returns an empty list** — no alert open at that moment — take the value from the
-`manifest` filter's autocomplete on the rules screen in step 2 instead, and write down what it
-offered.
+**`?state=open` is load-bearing and must not be dropped.** The alerts endpoint applies no
+default state filter, so dismissed and closed alerts stay in the listing forever. Measured
+2026-08-20, the same query without it returns
+`["django_version/requirements.txt","oop_version/requirements.txt"]` — two entries, from the
+three `oop_version` alerts dismissed on 2026-08-19 and the four `sqlparse` alerts still open.
+With `?state=open` it returns `["django_version/requirements.txt"]`. Unfiltered, this step trips
+its own guard on **every** path, including the one where the merge went exactly right, because a
+closed alert keeps reporting the manifest it was computed from.
+
+**If that returns an empty list**, that is the expected success state and it carries a second
+meaning worth reading deliberately: no alert is open, so the four `sqlparse` alerts closed when
+the merge removed `django_version/requirements.txt` from the default branch. That is T18's one
+unmeasured premise — _"they are expected to close on their own"_ — confirming itself, and this
+is the moment it is owned. Take the filter value from the `manifest` autocomplete on the rules
+screen in step 2 instead, and write down what it offered.
+
+**If it returns `django_version/requirements.txt`**, the premise did **not** hold: the alerts
+are still open against a file that no longer exists on any branch. Create no rule and return to
+the Planner — the remaining remedy is the manual dismissal T18 argued against starting, and that
+is a decision, not a judgement call.
 
 **Expected: `django_version/uv.lock`. Not verified.** If the value is anything else —
 `django_version/pyproject.toml`, a path without the directory prefix, or two entries where one was
@@ -4376,6 +4471,9 @@ file. `.github/dependabot.yml` is **not** edited by this task.
   still reports `disabled`.
 - `gh api repos/thaisdMM/skillbridge/dependabot/alerts --jq '[.[] | {pkg:.dependency.package.name, path:.dependency.manifest_path, state}]'`
   runs clean and its output is pasted into the tech-debt entry as the baseline at creation time.
+  **This one is deliberately unfiltered** — it is a baseline of every alert in every state, and
+  `state` is one of the fields it records. Do not add `?state=open` here; step 1 is the only
+  place that filter belongs.
 - The tech-debt entry exists and carries both rule definitions.
 
 ### Deferred verification — cannot be taken in this task
@@ -4394,6 +4492,8 @@ pull request. Neither can be forced; both are observed the first time they happe
 - Do not add a severity, ecosystem or scope filter to either rule "to be safe". Each extra filter
   is a condition an alert can fail to meet, and a rule that silently stops matching is the failure
   mode this task is written to avoid.
+- Do not drop `?state=open` from step 1's query. Without it the step halts on every path, for the
+  reason recorded there.
 - Do not delete the preset rule already enabled on the screen. It was not examined by this plan.
 
 ### Returns to the Planner rather than being decided here
@@ -4434,7 +4534,7 @@ Four things constrain the order; everything else is free.
 | 4   | ~~**T3** — stack bump~~ **done 2026-08-19**                    | T2       | D16 commit 2, same session, once green                                                                                                     |
 | 5   | ~~**T18** — narrow Dependabot to `/django_version`~~ **done 2026-08-19** | —        | Server-side and immediate. Every day it waited was another closed-directory pull request and another red run                      |
 | 6   | ~~**T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`~~ **done 2026-08-19** | T2, T18  | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing |
-| 7   | **Merge `feature/django-refactor` into `main`**                | T9       | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, closes the four `sqlparse` alerts with the manifest they are computed from, and is what T19's filters are written against |
+| 7   | **Merge `feature/django-refactor` into `main`**                | T9       | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, closes the four `sqlparse` alerts with the manifest they are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts close on their own — is checked by T19 step 1, not here**; that step's `?state=open` query returns an empty list exactly when the premise held |
 | 8   | **T19** — the two Dependabot auto-triage rules                 | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`                                      |
 | 9   | **T4** — migrations in the suite, `--reuse-db` and markers out | T3       | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                           |
 | 10  | **T5** — ruff                                                  | T2       | Touches many source files; landing it before the type work keeps the two diffs separable                                                   |
@@ -4449,8 +4549,15 @@ Four things constrain the order; everything else is free.
 | 19  | **T16** — editor configuration                                 | T2       | The interpreter path depends on where the environment ends up                                                                              |
 | 20  | **T17** — tech debt entries                                    | all      | Records what happened                                                                                                                      |
 
-**Independent of each other, in any order:** T12, T14, T16. **Independent of the whole sequence:**
-T18, which needs no file to exist and no task to precede it.
+**Independent of each other, in any order:** T12, T14, T16. **T18 has no predecessor** — it needs
+no file to exist and no task to run before it — **but it is one**: constraint 4 puts it before T9,
+and its row in the table above is why T9's reads _Waits on: T2, T18_. It is free to start early,
+never free to start late.
+
+_Corrected 2026-08-20._ This paragraph previously called T18 _"independent of the whole
+sequence"_, which is broader than the two clauses that follow it and reads, on a skim, as a
+licence to place T18 anywhere — including after T9, the one position constraint 4 exists to
+forbid. Both clauses were and remain true; only the claim they hung off was wrong.
 
 **The two places where a task can stop and return to the Planner**, rather than being finished by
 a judgement call: the `QuerySet[BaseUser]` annotation in T6, and `mail.E001` firing under Django
