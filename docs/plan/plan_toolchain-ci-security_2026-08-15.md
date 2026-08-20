@@ -4054,6 +4054,8 @@ with them uncovered.
 
 ## T9 — `ci.yml` hardening, triggers, the generated `SECRET_KEY`, and `dependabot.yml`
 
+**Status: Done — 2026-08-19.** Acceptance completed 2026-08-20, see below.
+
 **Implements:** D8, all three items and all three amendments; the file half of D18 **as amended
 2026-08-19**; and D21.
 
@@ -4295,6 +4297,8 @@ took.
 ---
 
 ## T18 — Turn off Dependabot security updates, and clear the four pull requests it opened
+
+**Status: Done — 2026-08-19.**
 
 **Implements:** the repository half of D18 **as amended 2026-08-19**. **Runs before T9**, and
 before any merge to `main`.
