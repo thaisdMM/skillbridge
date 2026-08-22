@@ -21,8 +21,4 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = ["--reuse-db", "--strict-markers", "--no-migrations", "-v", "--tb=short"]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests that need external services",
-]
+addopts = ["--strict-markers", "-v", "--tb=short"]
