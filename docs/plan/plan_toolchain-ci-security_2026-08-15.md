@@ -5,12 +5,13 @@
 **Tree:** `feature/django-refactor`
 **Status:** Complete as a plan, as of 2026-08-20. The Decision log runs D1–D21 with nothing
 open; the task entries T1–T19 and the _Order of execution_ are written; the deferrals are
-recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18, T9 and T19 are implemented**, and
+recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18, T9, T19 and T4 are implemented**, and
 T9's acceptance is complete in both halves. The **merge to `main` has landed**. **T19 closed on
 2026-08-21** with three auto-triage rules rather than the two amendment 2 decided — the merge did
 not close the four `sqlparse` alerts, so a third rule dismisses the manifest the dependency graph
 kept after the file was deleted. D18's amendments 4 and 5 record it, and one verification is
-deferred to the first real advisory. The next task free to start is **T4**, which waits on T3
+deferred to the first real advisory. **T4 closed on 2026-08-22**, settling D17's open question on
+pytest-django 4.14.0 and unblocking T8. The next task free to start is **T5**, which waits on T2
 alone.
 
 Everything decided on 2026-08-19 came from implementation rather than from an audit: T15 showed
@@ -4118,6 +4119,38 @@ superseded plan record what was true when written.
 
 ## T4 — The suite runs the migrations; `--reuse-db` and the unused markers go
 
+**Status: Done — 2026-08-22.**
+
+**Result.** `addopts` lost `--no-migrations` and `--reuse-db` and now reads
+`["--strict-markers", "-v", "--tb=short"]`. `django_version/conftest.py` was created with the
+fixture in the shape D17 verified, import inside the function. `docker-compose exec web pytest`
+→ **304 passed**, with no test file touched. Wall time moved between 10.5 s and 12.5 s across
+runs on both regimes, which is the noise D17 measured rather than a cost or a gain.
+
+**The two halves were verified separately, and without editing a file.** That the migrations now
+execute: the database setup log carries `ALTER TABLE "django_content_type" DROP COLUMN "name"`,
+which is `contenttypes.0002` replaying — a schema built from the models creates no column it then
+drops — and the same grep under an explicit `--no-migrations` returns nothing. That the fixture is
+what empties the table: `pytest --confcutdir=/app/profiles profiles/tests` hides the root
+`conftest.py` from collection and returns **21 failed, 68 passed, 15 errors**, every one the seed
+collision on `skills_name_key`, against **104 passed** with it in place.
+
+**D17's open question is settled.** The `django_db_setup` override was verified on pytest-django
+4.12.0 and is re-confirmed here on 4.14.0: `pytest --fixtures` attributes the session fixture to
+`conftest.py` rather than to the plugin.
+
+**Notes and deviations.**
+
+- **The `markers` key was removed entirely, not emptied.** With `slow` and `integration` gone it
+  declared nothing, and `--strict-markers` does not depend on the key existing — it fails any
+  marker that is used without being declared, which is the safety D20 rested on.
+- **`testing.md`'s section was replaced rather than deleted.** The acceptance requires only that
+  _"Note on `--no-migrations` and data migrations"_ be gone. The replacement records that the
+  migrations run, that the seed inserts 30 rows, that the fixture empties them, and that any
+  future data migration must be emptied in the same override — which is D17's cost 1, and
+  deleting outright would have left it recorded nowhere. Approved by the user.
+- **Landed in three commits**, one per file.
+
 **Implements:** D17, D19, D20. One task because all three edit the same two files.
 
 **Do.** From the `addopts` array in `[tool.pytest]`, remove `--no-migrations` and `--reuse-db`.
@@ -4846,7 +4879,7 @@ Four things constrain the order; everything else is free.
 | 6   | ~~**T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`~~ **done 2026-08-19** | T2, T18   | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing                                                                                                                                                                                                                                                                                                             |
 | 7   | **Merge `feature/django-refactor` into `main`**                                         | T9        | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, removes the manifest the four `sqlparse` alerts are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts would close on their own — was measured on 2026-08-20 and 2026-08-21 and did not hold**; D18's amendment 4 records why, and T19's step 0 is what clears them instead |
 | 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
-| 9   | **T4** — migrations in the suite, `--reuse-db` and markers out                          | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
+| 9   | ~~**T4** — migrations in the suite, `--reuse-db` and markers out~~ **done 2026-08-22**  | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
 | 10  | **T5** — ruff                                                                           | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
 | 11  | **T6** — fix the 18 mypy errors                                                         | T3, T5    | django-stubs 6.1.0 targets Django 6.1                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 12  | **T7** — mypy CI step                                                                   | T6        | Enters build-failing, so the errors must be gone                                                                                                                                                                                                                                                                                                                                                                                              |
