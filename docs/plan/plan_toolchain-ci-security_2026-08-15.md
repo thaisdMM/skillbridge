@@ -5,10 +5,13 @@
 **Tree:** `feature/django-refactor`
 **Status:** Complete as a plan, as of 2026-08-20. The Decision log runs D1–D21 with nothing
 open; the task entries T1–T19 and the _Order of execution_ are written; the deferrals are
-recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18 and T9 are implemented, and T9's
-acceptance is now complete in both halves.** The **merge to `main` has landed**. **T19 is held at
-its own step 1** — the guard fired, no rule was created, and D18's amendment 3 records why and
-what re-measures it. The next task free to start is **T4**, which waits on T3 alone.
+recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18, T9 and T19 are implemented**, and
+T9's acceptance is complete in both halves. The **merge to `main` has landed**. **T19 closed on
+2026-08-21** with three auto-triage rules rather than the two amendment 2 decided — the merge did
+not close the four `sqlparse` alerts, so a third rule dismisses the manifest the dependency graph
+kept after the file was deleted. D18's amendments 4 and 5 record it, and one verification is
+deferred to the first real advisory. The next task free to start is **T4**, which waits on T3
+alone.
 
 Everything decided on 2026-08-19 came from implementation rather than from an audit: T15 showed
 that Dependabot's default configuration cannot be aimed by `dependabot.yml` (D18, amendment 1) and
@@ -3080,7 +3083,7 @@ the Developer note below, and the second amendment that acts on it.
 
 **What survives both corrections, restated 2026-08-20 because two of this amendment's premises
 turned out to be false.** The decision stands and the configuration it produced is what is in
-force — but not for the reason originally given. `dependabot.yml` *can* reach security updates
+force — but not for the reason originally given. `dependabot.yml` _can_ reach security updates
 through `ignore`; what it cannot do is re-enable them once the repository toggle is off, and it
 declares no `oop_version` entry for an `ignore` to hang on. The decision is therefore carried by
 two mechanisms that were chosen on their own merits: the toggle, which is unconditional, and the
@@ -3183,7 +3186,8 @@ Dependabot security updates stay **off** — the pull-request rule requires that
 This buys back both costs amendment 1 accepted: the monthly latency on the active project, and the
 recurring manual dismissal on the closed one. It costs two objects that live in a settings panel
 and appear in no diff, which is why **T19 records their exact definitions in
-`docs/tech_debt/011`** rather than trusting the panel to be self-documenting.
+a durable record** rather than trusting the panel to be self-documenting. That record landed in
+`docs/adr/` rather than `docs/tech_debt/`; T19's step 4 records why.
 
 **Written as a task, not as reasoning.** The shape of each rule, the order they are created in,
 what to observe, and what returns to the Planner are all in T19. Nothing about this amendment is
@@ -3281,6 +3285,107 @@ recorded here so the next session does not re-investigate it.
 - **Create T19's rules anyway, filtered on whatever the `manifest` autocomplete offers** — set
   aside: step 1 forbids it, and a pull-request rule filtered on a dead manifest is precisely the
   silent-failure mode the whole task is written to avoid.
+
+### Amendment 4, 2026-08-21 — the residue does not self-clear; a third rule dismisses the dead manifest, and T19 is released
+
+**No decision is reopened.** Both rules of amendment 2 stay adopted, `dependabot.yml` is untouched,
+and security updates stay off. This amendment answers the question amendment 3 left open, and
+replaces the manual dismissal that amendment routed back here.
+
+**Re-measured 2026-08-21, all read-only, some thirty hours after the merge.** Nothing moved:
+`uv.lock` present, `requirements.txt` 404, the guard query still returning
+`["django_version/requirements.txt"]`, security updates still `disabled`, and the SBOM still
+carrying both snapshots. The four `sqlparse` alerts report `updated_at` of `2026-08-18T09:39Z` —
+never re-evaluated since creation, and untouched by the merge at `2026-08-20T13:03Z`.
+
+**The evidence amendment 3 did not have.** The dependency graph itself still lists the deleted file
+as a manifest, queried through GraphQL this session:
+
+```
+dependencyGraphManifests → django_version/requirements.txt
+                           blobPath /blob/main/django_version/requirements.txt → 404
+                           django_version/uv.lock         (ingested)
+                           django_version/pyproject.toml  (ingested)
+```
+
+The graph took the new files in without dropping the deleted one. What is stuck is not the alert
+but the manifest it is computed from.
+
+**Still not documentation, and not recorded as fact.** No GitHub page read this session states what
+becomes of an alert whose manifest is deleted. What exists is the measurement above and
+third-party reports of the same persistence. The balance of evidence points at _does not
+self-clear_; that is reasoning, and it is labelled as such.
+
+**What changed the remedy.** Amendment 3 assumed manual dismissal was the only path left. It is
+not. Read this session from GitHub's documentation on customizing auto-triage rules: _"Since any
+rules that you create apply to both future and current alerts, you can also use auto-triage rules
+to manage your alerts in bulk."_ The same page confirms `Manifest path` as an available filter,
+for repository-level rules only.
+
+**Decided: a third rule, created before the other two.** `Dismiss alerts`, filtered on `manifest` =
+`django_version/requirements.txt`, dismissed indefinitely. It clears the four open alerts in bulk
+and keeps the dead manifest silent if the graph ever recomputes it. It lands as T19's new **step
+0**; steps 1–4 keep their numbers, and only what step 0 changes about their meaning is rewritten.
+It costs a third object living in a settings panel and appearing in no diff — the same cost
+amendment 2 accepted twice, which is why the durable record now carries three rules rather than
+two. That record landed as an ADR rather than the tech-debt entry amendment 2 named; step 4 of T19
+records why.
+
+**Indefinitely is not a choice between two valid values.** The dismiss action offers _indefinitely_
+or _until a patch is available_. All four advisories already report `first_patched_version 0.6.0`,
+so the second value lifts the dismissal the moment it is evaluated. Only the first implements the
+decision. The same holds for step 2's `oop_version` rule, over a directory that is closed and will
+never consume a patch.
+
+**Alternatives considered**
+
+- **Manual dismissal of the four alerts, reason `not_used`** — one minute of work, and truthful in
+  substance: the vulnerable version really is not used. Set aside once T19 was confirmed to be
+  going ahead, because the rules screen is being opened anyway and a manual dismissal does not
+  survive a recomputation of the graph. It stays the fallback if step 0's filter fails to match.
+- **Keep waiting for the graph to clear itself** — the only path that could still answer the
+  durable question unaided. Set aside: thirty hours moved none of the five measurements, and the
+  stale manifest node is why waiting longer is unlikely to.
+- **Drop T19 and clear the alerts only** — weighed by the user and set aside. It returns
+  `oop_version` to recurring manual dismissal and leaves a new `django_version` advisory waiting on
+  the monthly version cycle.
+
+### Amendment 5, 2026-08-21 — the pull-request rule is filtered on a reasoned value, and one rule rather than two
+
+**Decided at the rules screen, in the same session that implemented T19.** Two things forced this,
+both observed rather than anticipated.
+
+**The `manifest` field does not autocomplete a manifest without alerts.** It offered
+`django_version/requirements.txt` while four alerts were open against it, and nothing for
+`oop_version/requirements.txt` after those alerts were dismissed, or for either new manifest. The
+suggestions come from alert data, not from the dependency graph. Amendment 4 assumed the screen
+would name the value; it cannot, and no measurement can, until the first advisory lands.
+
+**What the pull-request rule is worth, stated as latency rather than exposure.** Alerts remain on,
+so the security signal arrives either way. The monthly `uv` version update in
+`.github/dependabot.yml` raises a patched version at the next cycle regardless — a security patch
+is also a version bump, and pull request `#11` demonstrates that cycle editing `pyproject.toml` and
+`uv.lock` together. The rule therefore buys **hours instead of up to a month**, on a project with
+no deploy target until Phase 5. That is real and it is modest, and it is what made a bounded guess
+acceptable where a measurement was unavailable.
+
+**Decided: one rule on `django_version/uv.lock`.** The reasoning from the resolved dependency set,
+and the bounded cost of being wrong, are recorded in T19's step 3; the confirmation that only a
+real advisory can supply is recorded under its _Deferred verification_.
+
+**Alternatives considered**
+
+- **Two pull-request rules, one per candidate path** — could not fail to match, at the cost of a
+  fourth invisible object and an undocumented interaction between two rules matching one alert. Set
+  aside once the failure mode of a single rule was seen to be bounded: a rule that matches nothing
+  leaves the repository exactly where no rule would.
+- **Create no pull-request rule at all** — weighed seriously, since the monthly cycle already
+  closes the gap and nothing is deployed. Set aside as strictly worse than a guess whose worst case
+  equals it.
+- **Filter on `Ecosystem` instead of `manifest`** — it would sidestep the unknown path entirely.
+  Set aside on measurement: every alert in this repository reports
+  `dependency.package.ecosystem: "pip"`, in both directories. The filter does not discriminate
+  between them.
 
 ---
 
@@ -3567,10 +3672,10 @@ invocation scope, not about ruff's configuration, which is settled.
 2026-08-18, and what it produced falsified two things D18 had assumed. Both were re-decided with
 the user and neither came from a review of the plan; they came from running it.
 
-| What implementation showed                                                                                   | Decided                                                                                      | Landed in         |
-| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ----------------- |
-| `dependabot.yml` cannot keep security updates out of `oop_version/` — the file governs version updates only  | security updates off, alerts on, version updates monthly and scoped to `/django_version`     | **D18** amendment |
-| No Dependabot-triggered run can read a repository secret, so every one of them failed on an empty `SECRET_KEY` | `ci.yml` generates the key per run instead of reading a secret                               | **D21** (new)     |
+| What implementation showed                                                                                     | Decided                                                                                  | Landed in         |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------- |
+| `dependabot.yml` cannot keep security updates out of `oop_version/` — the file governs version updates only    | security updates off, alerts on, version updates monthly and scoped to `/django_version` | **D18** amendment |
+| No Dependabot-triggered run can read a repository secret, so every one of them failed on an empty `SECRET_KEY` | `ci.yml` generates the key per run instead of reading a secret                           | **D21** (new)     |
 
 Neither reverses a decision on its own terms: D18 still holds that this project keeps dependency
 monitoring, and D8 still holds that CI is hardened rather than loosened for the bot. What changed
@@ -4191,7 +4296,7 @@ The path filter needed two pushes of opposite shape, and only one of them existe
   `pyproject.toml`, the `Dockerfile`, `ci.yml` **and** three documentation commits. It ran.
 - **Documentation-only push — verified 2026-08-20.** `78a0a2f` touches
   `docs/plan/plan_toolchain-ci-security_2026-08-15.md` and nothing else. Pushed alone; `gh run
-  list` afterwards still reports `32281841857` (`head_sha 3cc1871`) as the newest run. **No run
+list` afterwards still reports `32281841857` (`head_sha 3cc1871`) as the newest run. **No run
   was created for `78a0a2f`.**
 
 The second half was taken deliberately, because D8 Item 3's amendment names this exact trap —
@@ -4456,23 +4561,63 @@ this plan has.
 
 ---
 
-## T19 — Two Dependabot auto-triage rules: open pull requests for `django_version`, dismiss `oop_version`
+## T19 — Three Dependabot auto-triage rules: open pull requests for `django_version`, dismiss `oop_version` and the dead manifest
 
-**Status: held at step 1 — 2026-08-20.** The merge landed and step 1's guard query returned
-`["django_version/requirements.txt"]` rather than the empty list, which is this entry's own stop
-condition. **No rule was created and no alert was dismissed.** D18's amendment 3 records the
-measurement, why the four `sqlparse` alerts are residue rather than exposure, and the read-only
-sequence that re-measures it. **Resume at step 1; nothing below is changed.**
+**Status: Done — 2026-08-21.** All three rules exist and are enabled; the guard query returns `[]`
+and the four `sqlparse` alerts read `auto_dismissed`;
+`docs/adr/dependabot-triage-rules-live-outside-version-control.md` is written. **One
+verification is deferred and cannot be taken here** — that
+`manifest:django_version/uv.lock` is the path Dependabot attributes alerts to. See _Deferred
+verification_ below.
 
-**Implements:** D18, amendment 2. **Runs after the merge to `main`, and not before** — step 1
-states why and how to confirm it.
+The task grew a **step 0** on the day it ran, added by D18's amendment 4: re-measurement thirty
+hours after the merge moved nothing, and the dependency graph was found still listing the deleted
+manifest, so the four `sqlparse` alerts were cleared by a rule rather than waited out. Steps 1–4
+kept their numbers, and the paragraphs step 0 changed the meaning of were rewritten in place.
+Amendment 5 records what the rules screen contradicted while step 3 was being created.
 
-**Two of the three steps are repository settings and one is a file.** The settings half is the
+**Implements:** D18, amendments 2 and 4. **Runs after the merge to `main`, and not before** — step
+1 states why and how to confirm it.
+
+**Three of the four steps are repository settings and one is a file.** The settings half is the
 user's to click; the Developer walks them through it, verifies by API, and writes the file.
 
-### Step 1 — confirm the merge has landed and read the real manifest value
+### Step 0 — clear the residue with a dismiss rule on the dead manifest
 
-Do not open the rules screen before both commands below agree.
+**Added 2026-08-21 by D18, amendment 4.** It runs first because it is what makes step 1's guard
+query answerable at all: the merge did not close the four `sqlparse` alerts, and the graph still
+carries the manifest they are computed from.
+
+`Settings → Advanced Security → Dependabot rules → New rule`. Create it exactly as follows:
+
+| Field              | Value                                                 |
+| ------------------ | ----------------------------------------------------- |
+| Rule name          | `django-version-dead-manifest`                        |
+| State              | Enabled                                               |
+| Metadata filter    | `manifest` = `django_version/requirements.txt`        |
+| Action             | **Dismiss alerts**                                    |
+| Dismissal duration | **Indefinitely** — never _until a patch is available_ |
+
+Nothing else is set. The duration is not a judgement call: all four advisories already report
+`first_patched_version 0.6.0`, so _until a patch is available_ lifts the dismissal on evaluation.
+
+**Then confirm it took effect, before opening step 1:**
+
+```
+gh api "repos/thaisdMM/skillbridge/dependabot/alerts?state=open" \
+  --jq '[.[] | .dependency.manifest_path] | unique'
+```
+
+It must return `[]`. If it still returns `["django_version/requirements.txt"]`, the filter did not
+match — **create no further rule, dismiss nothing by hand, and return to the Planner.** A filter
+that fails to match is the finding, and working around it by hand destroys the evidence.
+
+### Step 1 — confirm the merge has landed, and that step 0 cleared the residue
+
+**Heading rewritten 2026-08-21.** This step used to read the real manifest value as well; it no
+longer can, for the reason stated at the end of it.
+
+Do not create the rules of steps 2 and 3 before both commands below agree.
 
 ```
 gh api repos/thaisdMM/skillbridge/contents/django_version/uv.lock --jq '.name'
@@ -4498,48 +4643,74 @@ With `?state=open` it returns `["django_version/requirements.txt"]`. Unfiltered,
 its own guard on **every** path, including the one where the merge went exactly right, because a
 closed alert keeps reporting the manifest it was computed from.
 
-**If that returns an empty list**, that is the expected success state and it carries a second
-meaning worth reading deliberately: no alert is open, so the four `sqlparse` alerts closed when
-the merge removed `django_version/requirements.txt` from the default branch. That is T18's one
-unmeasured premise — _"they are expected to close on their own"_ — confirming itself, and this
-is the moment it is owned. Take the filter value from the `manifest` autocomplete on the rules
-screen in step 2 instead, and write down what it offered.
+**Rewritten 2026-08-21 — the empty list is now manufactured, and proves nothing about T18.**
+After step 0 this query returns `[]` because a rule dismissed the four alerts, not because they
+closed on their own. **Do not read the empty list as T18's unmeasured premise confirming itself.**
+That premise was measured on 2026-08-20 and again on 2026-08-21, and the answer was no: the alerts
+stayed open and the dependency graph kept the deleted manifest. D18's amendment 4 owns that
+result. This step is now a gate on step 0 having worked, and nothing more.
 
-**If it returns `django_version/requirements.txt`**, the premise did **not** hold: the alerts
-are still open against a file that no longer exists on any branch. Create no rule and return to
-the Planner — the remaining remedy is the manual dismissal T18 argued against starting, and that
-is a decision, not a judgement call.
+**Consequence, and it is the one that constrains step 3.** With no alert open against any manifest,
+this query can no longer supply the filter value the pull-request rule needs — there is nothing
+left to read it from. Neither can the rules screen, which populates its `manifest` suggestions from
+alerts rather than from the dependency graph. Step 3 records the value that was reasoned to instead,
+and what would confirm it.
 
-**Expected: `django_version/uv.lock`. Not verified.** If the value is anything else —
-`django_version/pyproject.toml`, a path without the directory prefix, or two entries where one was
-expected — **write it down, create no rule, and return to the Planner.** A rule filtered on a path
-that does not exist matches nothing and reports nothing.
-
-### Step 2 — create the dismiss rule first
+### Step 2 — create the `oop_version` dismiss rule, before the pull-request rule
 
 `Settings → Advanced Security → Dependabot rules → New rule`. Create it exactly as follows:
 
-| Field | Value |
-| ----- | ----- |
-| Rule name | `oop-version-closed-directory` |
-| State | Enabled |
-| Metadata filter | `manifest` = `oop_version/requirements.txt` |
-| Action | **Dismiss alerts** |
+| Field              | Value                                                 |
+| ------------------ | ----------------------------------------------------- |
+| Rule name          | `oop-version-closed-directory`                        |
+| State              | Enabled                                               |
+| Metadata filter    | `manifest` = `oop_version/requirements.txt`           |
+| Action             | **Dismiss alerts**                                    |
+| Dismissal duration | **Indefinitely** — never _until a patch is available_ |
 
 Nothing else is set. No severity filter, no ecosystem filter, no scope filter — the directory is
 the whole criterion, and narrowing it further would let an alert through.
 
-This rule is created first because it is the reversible one: if it behaves unexpectedly, deleting
-it restores exactly the state before this task.
+**The duration row was added 2026-08-21** by D18, amendment 4: the dismiss action requires this
+choice and the original table omitted it. _Until a patch is available_ would lift the dismissal the
+moment an upstream patch exists — which, for a directory nobody will ever update, is exactly when
+the alert returns. Only _indefinitely_ implements the decision.
+
+This rule is created before the pull-request rule because it is the reversible one: if it behaves
+unexpectedly, deleting it restores exactly the state before this task.
 
 ### Step 3 — create the pull-request rule
 
-| Field | Value |
-| ----- | ----- |
-| Rule name | `django-version-security-prs` |
-| State | Enabled |
-| Metadata filter | `manifest` = the value confirmed in step 1 |
-| Action | **Open a pull request to resolve alerts** |
+| Field           | Value                                                      |
+| --------------- | ---------------------------------------------------------- |
+| Rule name       | `django-version-security-prs`                              |
+| State           | Enabled                                                    |
+| Metadata filter | `manifest` = the value the autocomplete offers — see below |
+| Action          | **Open a pull request to resolve alerts**                  |
+
+**The filter value: `django_version/uv.lock`. Reasoning, not measurement — settled 2026-08-21.**
+
+**The autocomplete premise was false, and the screen said so.** Earlier wording sent the Developer
+to read the value off a `manifest` autocomplete. Observed at the screen this session: the field
+offered `django_version/requirements.txt` while four alerts were open against it, and offered
+**nothing at all** for `oop_version/requirements.txt` once its alerts were dismissed, or for either
+new manifest. **The autocomplete is populated from alerts, not from the dependency graph.** No
+alert has ever been attributed to `uv.lock` or `pyproject.toml`, so the screen cannot name the
+value and never will until the first advisory lands. The field is free text; the value is typed.
+
+**Why `uv.lock` rather than `pyproject.toml`.** `pyproject.toml` declares five direct dependencies
+with exact pins; `uv.lock` carries the full resolved set. `sqlparse` — the package all four
+residual alerts were raised against — appears in the lock file only, reached transitively through
+Django. An alert against a transitive package cannot be attributed to a file that does not contain
+it, and transitive packages are where this project's only observed advisories have come from. That
+is an argument from the resolved dependency set, **not a measurement**: no alert exists against
+either file to confirm it.
+
+**The cost of being wrong is bounded, and that is why one rule was chosen over two.** If the value
+is wrong the rule never matches, and the repository sits exactly where it would with no rule at
+all — the monthly `uv` version update in `.github/dependabot.yml` still raises the patched version
+at the next cycle. A wrong value cannot make anything worse than not creating the rule. It is
+recorded under _Deferred verification_ below rather than treated as settled.
 
 **Precondition, and confirm it before saving:** Dependabot security updates must be **off**.
 Documentation read on 2026-08-19: for an _open a pull request_ rule to take effect, _"you must
@@ -4548,20 +4719,35 @@ someone re-enabled it, and that is a finding, not something to fix silently.
 
 ### Step 4 — record the rules where a diff can carry them
 
-Write `docs/tech_debt/011-dependabot-auto-triage-rules-live-outside-the-repository.md`, following
-the shape of the files already on disk. It must contain both tables above verbatim, the value
-observed in step 1, and one sentence on the consequence: no clone, fork or transfer restores these
-rules, so a repository moved or recreated silently loses both behaviours.
+**Rewritten 2026-08-21 — the record is an ADR, not a tech-debt entry.** This step originally wrote
+`docs/tech_debt/011`. Applied to it, the test that separates the two directories rules it out:
+technical debt presupposes a better implementation that is reachable, and the work of reaching it
+is the repayment. There is none here. GitHub offers no file-based mechanism for an auto-triage
+rule, so the rules will never move into the repository and nothing is ever paid back. What the
+entry actually held was a decision, its rejected options, and its costs — which is an ADR.
+`docs/tech_debt/` stays a list of things that will be fixed.
+
+Write `docs/adr/dependabot-triage-rules-live-outside-version-control.md` in MADR short form, under
+~60 lines, following the shape of the files already in `docs/adr/`. It carries all three rules in
+one table — name, filter, action — the reasoning for the `uv.lock` value, and the costs as
+_Consequences_: that no clone, fork or transfer restores the rules; that
+`django-version-dead-manifest` reads as dead configuration and must not be deleted for that reason;
+and that the `uv.lock` filter is unverified and fails silently.
+
+**It names no task, decision or plan file**, per the rule in `.claude/rules/conventions.md` that
+ADRs carry no transient references. The decision trail stays here; the durable record stands alone.
 
 ### Scope
 
-`docs/tech_debt/011-dependabot-auto-triage-rules-live-outside-the-repository.md` (new). No other
-file. `.github/dependabot.yml` is **not** edited by this task.
+`docs/adr/dependabot-triage-rules-live-outside-version-control.md` (new). No other file.
+`.github/dependabot.yml` is **not** edited by this task.
 
 ### Acceptance
 
-- The Dependabot rules screen lists both rules, both enabled, alongside whatever preset was
+- The Dependabot rules screen lists all three rules, all enabled, alongside whatever preset was
   already there.
+- The step 0 guard query returns `[]`, and the four `sqlparse` alerts read as dismissed rather
+  than open.
 - `gh api repos/thaisdMM/skillbridge --jq '.security_and_analysis.dependabot_security_updates.status'`
   still reports `disabled`.
 - `gh api repos/thaisdMM/skillbridge/dependabot/alerts --jq '[.[] | {pkg:.dependency.package.name, path:.dependency.manifest_path, state}]'`
@@ -4569,7 +4755,7 @@ file. `.github/dependabot.yml` is **not** edited by this task.
   **This one is deliberately unfiltered** — it is a baseline of every alert in every state, and
   `state` is one of the fields it records. Do not add `?state=open` here; step 1 is the only
   place that filter belongs.
-- The tech-debt entry exists and carries both rule definitions.
+- The tech-debt entry exists and carries all three rule definitions.
 
 ### Deferred verification — cannot be taken in this task
 
@@ -4577,6 +4763,22 @@ That a new advisory against a `django_version` dependency produces a Dependabot 
 a **green** `test` check, and that a new advisory against `oop_version` is auto-dismissed with no
 pull request. Neither can be forced; both are observed the first time they happen. If the
 `django_version` pull request is red, that is D21 failing and it returns to the Planner.
+
+**Extended 2026-08-21 — the manifest value itself is unverified.** The first advisory against a
+`django_version` dependency is also what confirms whether `manifest:django_version/uv.lock` is the
+path Dependabot attributes alerts to. Read it directly when that alert arrives:
+
+```
+gh api "repos/thaisdMM/skillbridge/dependabot/alerts?state=open" \
+  --jq '[.[] | .dependency.manifest_path] | unique'
+```
+
+- **`django_version/uv.lock`** — the rule is filtered correctly, and a pull request should
+  accompany the alert.
+- **`django_version/pyproject.toml`** — the value was wrong. The repair is one string in one rule,
+  and the alert that revealed it is picked up retroactively, since rules apply to current alerts.
+- **An alert with no pull request beside it** is the symptom to watch for. Nothing else reports
+  this: a rule that matches nothing is silent by construction.
 
 ### Do not
 
@@ -4590,11 +4792,24 @@ pull request. Neither can be forced; both are observed the first time they happe
 - Do not drop `?state=open` from step 1's query. Without it the step halts on every path, for the
   reason recorded there.
 - Do not delete the preset rule already enabled on the screen. It was not examined by this plan.
+- Do not set a dismiss rule to _until a patch is available_. Both dismiss rules require
+  _indefinitely_, each for the reason stated beside its own table.
+- Do not dismiss the four `sqlparse` alerts by hand if step 0's rule fails to match. The failure is
+  the finding; clearing it manually hides it.
+- Do not expect the `manifest` field to autocomplete. It suggests only paths that already carry an
+  alert, so it offers nothing for `uv.lock`. Type the value.
+- Do not check **Dismiss alerts** on the step 3 rule, and do not check **Open a pull request** on
+  the rules of steps 0 and 2. The rule form lists both actions on every rule and each is selected
+  independently; the sub-options _Until patch is available_ / _Indefinitely_ belong to the dismiss
+  action alone.
 
 ### Returns to the Planner rather than being decided here
 
-- The manifest value not matching step 1's expectation.
-- The `manifest` filter rejecting the value, or accepting only a wildcard or prefix form — record
+- Step 0's guard query still returning `["django_version/requirements.txt"]` after the rule is
+  saved and enabled.
+- An alert arriving against `django_version/pyproject.toml` rather than `django_version/uv.lock`,
+  per _Deferred verification_ above.
+- The `manifest` filter rejecting a value, or accepting only a wildcard or prefix form — record
   the exact form accepted.
 - Dependabot security updates found enabled at step 3.
 
@@ -4621,28 +4836,28 @@ Four things constrain the order; everything else is free.
    against the manifest paths the default branch's dependency graph reports, and the merge is what
    changes them from `django_version/requirements.txt` to the `uv` pair.
 
-| #   | Task                                                           | Waits on | Why                                                                                                                                        |
-| --- | -------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | ~~**T15** — enable Dependabot~~ **done 2026-08-18**            | —        | Free, server-side, and nothing watched dependencies before it. Its security half is narrowed by T18                                        |
-| 2   | ~~**T1** — `Dockerfile` cleanup~~ **done**                     | —        | `requirements.txt` must still exist                                                                                                        |
-| 3   | ~~**T2** — uv migration~~ **done**                             | T1       | D16 commit 1                                                                                                                               |
-| 4   | ~~**T3** — stack bump~~ **done 2026-08-19**                    | T2       | D16 commit 2, same session, once green                                                                                                     |
-| 5   | ~~**T18** — narrow Dependabot to `/django_version`~~ **done 2026-08-19** | —        | Server-side and immediate. Every day it waited was another closed-directory pull request and another red run                      |
-| 6   | ~~**T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`~~ **done 2026-08-19** | T2, T18  | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing |
-| 7   | **Merge `feature/django-refactor` into `main`**                | T9       | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, closes the four `sqlparse` alerts with the manifest they are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts close on their own — is checked by T19 step 1, not here**; that step's `?state=open` query returns an empty list exactly when the premise held |
-| 8   | **T19** — the two Dependabot auto-triage rules                 | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`                                      |
-| 9   | **T4** — migrations in the suite, `--reuse-db` and markers out | T3       | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                           |
-| 10  | **T5** — ruff                                                  | T2       | Touches many source files; landing it before the type work keeps the two diffs separable                                                   |
-| 11  | **T6** — fix the 18 mypy errors                                | T3, T5   | django-stubs 6.1.0 targets Django 6.1                                                                                                      |
-| 12  | **T7** — mypy CI step                                          | T6       | Enters build-failing, so the errors must be gone                                                                                           |
-| 13  | **T8** — coverage                                              | T4       | Measures the final test regime, not the interim one                                                                                        |
-| 14  | **T10** — Django's two checks                                  | T3, T9   | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                 |
-| 15  | **T11** — `docker build` step                                  | T1, T2   | Measured against the cleaned, migrated image                                                                                               |
-| 16  | **T13** — non-root user                                        | T2, T11  | T11 is the automated gate on getting the ownership wrong                                                                                   |
-| 17  | **T12** — gitleaks                                             | T9       | Independent of everything else; grouped with the CI work                                                                                   |
-| 18  | **T14** — pre-commit hooks                                     | T2, T5   | The ruff configuration must exist for the hooks to run it                                                                                  |
-| 19  | **T16** — editor configuration                                 | T2       | The interpreter path depends on where the environment ends up                                                                              |
-| 20  | **T17** — tech debt entries                                    | all      | Records what happened                                                                                                                      |
+| #   | Task                                                                                    | Waits on  | Why                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --- | --------------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | ~~**T15** — enable Dependabot~~ **done 2026-08-18**                                     | —         | Free, server-side, and nothing watched dependencies before it. Its security half is narrowed by T18                                                                                                                                                                                                                                                                                                                                           |
+| 2   | ~~**T1** — `Dockerfile` cleanup~~ **done**                                              | —         | `requirements.txt` must still exist                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 3   | ~~**T2** — uv migration~~ **done**                                                      | T1        | D16 commit 1                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 4   | ~~**T3** — stack bump~~ **done 2026-08-19**                                             | T2        | D16 commit 2, same session, once green                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 5   | ~~**T18** — narrow Dependabot to `/django_version`~~ **done 2026-08-19**                | —         | Server-side and immediate. Every day it waited was another closed-directory pull request and another red run                                                                                                                                                                                                                                                                                                                                  |
+| 6   | ~~**T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`~~ **done 2026-08-19** | T2, T18   | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing                                                                                                                                                                                                                                                                                                             |
+| 7   | **Merge `feature/django-refactor` into `main`**                                         | T9        | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, removes the manifest the four `sqlparse` alerts are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts would close on their own — was measured on 2026-08-20 and 2026-08-21 and did not hold**; D18's amendment 4 records why, and T19's step 0 is what clears them instead |
+| 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
+| 9   | **T4** — migrations in the suite, `--reuse-db` and markers out                          | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
+| 10  | **T5** — ruff                                                                           | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
+| 11  | **T6** — fix the 18 mypy errors                                                         | T3, T5    | django-stubs 6.1.0 targets Django 6.1                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 12  | **T7** — mypy CI step                                                                   | T6        | Enters build-failing, so the errors must be gone                                                                                                                                                                                                                                                                                                                                                                                              |
+| 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
+| 14  | **T10** — Django's two checks                                                           | T3, T9    | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
+| 15  | **T11** — `docker build` step                                                           | T1, T2    | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 16  | **T13** — non-root user                                                                 | T2, T11   | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
+| 17  | **T12** — gitleaks                                                                      | T9        | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
+| 18  | **T14** — pre-commit hooks                                                              | T2, T5    | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
+| 19  | **T16** — editor configuration                                                          | T2        | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
+| 20  | **T17** — tech debt entries                                                             | all       | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 **Independent of each other, in any order:** T12, T14, T16. **T18 has no predecessor** — it needs
 no file to exist and no task to run before it — **but it is one**: constraint 4 puts it before T9,
