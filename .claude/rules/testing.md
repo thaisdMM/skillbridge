@@ -15,8 +15,8 @@ behavior rules across the project, consult `CLAUDE.md`.
   explicitly required.
 - All tests run inside Docker: `docker-compose exec web pytest`.
 - Configuration lives in the `[tool.pytest]` table of
-  `django_version/pyproject.toml`. Active flags: `--no-migrations`,
-  `--reuse-db`, `--strict-markers`, `--tb=short`, `-v`.
+  `django_version/pyproject.toml`. Active flags: `--strict-markers`,
+  `--tb=short`, `-v`.
 
 ---
 
@@ -483,34 +483,36 @@ If you are not testing one of the above scenarios, do not use the
 transactional mode. It is purely a performance cost with no behavioral
 benefit for typical tests.
 
-### Note on `--no-migrations` and data migrations
+### Note on the migrations and the seeded vocabulary
 
-`addopts` in `[tool.pytest]` runs the suite with `--no-migrations`. This means
-pytest-django creates the test database schema directly from the current
-state of the models (`syncdb`), skipping all migration files. The suite
-runs faster, but with a consequence:
+`addopts` in `[tool.pytest]` carries neither `--no-migrations` nor
+`--reuse-db`. The test database is built at the start of every session by
+replaying every migration file, and destroyed at the end. Nothing is
+reused between runs, so a model change never needs `--create-db`.
 
-**Data migrations do not run during tests.**
+**Data migrations run during tests.**
+`profiles/migrations/0002_seed_skills.py` inserts 30 rows into the `Skill`
+table before the first test executes.
 
-This affects any migration whose purpose is to seed or modify data —
-for example, `profiles/migrations/0002_seed_skills.py`, which populates
-the `Skill` table with the controlled vocabulary. In production this
-migration runs and creates the rows; in the test environment it does
-not, and the `Skill` table starts empty.
+**`django_version/conftest.py` empties that table again.** Its
+`django_db_setup` override deletes every `Skill` row once per session, at
+database setup and outside the per-test transaction, so each test still
+starts from an empty table.
 
 Implications:
 
-- If a test depends on seeded skills being present, it will fail in
-  the test environment while working in production — a silent
-  divergence.
-- Tests that need specific `Skill` rows must create them explicitly
-  inside the test or via a dedicated fixture.
-- Do not assume any data created by `RunPython` migrations exists in
-  the test database.
+- Tests that need specific `Skill` rows create them explicitly, inside
+  the test or via a fixture. Nothing is seeded by the time a test runs.
+- Any future data migration that inserts rows collides with the tests
+  that create their own, exactly as the skill seed did. Emptying its
+  table belongs in the same `django_db_setup` override.
+- What the suite verifies about a data migration is that it runs without
+  raising — never that it produced the right data.
 
-If a future test setup requires data migrations to run, the team can
-opt out of `--no-migrations` for that specific run, but the default
-should remain skipped for speed.
+The fixture must stay in `conftest.py`. The same fixture loaded as a
+command-line plugin (`pytest -p <module>`) never runs: plugins are
+registered before pytest-django, which then redefines `django_db_setup`
+over the top.
 
 ---
 
@@ -794,6 +796,6 @@ from accounts.models.freelancer import Freelancer
 | Asserting on `error_dict[field][0].code` without first asserting the field key                      | Assert the key exists in `error_dict` first to avoid cryptic `KeyError` tracebacks                                                  |
 | Asserting on a `ValidationError` message string                                                     | Assert the field key exists in `error_dict`, then assert the `code` — messages are not the contract                                 |
 | Asserting on a `NotImplementedError` message string                                                 | Assert only the exception type — the message uses `gettext_lazy` and there is no `code`                                             |
-| Assuming data migrations have run in the test database                                              | `--no-migrations` skips them — create needed seed data explicitly in tests or fixtures                                              |
+| Assuming the seeded `Skill` vocabulary is present in the test database                              | `django_version/conftest.py` empties it at session setup — create the rows the test needs explicitly                                |
 | Using `@pytest.mark.django_db(transaction=True)` by default                                         | Use the default transactional rollback mode unless testing real commit behavior                                                     |
 | Writing a test whose assertion still passes with the production logic removed                       | A test must fail when the behavior is deleted — drop tautological checks (see the Field-to-validation contract in `conventions.md`) |
