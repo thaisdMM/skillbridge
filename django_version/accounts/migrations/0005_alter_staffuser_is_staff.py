@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0004_alter_client_options'),
+        ("accounts", "0004_alter_client_options"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='staffuser',
-            name='is_staff',
-            field=models.BooleanField(default=True, help_text='Designates whether this staff user can log into the Django admin site. Defaults to True for staff accounts.', verbose_name='Staff Status'),
+            model_name="staffuser",
+            name="is_staff",
+            field=models.BooleanField(
+                default=True,
+                help_text="Designates whether this staff user can log into the Django admin site. Defaults to True for staff accounts.",
+                verbose_name="Staff Status",
+            ),
         ),
     ]

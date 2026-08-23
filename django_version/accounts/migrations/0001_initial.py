@@ -5,69 +5,254 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='StaffUser',
+            name="StaffUser",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('email', models.EmailField(help_text='Email address used for login and communication', max_length=255, unique=True, validators=[accounts.validators.user_validators.validate_email], verbose_name='Email address')),
-                ('name', models.CharField(help_text="User's display name (2-50 characters)", max_length=50, validators=[accounts.validators.user_validators.validate_user_name], verbose_name='Display Name')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='Timestamp when the user account was created', verbose_name='Created At')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='Active')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into the Django admin site', verbose_name='Staff Status')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them', verbose_name='Superuser Status')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        help_text="Email address used for login and communication",
+                        max_length=255,
+                        unique=True,
+                        validators=[accounts.validators.user_validators.validate_email],
+                        verbose_name="Email address",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="User's display name (2-50 characters)",
+                        max_length=50,
+                        validators=[
+                            accounts.validators.user_validators.validate_user_name
+                        ],
+                        verbose_name="Display Name",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="Timestamp when the user account was created",
+                        verbose_name="Created At",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="Active",
+                    ),
+                ),
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into the Django admin site",
+                        verbose_name="Staff Status",
+                    ),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them",
+                        verbose_name="Superuser Status",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Staff User',
-                'verbose_name_plural': 'Staff Users',
-                'db_table': 'staff_users',
+                "verbose_name": "Staff User",
+                "verbose_name_plural": "Staff Users",
+                "db_table": "staff_users",
             },
         ),
         migrations.CreateModel(
-            name='Client',
+            name="Client",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('email', models.EmailField(help_text='Email address used for login and communication', max_length=255, unique=True, validators=[accounts.validators.user_validators.validate_email], verbose_name='Email address')),
-                ('name', models.CharField(help_text="User's display name (2-50 characters)", max_length=50, validators=[accounts.validators.user_validators.validate_user_name], verbose_name='Display Name')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='Timestamp when the user account was created', verbose_name='Created At')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='Active')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into the Django admin site', verbose_name='Staff Status')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them', verbose_name='Superuser Status')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        help_text="Email address used for login and communication",
+                        max_length=255,
+                        unique=True,
+                        validators=[accounts.validators.user_validators.validate_email],
+                        verbose_name="Email address",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="User's display name (2-50 characters)",
+                        max_length=50,
+                        validators=[
+                            accounts.validators.user_validators.validate_user_name
+                        ],
+                        verbose_name="Display Name",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="Timestamp when the user account was created",
+                        verbose_name="Created At",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="Active",
+                    ),
+                ),
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into the Django admin site",
+                        verbose_name="Staff Status",
+                    ),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them",
+                        verbose_name="Superuser Status",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Client',
-                'verbose_name_plural': 'Clients',
-                'db_table': 'clients',
+                "verbose_name": "Client",
+                "verbose_name_plural": "Clients",
+                "db_table": "clients",
             },
         ),
         migrations.CreateModel(
-            name='Freelancer',
+            name="Freelancer",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('email', models.EmailField(help_text='Email address used for login and communication', max_length=255, unique=True, validators=[accounts.validators.user_validators.validate_email], verbose_name='Email address')),
-                ('name', models.CharField(help_text="User's display name (2-50 characters)", max_length=50, validators=[accounts.validators.user_validators.validate_user_name], verbose_name='Display Name')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='Timestamp when the user account was created', verbose_name='Created At')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='Active')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into the Django admin site', verbose_name='Staff Status')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them', verbose_name='Superuser Status')),
-                ('is_available', models.BooleanField(default=True, help_text='Designates whether this freelancer is currently accepting new proposals. Freelancers can toggle this without deactivating their account.', verbose_name='Available')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        help_text="Email address used for login and communication",
+                        max_length=255,
+                        unique=True,
+                        validators=[accounts.validators.user_validators.validate_email],
+                        verbose_name="Email address",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="User's display name (2-50 characters)",
+                        max_length=50,
+                        validators=[
+                            accounts.validators.user_validators.validate_user_name
+                        ],
+                        verbose_name="Display Name",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="Timestamp when the user account was created",
+                        verbose_name="Created At",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="Active",
+                    ),
+                ),
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into the Django admin site",
+                        verbose_name="Staff Status",
+                    ),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them",
+                        verbose_name="Superuser Status",
+                    ),
+                ),
+                (
+                    "is_available",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this freelancer is currently accepting new proposals. Freelancers can toggle this without deactivating their account.",
+                        verbose_name="Available",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Freelancer',
-                'verbose_name_plural': 'Freelancers',
-                'db_table': 'freelancers',
+                "verbose_name": "Freelancer",
+                "verbose_name_plural": "Freelancers",
+                "db_table": "freelancers",
             },
         ),
     ]

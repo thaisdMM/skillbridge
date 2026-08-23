@@ -4,14 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0002_alter_staffuser_is_staff'),
+        ("accounts", "0002_alter_staffuser_is_staff"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='freelancer',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Freelancer', 'verbose_name_plural': 'Freelancers'},
+            name="freelancer",
+            options={
+                "ordering": ["-created_at"],
+                "verbose_name": "Freelancer",
+                "verbose_name_plural": "Freelancers",
+            },
         ),
     ]

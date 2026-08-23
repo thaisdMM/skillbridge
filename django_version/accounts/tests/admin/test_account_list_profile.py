@@ -170,7 +170,9 @@ def test_profile_filter_narrows_the_client_list_to_accounts_with_a_profile(
     valid_client_data: dict[str, str],
 ) -> None:
     """Selecting "with a profile" lists exactly the clients that have one."""
-    Client.objects.create_user(**{**valid_client_data, "email": "noprofile@example.com"})
+    Client.objects.create_user(
+        **{**valid_client_data, "email": "noprofile@example.com"}
+    )
     admin_instance = ClientAdmin(Client, django_admin.site)
     profile_filter = HasProfileFilter(
         admin_request, {"has_profile": ["yes"]}, Client, admin_instance
@@ -235,7 +237,9 @@ def test_the_skill_filter_lists_only_the_clients_holding_that_interest(
         **{**valid_client_data, "email": "other@example.com"}
     )
     ClientProfile.objects.create(user=account_without_the_interest)
-    request = RequestFactory().get("/", {"profile__interests__id__exact": str(skill.pk)})
+    request = RequestFactory().get(
+        "/", {"profile__interests__id__exact": str(skill.pk)}
+    )
     request.user = administrator
     admin_instance = ClientAdmin(Client, django_admin.site)
 
@@ -341,4 +345,6 @@ def test_staff_user_admin_offers_no_profile_filter() -> None:
 
 def test_staff_user_admin_offers_no_skill_filter() -> None:
     """StaffUserAdmin cannot be narrowed by skill — a staff account has no profile to read one from."""
-    assert not [entry for entry in StaffUserAdmin.list_filter if "profile" in str(entry)]
+    assert not [
+        entry for entry in StaffUserAdmin.list_filter if "profile" in str(entry)
+    ]
