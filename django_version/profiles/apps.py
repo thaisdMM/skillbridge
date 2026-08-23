@@ -12,5 +12,3 @@ class ProfilesConfig(AppConfig):
         It is called as soon as the registry is fully populated.
         """
         pass
-
-

@@ -38,7 +38,10 @@ SKILLS_TO_SEED = [
 
 def seed_skills(apps, schema_editor):
     Skill = apps.get_model("profiles", "Skill")
-    skills = [Skill(name=skill["name"], category=skill["category"]) for skill in SKILLS_TO_SEED]
+    skills = [
+        Skill(name=skill["name"], category=skill["category"])
+        for skill in SKILLS_TO_SEED
+    ]
     Skill.objects.bulk_create(skills, ignore_conflicts=True)
 
 
@@ -49,7 +52,6 @@ def remove_skills(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("profiles", "0001_initial"),
     ]

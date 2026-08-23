@@ -4,29 +4,48 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('profiles', '0004_alter_freelancerprofile_bio'),
+        ("profiles", "0004_alter_freelancerprofile_bio"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='freelancerprofile',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Freelancer Profile', 'verbose_name_plural': 'Freelancer Profiles'},
+            name="freelancerprofile",
+            options={
+                "ordering": ["-created_at"],
+                "verbose_name": "Freelancer Profile",
+                "verbose_name_plural": "Freelancer Profiles",
+            },
         ),
         migrations.AlterField(
-            model_name='freelancerprofile',
-            name='hourly_rate',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text="Hourly rate of the freelancer in the platform's base currency.", max_digits=8, null=True, verbose_name='Hourly Rate'),
+            model_name="freelancerprofile",
+            name="hourly_rate",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Hourly rate of the freelancer in the platform's base currency.",
+                max_digits=8,
+                null=True,
+                verbose_name="Hourly Rate",
+            ),
         ),
         migrations.AlterField(
-            model_name='freelancerprofile',
-            name='portfolio_url',
-            field=models.URLField(blank=True, help_text="Link to the freelancer's external portfolio site. Optional; must be a valid URL if provided.", verbose_name='Portfolio URL'),
+            model_name="freelancerprofile",
+            name="portfolio_url",
+            field=models.URLField(
+                blank=True,
+                help_text="Link to the freelancer's external portfolio site. Optional; must be a valid URL if provided.",
+                verbose_name="Portfolio URL",
+            ),
         ),
         migrations.AlterField(
-            model_name='freelancerprofile',
-            name='skills',
-            field=models.ManyToManyField(blank=True, help_text='Skills associated with this freelancer.', to='profiles.skill', verbose_name='Skills'),
+            model_name="freelancerprofile",
+            name="skills",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="Skills associated with this freelancer.",
+                to="profiles.skill",
+                verbose_name="Skills",
+            ),
         ),
     ]

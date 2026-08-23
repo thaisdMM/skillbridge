@@ -4,25 +4,52 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Skill',
+            name="Skill",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text="Skill name as it appears on the platform (e.g. 'Python'). Skills are managed by admins — freelancers select from this list.", max_length=100, unique=True, verbose_name='Name')),
-                ('category', models.CharField(choices=[('TECHNOLOGY', 'Technology'), ('DESIGN', 'Design'), ('WRITING', 'Writing'), ('MARKETING', 'Marketing')], help_text='Area of service this skill belongs to.', max_length=20, verbose_name='Category')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="Skill name as it appears on the platform (e.g. 'Python'). Skills are managed by admins — freelancers select from this list.",
+                        max_length=100,
+                        unique=True,
+                        verbose_name="Name",
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("TECHNOLOGY", "Technology"),
+                            ("DESIGN", "Design"),
+                            ("WRITING", "Writing"),
+                            ("MARKETING", "Marketing"),
+                        ],
+                        help_text="Area of service this skill belongs to.",
+                        max_length=20,
+                        verbose_name="Category",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Skill',
-                'verbose_name_plural': 'Skills',
-                'db_table': 'skills',
-                'ordering': ['category', 'name'],
+                "verbose_name": "Skill",
+                "verbose_name_plural": "Skills",
+                "db_table": "skills",
+                "ordering": ["category", "name"],
             },
         ),
     ]

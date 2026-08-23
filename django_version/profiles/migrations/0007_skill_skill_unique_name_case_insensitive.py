@@ -5,14 +5,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('profiles', '0006_clientprofile'),
+        ("profiles", "0006_clientprofile"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='skill',
-            constraint=models.UniqueConstraint(django.db.models.functions.text.Lower('name'), name='skill_unique_name_case_insensitive'),
+            model_name="skill",
+            constraint=models.UniqueConstraint(
+                django.db.models.functions.text.Lower("name"),
+                name="skill_unique_name_case_insensitive",
+            ),
         ),
     ]
