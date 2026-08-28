@@ -11,4 +11,3 @@ class ProfilesConfig(AppConfig):
         Perform initialization tasks such as registering signals, validators, etc.
         It is called as soon as the registry is fully populated.
         """
-        pass

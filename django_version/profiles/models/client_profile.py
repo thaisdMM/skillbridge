@@ -5,8 +5,8 @@ This module defines the concrete ClientProfile model, which extends
 the base Profile model with client-specific attributes like company name, max budget, interests and website URL.
 """
 
-from decimal import Decimal
 import logging
+from decimal import Decimal
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models

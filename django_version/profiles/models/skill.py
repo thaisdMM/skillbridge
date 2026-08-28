@@ -8,9 +8,9 @@ to filter job postings.
 
 import logging
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Lower
-from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)

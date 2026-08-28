@@ -207,9 +207,8 @@ def test_skill_name_uniqueness_enforced_at_database_level() -> None:
     """Duplicate skill name inserted without validation raises IntegrityError."""
     Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
 
 
 @pytest.mark.django_db
@@ -217,9 +216,8 @@ def test_skill_case_insensitive_name_uniqueness_enforced_at_database_level() -> 
     """A name differing only in case, inserted without validation, raises IntegrityError."""
     Skill.objects.create(name="Python", category=Skill.Category.TECHNOLOGY)
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            Skill.objects.create(name="python", category=Skill.Category.TECHNOLOGY)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Skill.objects.create(name="python", category=Skill.Category.TECHNOLOGY)
 
 
 def test_skill_name_field_declares_unique() -> None:
