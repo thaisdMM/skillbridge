@@ -7,6 +7,7 @@ account fields.
 """
 
 import logging
+from typing import ClassVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -54,7 +55,7 @@ class Freelancer(BaseUser):
         verbose_name = "Freelancer"
         verbose_name_plural = "Freelancers"
         db_table = "freelancers"
-        constraints = [
+        constraints: ClassVar[list[models.CheckConstraint]] = [
             models.CheckConstraint(
                 condition=~models.Q(is_active=False, is_available=True),
                 name="freelancer_no_inactive_available",
