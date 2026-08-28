@@ -15,7 +15,7 @@ on screens of their own, so the profile inlines live here beside the account
 admins that own them. This module imports profiles.models, never profiles.admin.
 """
 
-from typing import Any
+from typing import Any, ClassVar
 
 from django import forms
 from django.contrib import admin, messages
@@ -380,7 +380,11 @@ class FreelancerAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
 
     inlines = (FreelancerProfileInline,)
 
-    actions = ["activate_accounts", "set_available", "set_unavailable"]
+    actions: ClassVar[list[str]] = [
+        "activate_accounts",
+        "set_available",
+        "set_unavailable",
+    ]
 
     @admin.display(description=_("Availability"))
     def availability_badge(self, obj: Freelancer) -> SafeString:
@@ -564,7 +568,7 @@ class ClientAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
 
     inlines = (ClientProfileInline,)
 
-    actions = ["activate_accounts"]
+    actions: ClassVar[list[str]] = ["activate_accounts"]
 
     @admin.action(description=_("Activate selected accounts"))
     def activate_accounts(
@@ -641,7 +645,7 @@ class StaffUserAdmin(BaseAccountAdmin):
         ),
     )
 
-    actions = ["activate_accounts", "deactivate_accounts"]
+    actions: ClassVar[list[str]] = ["activate_accounts", "deactivate_accounts"]
 
     @admin.action(description=_("Deactivate selected accounts"))
     def deactivate_accounts(
