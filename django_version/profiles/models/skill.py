@@ -7,6 +7,7 @@ to filter job postings.
 """
 
 import logging
+from typing import ClassVar
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -71,8 +72,8 @@ class Skill(models.Model):
         verbose_name = _("Skill")
         verbose_name_plural = _("Skills")
         db_table = "skills"
-        ordering = ["category", "name"]
-        constraints = [
+        ordering: ClassVar[list[str]] = ["category", "name"]
+        constraints: ClassVar[list[models.UniqueConstraint]] = [
             models.UniqueConstraint(
                 Lower("name"), name="skill_unique_name_case_insensitive"
             )
