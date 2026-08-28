@@ -5,14 +5,16 @@
 **Tree:** `feature/django-refactor`
 **Status:** Complete as a plan, as of 2026-08-20. The Decision log runs D1–D21 with nothing
 open; the task entries T1–T19 and the _Order of execution_ are written; the deferrals are
-recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18, T9, T19 and T4 are implemented**, and
-T9's acceptance is complete in both halves. The **merge to `main` has landed**. **T19 closed on
-2026-08-21** with three auto-triage rules rather than the two amendment 2 decided — the merge did
-not close the four `sqlparse` alerts, so a third rule dismisses the manifest the dependency graph
-kept after the file was deleted. D18's amendments 4 and 5 record it, and one verification is
-deferred to the first real advisory. **T4 closed on 2026-08-22**, settling D17's open question on
-pytest-django 4.14.0 and unblocking T8. The next task free to start is **T5**, which waits on T2
-alone.
+recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18, T9, T19, T4 and T5 are
+implemented**, and T9's acceptance is complete in both halves. The **merge to `main` has
+landed**. **T19 closed on 2026-08-21** with three auto-triage rules rather than the two
+amendment 2 decided — the merge did not close the four `sqlparse` alerts, so a third rule
+dismisses the manifest the dependency graph kept after the file was deleted. D18's amendments 4
+and 5 record it, and one verification is deferred to the first real advisory. **T4 closed on
+2026-08-22**, settling D17's open question on pytest-django 4.14.0 and unblocking T8. **T5
+closed on 2026-08-28**, settling the open question T5 itself returned to the Planner in favor of
+`typing.ClassVar` annotations over a per-file-ignore, so D9a's suppression principle stays
+unamended. The next task free to start is **T6**, which waits on T3 and T5, both done.
 
 Everything decided on 2026-08-19 came from implementation rather than from an audit: T15 showed
 that Dependabot's default configuration cannot be aimed by `dependabot.yml` (D18, amendment 1) and
@@ -4179,6 +4181,52 @@ the top.
 
 ## T5 — `ruff`: configuration, the one-time format, and the findings
 
+**Status: Done — 2026-08-28.**
+
+**Result.** `pyproject.toml` pins `ruff==0.16.4` in the `dev` group — not the 0.16.3 D9/D12
+measured against — checked this session against 0.16.3 with no behavioural divergence except
+one: under 0.16.4, with `requires-python = ">=3.14"` in effect, the two `F821` findings D9 had
+already flagged as not defects (`accounts/models/base.py:43` and `:104`) do not fire at all.
+`[tool.ruff]` carries no `select`/`ignore`, `extend-select = ["S"]`, and two
+`per-file-ignores` entries — `RUF012` under `*/migrations/*`, `S101`+`S106` under `*/tests/*` —
+exactly as D9's amendment, D9a and D12 specify. `ruff format .` ran once (18 files), recorded
+before this closure. `ruff check . --fix` then reported **37 errors: 26 fixed automatically, 11
+left** — D9's 39 (38 outside `migrations/` plus 1 `I001` inside it) minus the two `F821` that no
+longer fire.
+
+**The open question T5 returned to the Planner is settled: `typing.ClassVar`, not a
+per-file-ignore.** All 10 `RUF012` findings — `Meta.ordering`, `Meta.constraints`,
+`ModelAdmin.actions`, `BaseUser.REQUIRED_FIELDS` — are Django-mandated class-level attributes,
+annotated with `typing.ClassVar` across `accounts/admin.py`, `accounts/models/base.py`,
+`accounts/models/freelancer.py`, `accounts/models/staff_user.py`, `profiles/models/base.py` and
+`profiles/models/skill.py`. Verified safe before writing: Django's `Options.contribute_to_class`
+reads `Meta.__dict__`, not `__annotations__`, so the annotation does not change what Django sees.
+**D9a's principle is unamended** — no suppression was added anywhere. The one `SIM102`, in
+`accounts/models/base.py`'s `clean()`, was combined into a single `if … and …`, same behaviour.
+
+**One formatting fallout from `--fix`, caught and closed.** Removing the unused `from
+django.shortcuts import render` (`F401`) in `accounts/views.py` and `profiles/views.py` left a
+blank line `ruff format .` does not accept; a second `ruff format` pass on the two files closed
+it before the acceptance check ran.
+
+**Acceptance confirmed, all four criteria, from `django_version/`:** `ruff check .` → `All
+checks passed!`; `ruff format --check .` → `76 files already formatted`; `ruff check --select S
+accounts profiles config manage.py --statistics` → 0 findings; `config/settings.py` is in
+ruff's scope, proven by the `I001` it auto-fixed there. `docker-compose exec web pytest` →
+**304 passed**, no test file touched.
+
+**Notes and deviations.**
+
+- **Landed in 14 commits across two sessions**: 4 recorded before this closure (the dependency
+  and `[tool.ruff]` declaration, and the one-time `ruff format .` split by app); 10 here — the
+  `--fix` pass split by scope (`accounts`, `profiles`, `config`), the `RUF012` `ClassVar`
+  annotations and the `SIM102` simplification split one file per commit, and the `views.py`
+  formatting follow-up.
+- **One commit, `chore(views)`, carries a composite scope spanning `accounts` and `profiles`** —
+  `conventions.md`'s commit rule forbids this explicitly. Flagged before it was made; the user
+  chose the exception deliberately, for one trivial, identical, one-line fix repeated in both
+  apps. Not a precedent for any other commit.
+
 **Implements:** D9 and its amendment, D9a, D12.
 
 **Do.** Add `[tool.ruff]` with **no `select` and no `ignore`**, `extend-select = ["S"]` under
@@ -4880,7 +4928,7 @@ Four things constrain the order; everything else is free.
 | 7   | **Merge `feature/django-refactor` into `main`**                                         | T9        | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, removes the manifest the four `sqlparse` alerts are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts would close on their own — was measured on 2026-08-20 and 2026-08-21 and did not hold**; D18's amendment 4 records why, and T19's step 0 is what clears them instead |
 | 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
 | 9   | ~~**T4** — migrations in the suite, `--reuse-db` and markers out~~ **done 2026-08-22**  | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
-| 10  | **T5** — ruff                                                                           | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
+| 10  | ~~**T5** — ruff~~ **done 2026-08-28**                                                   | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
 | 11  | **T6** — fix the 18 mypy errors                                                         | T3, T5    | django-stubs 6.1.0 targets Django 6.1                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 12  | **T7** — mypy CI step                                                                   | T6        | Enters build-failing, so the errors must be gone                                                                                                                                                                                                                                                                                                                                                                                              |
 | 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
