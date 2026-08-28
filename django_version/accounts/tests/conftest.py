@@ -5,8 +5,8 @@ from decimal import Decimal
 import pytest
 from django.test import Client as DjangoTestClient
 
-from accounts.models.freelancer import Freelancer
 from accounts.models.client import Client
+from accounts.models.freelancer import Freelancer
 from accounts.models.staff_user import StaffUser
 from profiles.models.client_profile import ClientProfile
 from profiles.models.freelancer_profile import FreelancerProfile

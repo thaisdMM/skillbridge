@@ -102,9 +102,8 @@ def test_constraint_raises_integrity_error_on_update_bypassing_clean(
         is_staff=False,
     )
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            StaffUser.objects.filter(pk=user.pk).update(is_active=True)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        StaffUser.objects.filter(pk=user.pk).update(is_active=True)
 
 
 @pytest.mark.django_db

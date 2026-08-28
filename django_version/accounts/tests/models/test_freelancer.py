@@ -134,11 +134,10 @@ def test_check_constraint_rejects_inactive_and_available_via_direct_update(
     freelancer_user: Freelancer,
 ) -> None:
     """A direct ORM update to is_active=False and is_available=True raises IntegrityError."""
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            Freelancer.objects.filter(pk=freelancer_user.pk).update(
-                is_active=False, is_available=True
-            )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Freelancer.objects.filter(pk=freelancer_user.pk).update(
+            is_active=False, is_available=True
+        )
 
 
 @pytest.mark.django_db

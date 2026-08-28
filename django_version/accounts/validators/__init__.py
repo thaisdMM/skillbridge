@@ -3,8 +3,8 @@
 
 from .user_validators import (
     validate_email,
-    validate_user_name,
     validate_strong_password,
+    validate_user_name,
 )
 
-__all__ = ["validate_email", "validate_user_name", "validate_strong_password"]
+__all__ = ["validate_email", "validate_strong_password", "validate_user_name"]

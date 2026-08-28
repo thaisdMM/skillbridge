@@ -11,16 +11,18 @@ from typing import Any
 
 from django.contrib.auth.models import (
     AbstractBaseUser,
+)
+from django.contrib.auth.models import (
     BaseUserManager as DjangoBaseUserManager,
 )
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from accounts.validators.user_validators import (
     validate_email,
-    validate_user_name,
     validate_strong_password,
+    validate_user_name,
 )
 
 logger = logging.getLogger(__name__)

@@ -3,10 +3,11 @@ Custom validatos for user input.
 Adapted fom OOP version with Django integration.
 """
 
+import logging
 import re
+
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-import logging
 
 logger = logging.getLogger(__name__)
 
