@@ -15,6 +15,8 @@ and 5 record it, and one verification is deferred to the first real advisory. **
 closed on 2026-08-28**, settling the open question T5 itself returned to the Planner in favor of
 `typing.ClassVar` annotations over a per-file-ignore, so D9a's suppression principle stays
 unamended. The next task free to start is **T6**, which waits on T3 and T5, both done.
+**Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
+T5, and the task now runs as **T6 followed by T6a**.
 
 Everything decided on 2026-08-19 came from implementation rather than from an audit: T15 showed
 that Dependabot's default configuration cannot be aimed by `dependabot.yml` (D18, amendment 1) and
@@ -32,6 +34,32 @@ criterion is completed by a deliberate documentation-only push; the _Order of ex
 calling T18 independent of the sequence it precedes; and a second premise in D18's amendment 1 —
 that `ignore` cannot reach security updates — is recorded as false. **No decision was reopened
 and no task was added, removed, reordered or re-scoped.**
+**Files modified by this session:** this plan only. No production file was touched.
+
+**Revision pass, 2026-08-29**, acting on
+`docs/verifications/2026-08-29-verification-mypy-t5-collision.md`. T6 was picked up for
+implementation and its baseline did not hold: the entry states **18 errors in 4 files**, the
+measured reality is **24 in 7**. The six extra are T5's. T5 closed eleven days after D10 took its
+measurement, and the `typing.ClassVar` annotations it chose to satisfy ruff's `RUF012` are exactly
+what mypy rejects on `Meta.constraints` and `ModelAdmin.actions`. The annotation style was never a
+Planner decision — T6 does not mention `ClassVar` anywhere — so what failed is that a fix
+satisfying one tool was not checked against a tool the plan had already committed to adopting.
+
+**Eight things changed in this file.** D10 gains an amendment carrying the real baseline, the
+twelve strictness flags and the answers to both open questions it had left. T5's closure note is
+corrected where its `ClassVar` sentence no longer describes the code. T6 is rewritten as a
+step-by-step over fixes that were executed and observed rather than reasoned. **T6a is added**
+between T6 and T7, carrying the twelve flags and the seven errors they surface. T7, T8, T14, T16
+and T17 each gain the conclusion of an explicit conflict check — the check nobody performed before
+T5 landed. **T7 also gains an entry gate**: `ci.yml` has no `ruff` step and no task adds one, which
+is recorded as a question for an Auditor session rather than absorbed as a task. **T20 is added**
+at the end, to distil the few things learned here that are worth more than the plan carrying them
+— and, more importantly, to filter out the many that are not. And the _Order of execution_ gains
+both new tasks and loses one of its two return-to-the-Planner points, which the verification
+closed.
+
+**No decision was reopened.** D9's rule set, D9a's suppression principle, D10's tool and scope,
+D11's 95% floor and D5's single `dev` group all stand exactly as written.
 **Files modified by this session:** this plan only. No production file was touched.
 
 ## What this plan supersedes, and why it is a new file
@@ -1482,6 +1510,24 @@ data is deleted before any test can see it (D17, cost 3). So migrations remain t
 tested code in the repository; they are no longer the untouched code the original sentence
 described.
 
+### Conflict check, 2026-08-29 — the entry stands unamended
+
+T5's closure recorded that it settled its own open question _"in favor of `typing.ClassVar`
+annotations over a per-file-ignore, so D9a's suppression principle stays unamended."_ T6 now
+retires six of those `ClassVar` annotations in favour of tuples, which raises the question of
+whether that sentence's guarantee survives. **It does, and more directly than before.**
+
+D9a's principle is about **suppression**, not about annotation style: one `per-file-ignores` entry
+for `RUF012` under `*/migrations/*`, and no rule of the default set silenced anywhere else. A
+tuple adds no suppression, removes none, and is not a suppression — `RUF012` simply has nothing to
+report against an immutable class-level default. The single `per-file-ignores` entry
+`pyproject.toml` carries is unchanged in scope and in reason.
+
+What T6 does change is the **answer** T5 gave, not the principle it preserved: `ClassVar` remains
+the answer for `Meta.ordering` and `BaseUser.REQUIRED_FIELDS`, and is replaced by a tuple for
+`Meta.constraints` and `ModelAdmin.actions`. That correction belongs to T5's entry and is written
+there.
+
 ---
 
 ## D10 — Type checking: `mypy` + `django-stubs`, production code only, made blocking in a second task
@@ -1683,20 +1729,88 @@ strictness decision taken without its own measurement would repeat the supersede
 
 ### Open questions carried to the task
 
-- **The 12 errors in `accounts/admin.py` are not pre-diagnosed here.** The Developer fixes what
-  is an annotation error and stops at anything that requires choosing how a queryset over two
-  independent concrete models should be typed — that returns to the Planner.
-- **Whether `django-stubs-ext` is needed, and if so where it belongs.** Upstream describes it as
-  a _production_ dependency enabling runtime support for generic annotations, and separately
-  notes that having it installed makes model `Meta` classes type-check without further changes.
-  Whether `django-stubs` already pulls it in transitively was **not verified**. If it turns out
-  to be required explicitly, it is the one dependency in this plan that would land in
-  `[project].dependencies` rather than the `dev` group, which is worth a deliberate note under
-  D5 rather than a silent `uv add`.
+- ~~**The 12 errors in `accounts/admin.py` are not pre-diagnosed here.**~~ **Answered
+  2026-08-29** — all of them are diagnosed and every fix is verified. The modelling judgement was
+  put to the user and decided; see the amendment below.
+- ~~**Whether `django-stubs-ext` is needed, and if so where it belongs.**~~ **Answered
+  2026-08-29:** it is a transitive dependency and is declared nowhere. `django_stubs-6.1.0`
+  metadata carries `Requires-Dist: django-stubs-ext>=6.0.2`, so installing `django-stubs` into
+  the `dev` group installs it. **Nothing lands in `[project].dependencies`**, and D5 needs no
+  note. The one constraint this creates is that the package must never be reached at import time —
+  see the amendment.
 - The exact `mypy` and `django-stubs` versions are pinned at implementation time per
   `conventions.md`; 2.3.1 and 6.1.0 are what was measured here.
 
----
+### Amendment, 2026-08-29 — the baseline is 24, twelve strictness flags are enabled, and both open questions are answered
+
+Acting on `docs/verifications/2026-08-29-verification-mypy-t5-collision.md`. **The decision is
+untouched**: mypy plus django-stubs, production code only, tests deferred to
+`docs/tech_debt/006-…`, CI wired in a separate task. What changes is the baseline it was sized
+against, the strictness setting it declined to take, and the two questions it left open.
+
+**The baseline moved from 18 in 4 files to 24 in 7.** D10 measured on 2026-08-17; T5 closed on
+2026-08-28. Every one of the six extra errors is a `typing.ClassVar` annotation T5 introduced:
+
+| Error | Symbol | Files |
+| ----- | ------ | ----- |
+| `Cannot override instance variable … with class variable` | `ModelAdmin.actions` | `accounts/admin.py` ×3 |
+| `Incompatible types in assignment … "list[BaseConstraint] \| tuple[BaseConstraint, ...]"` | `Meta.constraints` | `accounts/models/freelancer.py`, `accounts/models/staff_user.py`, `profiles/models/skill.py` |
+
+`ClassVar[list[CheckConstraint]]` narrows a type django-stubs declares as `list[BaseConstraint]`,
+and narrowing a mutable container in an override is unsound. The `actions` case is a different
+refusal: `ModelAdmin` declares `actions` as an instance variable, which a `ClassVar` cannot
+override at all. **A plain tuple closes all six** and satisfies `RUF012` at the same time, because
+a tuple is immutable and that rule exists to catch mutable class-level defaults. Converting the
+six brings the count back to exactly 18 in exactly D10's four files, which is the strongest
+available confirmation that the six were T5's and nothing else.
+
+**Twelve strictness flags are enabled, and `disallow_any_generics` is deferred.** D10 declined
+strict mode because no measurement supported it. That measurement now exists — each of the
+thirteen flags `--strict` enables was run individually against the 24-error baseline. Nine cost
+nothing; `disallow_untyped_calls` and `warn_return_any` cost one each; `disallow_untyped_defs`
+costs five; `disallow_any_generics` costs ten across four files outside this scope and **the user
+deferred it**. The twelve together cost seven errors, all missing annotations rather than wrong
+ones. `disallow_untyped_defs` is what finally makes `conventions.md`'s "type hints on every
+signature" enforceable — nothing verified it before.
+
+**The false-positive fear does not hold, and the editor is what was producing it.**
+`profiles/models/freelancer_profile.py` — which uses `self.user_id`, `self.user.name` and
+`self.skills.values_list()` — reports zero errors. The strongest evidence is an error rather than
+a silence: `accounts/admin.py` produces `Cannot resolve keyword 'profile' into field. Choices are:
+created_at, email, …`, and enumerating a model's real fields is something only the plugin can do.
+The `Instance of 'X' has no 'Y' member` messages the user was seeing are Pylint `E1101`, from an
+editor extension running on defaults with no Django plugin. **This is an input to T16**, not a
+decision taken here.
+
+**The twelve flags are listed one by one, not written as `strict = true` minus one.** mypy's own
+command-line reference states that _"the exact list of flags enabled by running `--strict` may
+change over time"_, so a future release could switch a flag on through a lock update with no
+configuration file having been edited — the same failure mode D9 accepted knowingly for ruff's
+default set, and refused here because the alternative costs ten lines. Note the config key for
+one of them is `implicit_reexport = false`; `no_implicit_reexport` is the command-line spelling
+and is not what a `pyproject.toml` carries.
+
+**`files` and `exclude` live in `[tool.mypy]`, not on the command line.** This is what stops T7's
+CI invocation from drifting away from the local one: both are a bare `mypy`, and neither can
+select a different scope. It also settles D10's statement that `migrations/` stays in scope — the
+exclude regex names `tests/` and nothing else.
+
+**Group F — the modelling judgement — was decided by the user, not guessed.** `HasProfileFilter`
+and `ProfilePresenceMixin` are written against `BaseUser`, which is abstract and carries neither
+the `profile` reverse relation nor `model`, `get_queryset` or the `has_profile` that `.annotate()`
+invents at runtime. Three options were put to the user: **(A)** follow what django-stubs declares
+on the supertype, **(B)** a `Protocol` expressing "an account model that has a profile", **(C)** a
+union of the two concrete models. **The user chose A**, on the reasoning that diverging from the
+supertype is what created the problem in the first place. django-stubs declares
+`SimpleListFilter.queryset` against `QuerySet[Any]`, so A returns the project's annotation to the
+framework's rather than inventing a narrower one.
+
+**Consequence for T5's closure note, and none for D9a.** D9a's principle is _suppress the rule,
+never the directory_, and no suppression is added or removed by any of this — **D9a stands
+unamended**, for the second time and for a different reason than the first. What is now partly
+false is T5's closure sentence, which reads as though `ClassVar` answered the whole `RUF012`
+question; it answered four of the ten findings and is overridden on six. T5's entry carries the
+correction.
 
 ## D11 — Coverage: `pytest-cov` in `addopts`, with a 95% floor blocking from the first run
 
@@ -3684,6 +3798,33 @@ Neither reverses a decision on its own terms: D18 still holds that this project 
 monitoring, and D8 still holds that CI is hardened rather than loosened for the bot. What changed
 is the mechanism, in both cases because the platform does not work the way the entry assumed.
 
+**2026-08-29 — a third entry reopened by implementation, and the first one reopened by another
+task in this same plan.** T6 was picked up and its measured baseline did not match its entry: 24
+errors in 7 files against the 18 in 4 the entry states. The cause is internal to this plan — T5
+closed eleven days after D10 measured, and the `ClassVar` annotations T5 chose to satisfy ruff are
+what mypy rejects.
+
+| What implementation showed | Decided | Landed in |
+| -------------------------- | ------- | --------- |
+| T5's `ClassVar` annotations on `Meta.constraints` and `ModelAdmin.actions` produce six mypy errors D10 never saw | convert those six to plain tuples, which satisfies both tools; `Meta.ordering` and `REQUIRED_FIELDS` keep `ClassVar` | **D10** amendment, **T5** correction, **T6** |
+| The strictness question D10 deferred for want of a measurement now has one, flag by flag | the twelve cheapest flags on, listed one by one; `disallow_any_generics` deferred with its cost recorded | **D10** amendment, **T6a** (new) |
+| The modelling judgement D10 refused to guess — how a queryset over two independent concrete models is typed | **the user chose option A**: follow what django-stubs declares on the supertype | **D10** amendment, **T6** block 5 |
+| `django-stubs-ext` is transitive, and must never be imported at runtime | declared nowhere; the one annotation needing it goes behind `TYPE_CHECKING` | **D10** amendment, **T6** step 11 |
+| Pylint is running in the editor with no configuration, and is the source of the Django false positives | **not decided** — it is an editor decision and belongs to a Planner session on T16 | **T16**, conflict check |
+
+**No decision was reversed and no rule-set decision was reopened.** D9's default set stands, D9a's
+suppression principle stands — reconfirmed for a second time, on different grounds — D10's tool and
+scope stand, D11's 95% floor stands, and D5's single `dev` group is untouched, since
+`django-stubs-ext` needs no declaration. One task was **added** (T6a) and one was **re-scoped**
+(T6, from 18 errors to 24 plus a configuration that now carries `files`, `exclude` and twelve
+flags).
+
+**The lesson, recorded where the next task can act on it.** T5 broke T6 because nobody read T6
+before choosing how to satisfy `RUF012`. Every task entry from T7 onward now carries a *Conflict
+check* section stating what was examined and what the conclusion was — T7 for the CI invocation,
+T8 for the coverage floor, T14 for the ruff hooks, T16 for the editor, T17 for the deferral. That
+is the only structural change this pass makes to how tasks are written.
+
 ## Open — decisions still to take, in the suggested order
 
 **None remain. Every decision in this section was closed on 2026-08-17**, and with D18 the
@@ -4204,6 +4345,27 @@ reads `Meta.__dict__`, not `__annotations__`, so the annotation does not change 
 **D9a's principle is unamended** — no suppression was added anywhere. The one `SIM102`, in
 `accounts/models/base.py`'s `clean()`, was combined into a single `if … and …`, same behaviour.
 
+**Correction, 2026-08-29 — the `ClassVar` answer holds for four of the ten findings and is
+overridden on six.** The paragraph above reads as though `ClassVar` settled the whole `RUF012`
+question. Measured under T6, six of those annotations are the reason mypy reports six errors D10
+never saw: `ClassVar[list[CheckConstraint]]` narrows a type django-stubs declares as
+`list[BaseConstraint]`, and `ClassVar` cannot override `ModelAdmin.actions`, which the supertype
+declares as an instance variable. **T6 converts those six to plain tuples**, which satisfies mypy
+and `RUF012` at once, since `RUF012` exists to catch a *mutable* class-level default.
+
+| Symbol | After T5 | After T6 |
+| ------ | -------- | -------- |
+| `Meta.ordering` (`accounts/models/base.py`, `profiles/models/base.py`, `profiles/models/skill.py`) | `ClassVar[list[str]]` | **unchanged** — converting it generates an `AlterModelOptions` migration |
+| `BaseUser.REQUIRED_FIELDS` | `ClassVar[list[str]]` | **unchanged** — produces no mypy error |
+| `Meta.constraints` (`freelancer.py`, `staff_user.py`, `skill.py`) | `ClassVar[list[…]]` | tuple |
+| `ModelAdmin.actions` (`accounts/admin.py` ×3) | `ClassVar[list[str]]` | tuple |
+
+**Nothing about T5's execution was wrong given what it could see**, and D9a's principle really is
+unamended — see the conflict check appended to that entry. What was missing is a step: the
+annotation style was chosen during implementation without being checked against T6, a task the
+plan had already committed to and which was the very next one in the sequence. That check is now
+written into every task entry that follows.
+
 **One formatting fallout from `--fix`, caught and closed.** Removing the unused `from
 django.shortcuts import render` (`F401`) in `accounts/views.py` and `profiles/views.py` left a
 blank line `ruff format .` does not accept; a second `ruff format` pass on the two files closed
@@ -4255,48 +4417,623 @@ silent addition.
 
 ---
 
-## T6 — `mypy`: fix the 18 production errors
+## T6 — `mypy`: the configuration and the 24 production errors
 
-**Implements:** D10, its first task. **Does not add a CI step.**
+**Replanned 2026-08-29.** Supersedes the entry titled _"fix the 18 production errors"_, whose
+baseline T5 invalidated.
 
-**Do.** Add `[tool.mypy]` with `plugins = ["mypy_django_plugin.main"]` and `[tool.django-stubs]`
-with `django_settings_module = "config.settings"` — note it is `[tool.django-stubs]`, **not**
-`[tool.mypy.plugins.django-stubs]`, which is the `mypy.ini` form. Declare `mypy` and
-`django-stubs` in the `dev` group. Scope the check to `accounts/`, `profiles/`, `config/` and
-`manage.py`, excluding `accounts/tests/` and `profiles/tests/`. `migrations/` stays **in** scope —
-measured at zero errors. Strict mode is **not** enabled. Then fix the 18.
+**Implements:** D10 and its 2026-08-29 amendment, its first task. **Does not enable the
+strictness flags** — that is T6a. **Does not add a CI step** — that is T7.
 
-**Scope.** `django_version/pyproject.toml`, `accounts/admin.py`, `accounts/models/base.py`,
-`profiles/admin.py`, `config/settings.py`.
+**Evidence.** `docs/verifications/2026-08-29-verification-mypy-t5-collision.md`. Every fix below
+was applied to a throwaway copy of `django_version/` and observed to produce the stated count.
+**Do not re-measure any number in that file**, and do not read its appendix diff as an instruction
+to apply blind — the steps here are the instruction, and they exist so each change lands with its
+reason.
 
-**Acceptance.** mypy over the production scope reports 0 errors. Suite green. Four of the errors
-in `accounts/models/base.py` are one fix — the manager's `TypeVar` has no bound.
+**No open question returns to the Planner.** The one D10 held back — how a queryset over two
+independent concrete models should be typed — was put to the user and decided; option A, follow
+the supertype. Block 6 implements it.
 
-**Out of scope.** Test files, and anything that would require editing `.claude/rules/testing.md`'s
-fixture-annotation rule. That is deferred in
-`docs/tech_debt/006-tests-excluded-from-type-checking-fixture-annotations-cannot-pass.md`.
+---
 
-**Explicitly refused.** Annotating the baseline fixtures `dict[str, Any]`. It clears 60 errors
-with two edits and buys silence by making the annotation weaker than what the project already
-has.
+### Block 1 — declare the tools and the configuration
 
-**Open question that returns to the Planner.** `accounts/admin.py` calls
-`queryset.filter(profile__isnull=…)` on a parameter annotated `QuerySet[BaseUser]`, and `BaseUser`
-is abstract with no `profile` relation. **The code is correct; the annotation is not.** If choosing
-the right annotation turns out to be a modelling judgement about how a queryset over two
-independent concrete models should be typed, it comes back to the Planner rather than being
-guessed.
+**Step 1.** In `django_version/pyproject.toml`, add two entries to `[dependency-groups].dev`:
+
+```
+"mypy==2.3.1",
+"django-stubs==6.1.0",
+```
+
+Not `django-stubs[compatible-mypy]`. That extra exists to pin mypy to a compatible range, and
+`conventions.md` already requires an exact `==` pin on mypy itself, so the extra would be a second
+opinion about a version this file already fixes. `django-stubs-ext` is **not** declared anywhere:
+`django_stubs-6.1.0` carries `Requires-Dist: django-stubs-ext>=6.0.2`, so it arrives with
+`django-stubs` in the `dev` group.
+
+**Step 2.** In the same file, add two tables between `[tool.pytest]` and `[tool.ruff]`:
+
+```toml
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+files = ["accounts", "profiles", "config", "manage.py"]
+exclude = "^(accounts|profiles)/tests/"
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+```
+
+The table is `[tool.django-stubs]`, **not** `[tool.mypy.plugins.django-stubs]` — the latter is the
+`mypy.ini` form and yields a plugin that loads with no settings module. `files` and `exclude` go in
+the file rather than on the command line so that T7's CI step and your local run are the same bare
+`mypy` and cannot select different scopes. `migrations/` stays in scope: the exclude regex names
+`tests/` and nothing else.
+
+**Step 3.** Regenerate the lock and rebuild the image:
+
+```
+docker-compose exec web uv lock
+docker-compose build web
+docker-compose up -d web
+```
+
+Run `uv lock` **inside the container**, not on the host: the container's `uv` is pinned at 0.12.5
+by the `Dockerfile` and the host's is not. `/app` is bind-mounted, so the rewritten `uv.lock` lands
+back on the host. The rebuild is required because `uv sync --locked` runs at build time and
+`/opt/venv` sits outside the bind mount — editing `pyproject.toml` alone installs nothing.
+
+**Expected result.** `docker-compose exec web mypy` reports
+**`Found 24 errors in 7 files (checked 43 source files)`**, exit 1.
+
+If the file count is not 43, `files`/`exclude` are not doing what was measured — stop and fix the
+configuration before touching a single source file. Nothing is needed in `.gitignore` or
+`.dockerignore`: both already carry `.mypy_cache/`.
+
+---
+
+### Block 2 — Group B: the six errors T5 introduced
+
+The reasoning is in the verification, _Result 2_ and _Group B — SOLVED_. In one line: a tuple is
+immutable, so `RUF012` has nothing to flag and the `ClassVar` that caused the collision is not
+needed; and mypy's own message names `tuple[BaseConstraint, ...]` as an accepted type, so a tuple
+satisfies the supertype instead of narrowing it.
+
+**Step 4.** Convert `Meta.constraints` from an annotated list to a tuple in three models, and
+delete the now-unused import where `constraints` was its only user:
+
+| File | Symbol | `from typing import ClassVar` |
+| ---- | ------ | ----------------------------- |
+| `accounts/models/freelancer.py` | `Freelancer.Meta.constraints` | **delete the line** |
+| `accounts/models/staff_user.py` | `StaffUser.Meta.constraints` | **delete the line** |
+| `profiles/models/skill.py` | `Skill.Meta.constraints` | **keep it** — `Meta.ordering` still uses it |
+
+The shape is the same in all three; the trailing comma is what makes it a tuple rather than a
+parenthesised expression:
+
+```python
+constraints = (
+    models.CheckConstraint(
+        condition=~models.Q(is_active=False, is_available=True),
+        name="freelancer_no_inactive_available",
+    ),
+)
+```
+
+**Do not touch `Meta.ordering`, in this file or any other.** It produces no mypy error, and
+converting it to a tuple makes `makemigrations` generate an `AlterModelOptions` migration —
+observed, in the verification, under _The boundary_. `ordering` is one of Django's tracked Meta
+options and `constraints` is not. _(Migration state is Django's recorded picture of what the
+models looked like at the last migration. `makemigrations` compares today's models against that
+picture, so anything stored in it produces a migration when it changes — a `verbose_name` edit
+generates one even though no column moves.)_ **The rule for this whole task: convert only what
+mypy actually flags.** Retiring a `ClassVar` that is causing no error is not cleanup, it costs a
+migration.
+
+**Step 5.** In `accounts/admin.py`, convert `actions` to a tuple on the three registered admins —
+`FreelancerAdmin`, `ClientAdmin`, `StaffUserAdmin` — and narrow the module's `typing` import from
+`from typing import Any, ClassVar` to `from typing import Any`:
+
+```python
+actions = (
+    "activate_accounts",
+    "set_available",
+    "set_unavailable",
+)
+```
+
+```python
+actions = ("activate_accounts",)
+```
+
+```python
+actions = ("activate_accounts", "deactivate_accounts")
+```
+
+**Expected result.** `docker-compose exec web mypy` reports **`Found 18 errors in 4 files`** —
+exactly D10's original count and exactly its four files. That match is the checkpoint: it proves
+the six that disappeared were T5's and nothing else. If you land on any other number, stop here.
+
+---
+
+### Block 3 — Groups A, C and D: three files, one edit each
+
+**Step 6.** `config/settings.py` — mypy states this fix in the error itself:
+
+```python
+ALLOWED_HOSTS: list[str] = []
+```
+
+**Step 7.** `accounts/models/base.py` — supply the type parameter on the manager's base class:
+
+```python
+class BaseUserManager(DjangoBaseUserManager["BaseUser"]):
+```
+
+This one line closes all four errors in the file. Django's manager is generic — written to be told
+which model it manages — and left untold, every object `self.model(...)` returns is an unknown to
+the checker, which is why `set_password`, `set_unusable_password` and `id` all report as missing.
+_(A generic class is one that takes a type in brackets, the way `list[str]` does.)_ The forward
+reference is safe at runtime for two independent reasons: it is a string, and Django's
+`BaseManager` implements `__class_getitem__` returning `cls`, so subscripting a manager is a no-op.
+
+**Step 8.** `profiles/admin.py` — widen the container in two signatures on `SkillAdmin`,
+`get_deleted_objects` and the `_count_referring_profiles` helper it calls, and add the import:
+
+```python
+from collections.abc import Sequence
+```
+
+```python
+objs: QuerySet[Skill] | Sequence[Skill]
+```
+
+`Skill` is preserved — this widens the container, not the element. The supertype declares
+`Sequence[Any] | QuerySet[Any, Any]`, and a `list` is narrower than a `Sequence`, so the override
+was accepting less than the method it replaces. _(Liskov substitution: code holding a parent class
+must keep working when handed a child. A parent method that accepts any iterable, overridden by
+one that accepts only a list, breaks that — the caller has no way to know.)_
+
+**Expected result.** **`Found 12 errors in 1 file`**, all in `accounts/admin.py` — matching D10's
+"12 of the 18 are in one file".
+
+---
+
+### Block 4 — Group E: three fixes inside `accounts/admin.py`, one of them a real bug
+
+**Step 9.** `ProfileInlineForm.full_clean` — replace both uses of the private `self._errors` with
+the public `self.errors`:
+
+```python
+} & set(self.errors)
+for name in hidden_fields_with_errors:
+    for error in self.errors.pop(name).as_data():
+```
+
+Behaviour is identical: `super().full_clean()` has already populated `_errors` by this point, so
+the `errors` property returns it directly rather than re-entering validation. django-stubs does not
+declare the private attribute, which is what the two errors were about.
+
+**Step 10.** `BaseProfileInline.formfield_for_dbfield` — **this is a latent bug, not a typing
+complaint.** The supertype returns `FormField | None`, Django does return `None` for some fields,
+and the current code would raise `AttributeError` the day it did. Change the return annotation and
+guard the access:
+
+```python
+) -> forms.Field | None:
+```
+
+```python
+formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+if formfield is not None and isinstance(
+    formfield.widget, RelatedFieldWidgetWrapper
+):
+    formfield.widget.can_add_related = False
+return formfield
+```
+
+Update the `Returns:` line of the docstring to say the method returns `None` when Django builds no
+form field for the column.
+
+**Step 11.** `HasProfileFilter.lookups` — the labels are `gettext_lazy` promises, not `str`. Add
+the `TYPE_CHECKING` block below the imports, in its final form, and widen the annotation:
+
+```python
+from typing import TYPE_CHECKING, Any
+```
+
+```python
+if TYPE_CHECKING:
+    from django_stubs_ext import StrOrPromise
+
+    _AdminBase = admin.ModelAdmin
+else:
+    _AdminBase = object
+```
+
+```python
+) -> tuple[tuple[str, StrOrPromise], ...]:
+```
+
+**No quotes on the annotation.** Python 3.14 evaluates annotations lazily, so the name is never
+resolved at runtime, and ruff's `UP037` actively removes quotes if you write them. _(`TYPE_CHECKING`
+is a constant that is `False` at runtime and `True` for a type checker. It is how a file imports
+something only the checker needs — the standard use is importing a class for an annotation without
+paying the import cost, or without creating a circular import.)_ Here it is load-bearing for a
+second reason: `django-stubs` lives in the `dev` group, so anything reaching `django_stubs_ext` at
+import time would break a production install.
+
+`_AdminBase` is unused until step 12 and that is intentional — it belongs in the same block, and no
+ruff rule objects to an unused module-level assignment. `django_stubs_ext.monkeypatch()` is **not**
+called and is not needed.
+
+**Expected result.** **`Found 6 errors in 1 file`**.
+
+---
+
+### Block 5 — Group F: the modelling judgement, decided as option A
+
+Six errors, one root cause: `HasProfileFilter` and `ProfilePresenceMixin` are typed against
+`BaseUser`, which is abstract and has no `profile` reverse relation, no `model`, no `get_queryset`,
+and no `has_profile` — the last invented at runtime by `.annotate()`. The code is correct; only the
+annotations are wrong. **The user chose option A: follow what django-stubs declares on the
+supertype**, on the reasoning that diverging from the supertype is what created the problem.
+`SimpleListFilter.queryset` is declared against `QuerySet[Any]` upstream.
+
+**Step 12.** `ProfilePresenceMixin` — three edits in the same class:
+
+```python
+class ProfilePresenceMixin(_AdminBase):
+```
+
+```python
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
+```
+
+```python
+    def profile_badge(self, obj: Any) -> SafeString:
+```
+
+`_AdminBase` is the block you already added in step 11. This is the standard way to type a mixin:
+the mixin is only ever combined with a `ModelAdmin`, so the checker is told to treat it as one,
+while at runtime it stays a plain `object` and the method resolution order is exactly what it was.
+Do not change `StatusBadgeMixin`, which reports no error.
+
+**Step 13.** `HasProfileFilter.queryset` — the parameter and the return, both to `QuerySet[Any]`.
+The signature now fits on one line:
+
+```python
+    def queryset(self, request: HttpRequest, queryset: QuerySet[Any]) -> QuerySet[Any]:
+```
+
+**Expected result.** **`Success: no issues found in 43 source files`**.
+
+---
+
+### Block 6 — the gates
+
+**Step 14.** The two ruff gates, from `django_version/`. Both were green on the applied diff:
+
+```
+docker-compose exec web ruff check .          → All checks passed!
+docker-compose exec web ruff format --check . → 76 files already formatted
+```
+
+**Step 15.** Django's own two checks. The second is the one that catches an accidental
+`Meta.ordering` conversion:
+
+```
+docker-compose exec web python manage.py check                              → no issues (0 silenced)
+docker-compose exec web python manage.py makemigrations --check --dry-run   → No changes detected
+```
+
+**Step 16.** The suite, which is the gate this task closes on and the one the verification could
+not run:
+
+```
+docker-compose exec web pytest    → 304 passed
+```
+
+**The two fixes that touch behaviour are covered, and these are the tests that cover them.** Read
+their names before running, so a failure is attributable rather than mysterious:
+
+| Fix | Tests |
+| --- | ----- |
+| Step 9, `ProfileInlineForm.full_clean` | `test_refusal_on_a_hidden_field_is_shown_above_the_section`, `test_refusal_on_a_hidden_field_leaves_no_orphan_error` in `accounts/tests/admin/test_freelancer_profile_inline.py` |
+| Step 10, `formfield_for_dbfield` | `test_skills_widget_offers_no_add_related_control`, `test_rendered_skills_widget_carries_no_add_related_link`, in **both** `test_freelancer_profile_inline.py` and `test_client_profile_inline.py` |
+
+Everything else in this task is an annotation and cannot move the suite.
+
+---
+
+**Scope.** `django_version/pyproject.toml`, `django_version/uv.lock` (regenerated, not
+hand-edited), `accounts/admin.py`, `accounts/models/base.py`, `accounts/models/freelancer.py`,
+`accounts/models/staff_user.py`, `profiles/admin.py`, `profiles/models/skill.py`,
+`config/settings.py`. Nine files, and no test file.
+
+**Acceptance.** Every _Expected result_ above, in order, plus a green suite at step 16. The
+checkpoint that matters most is block 2's 18-in-4: it is what confirms the collision is closed
+rather than merely reduced.
+
+**Out of scope.**
+
+- **Test files**, and anything that would require editing `.claude/rules/testing.md`'s
+  fixture-annotation rule — deferred in
+  `docs/tech_debt/006-tests-excluded-from-type-checking-fixture-annotations-cannot-pass.md`.
+- **The strictness flags.** T6a.
+- **`Meta.ordering` and `BaseUser.REQUIRED_FIELDS`.** They keep their `ClassVar` annotations.
+- **The three `# Type hint for Pylint` comments** in `accounts/models/base.py`,
+  `profiles/models/base.py` and `profiles/models/skill.py`. They produced no conflict with the
+  plugin, and Pylint is T16's subject.
+
+**Explicitly refused.** Annotating the baseline fixtures `dict[str, Any]`. It clears 60 errors with
+two edits and buys silence by making the annotation weaker than what the project already has.
+
+**Commits.** `conventions.md`'s one-commit-per-file rule applies unchanged; the configuration in
+`pyproject.toml` and the regenerated `uv.lock` are one change and therefore one commit.
+
+**Closing note to write when this lands — and it is two things, not one.** The rule that came out
+of the T5 collision splits into a half that needs no record and a half that does. The user decided
+against an ADR and against a line in `conventions.md`; T20 defines the gate that decides which half
+survives this plan.
+
+**Half one — the tuple rule. Records nowhere; the tools enforce it.** *Django class-level
+attributes that ruff's `RUF012` flags are declared as tuples.* Writing
+`ClassVar[list[CheckConstraint]]` instead makes mypy fail, and after T7 that turns CI red with the
+exact message naming the exact line. A document restating what a build-failing gate already
+imposes is redundant and can only drift away from it. The diagnosis, with the commands and the
+numbers, already lives in `docs/verifications/2026-08-29-verification-mypy-t5-collision.md`, which
+is the right home for a fact about a tool.
+
+**Half two — the `Meta.ordering` exception. This one is written down, and T20 is where.**
+*`Meta.ordering` stays `ClassVar[list[str]]`; converting it to a tuple generates an
+`AlterModelOptions` migration.* It is the only line of the four that no gate protects correctly.
+Convert `ordering` for consistency and ruff passes, mypy passes, `manage.py check` passes — only
+`makemigrations --check` objects, **and it objects to the wrong thing**: it reports a missing
+migration, so the natural repair is to generate the migration and commit it, which locks the
+mistake in. The gate exists and points at the symptom.
+
+That asymmetry — a real error, and every available tool either silent or misleading — is exactly
+T20's entry gate. Carry this one line to T20 when the task closes; carry nothing else from here.
+
+---
+
+## T6a — `mypy`: the twelve strictness flags and the seven errors they surface
+
+**Added 2026-08-29.** **Implements:** D10's amendment. **Requires T6 finished and green.**
+**Required by T7.**
+
+Numbered `6a` rather than inserted as a new `T7` because renumbering T7–T19 would invalidate every
+cross-reference in this file and in the audits that cite it. D9a is the precedent.
+
+**Why it is a separate task.** Everything in T6 carries a fix that was executed and observed. The
+seven errors here carry a verified **diagnosis** and no verified fix — the verification measured
+them and stopped. Splitting means that if one of them turns out to need a judgement, T6 has already
+closed green and T7 still enters with teeth. It is the same instrument D10 used to separate T6 from
+T7.
+
+### Block 1 — enable the flags
+
+**Step 1.** Add twelve keys to the existing `[tool.mypy]` table:
+
+```toml
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_subclassing_any = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_equality = true
+extra_checks = true
+implicit_reexport = false
+```
+
+These are the thirteen flags `--strict` enables, minus `disallow_any_generics`, which the user
+deferred. **Write them one by one; do not write `strict = true`.** mypy's command-line reference
+states that _"the exact list of flags enabled by running `--strict` may change over time"_, so
+`strict = true` would let a lock update switch on a flag nobody chose.
+
+Note the last key: the config-file spelling is `implicit_reexport = false`. `no_implicit_reexport`
+is the command-line flag `--no-implicit-reexport` and is not a `pyproject.toml` key.
+
+**Step 2.** `docker-compose build web && docker-compose up -d web` is **not** needed — no
+dependency changed, and `pyproject.toml` is inside the bind mount.
+
+**Expected result.** `docker-compose exec web mypy` reports **7 errors**:
+
+```
+accounts/apps.py:8: error: Function is missing a return type annotation  [no-untyped-def]
+profiles/apps.py:8: error: Function is missing a return type annotation  [no-untyped-def]
+manage.py:8: error: Function is missing a return type annotation  [no-untyped-def]
+profiles/migrations/0002_seed_skills.py:39: error: Function is missing a type annotation  [no-untyped-def]
+profiles/migrations/0002_seed_skills.py:48: error: Function is missing a type annotation  [no-untyped-def]
+manage.py:23: error: Call to untyped function "main" in typed context  [no-untyped-call]
+accounts/admin.py:264: error: Returning Any from function declared to return "QuerySet[BaseUser, BaseUser]"  [no-any-return]
+```
+
+Seven and no more — the verification confirmed the flag cost is unchanged by any of T6's fixes.
+**One line will read differently from the quote above**: the seven were measured on the unfixed
+tree, so the last error names `QuerySet[BaseUser, BaseUser]`, while after T6 changed that return
+annotation it reads `QuerySet[Any, Any]`. Same error, same line, same code.
+
+`disallow_untyped_defs` is what makes `conventions.md`'s "type hints on every signature"
+enforceable for the first time — its five findings are genuinely unannotated functions, not false
+positives.
+
+### Block 2 — the six annotations
+
+**Step 3.** Annotate the two `ready()` methods and `main()`. All three take no arguments and
+return nothing:
+
+| File | Symbol | Signature |
+| ---- | ------ | --------- |
+| `accounts/apps.py` | `AccountsConfig.ready` | `def ready(self) -> None:` |
+| `profiles/apps.py` | `ProfilesConfig.ready` | `def ready(self) -> None:` |
+| `manage.py` | `main` | `def main() -> None:` |
+
+Annotating `main` also closes the `no-untyped-call` at `manage.py:23` — that error exists only
+because the call site is now typed and the target was not. Six of the seven, from four edits.
+
+**Step 4.** `profiles/migrations/0002_seed_skills.py` — annotate `seed_skills` and
+`remove_skills`. Both receive the two arguments Django's `RunPython` passes:
+
+```python
+def seed_skills(apps: StateApps, schema_editor: BaseDatabaseSchemaEditor) -> None:
+```
+
+```python
+def remove_skills(apps: StateApps, schema_editor: BaseDatabaseSchemaEditor) -> None:
+```
+
+with the imports under a `TYPE_CHECKING` guard, so a migration file gains no runtime import:
+
+```python
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+    from django.db.migrations.state import StateApps
+```
+
+`StateApps` is the historical-model registry `RunPython` hands a data migration — not the live app
+registry, which is why a migration calls `apps.get_model(...)` instead of importing the model. Both
+names come from django-stubs, so both must stay behind the guard: `django-stubs` is in the `dev`
+group and a production install does not have it. **`RUF012` is already suppressed under
+`*/migrations/*`** by D9a's `per-file-ignores` entry, so nothing here disturbs the ruff
+configuration.
+
+**Expected result.** **`Found 1 error in 1 file`** — the `no-any-return` at `accounts/admin.py`.
+
+### Block 3 — the last error, and the gates
+
+**Step 5.** `accounts/admin.py`, `ProfilePresenceMixin.get_queryset`. T6 changed this method's
+return annotation to `QuerySet[Any]`; `super().get_queryset(request)` on `_AdminBase` returns
+`Any`, and `warn_return_any` refuses to return an `Any` from a function declared to return
+something more specific. Bind the call to a local annotated with the return type, then annotate:
+
+```python
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
+        profile_relation = self.model._meta.get_field("profile")
+        profiles = profile_relation.related_model.objects.filter(user=OuterRef("pk"))
+        queryset: QuerySet[Any] = super().get_queryset(request)
+        return queryset.annotate(has_profile=Exists(profiles))
+```
+
+**This is the one step in either task whose fix was not executed during the verification** — it was
+diagnosed only, and the error text it must clear is quoted above. If this shape does not clear it,
+stop and return to the Planner rather than reaching for `# type: ignore` or `cast`. Do not add
+an inline comment explaining the local; `conventions.md` forbids it and the docstring is unchanged.
+
+**Step 6.** The same four gates T6 closed on, in the same order:
+
+```
+docker-compose exec web mypy                                              → Success: no issues found in 43 source files
+docker-compose exec web ruff check . && docker-compose exec web ruff format --check .
+docker-compose exec web python manage.py check
+docker-compose exec web python manage.py makemigrations --check --dry-run → No changes detected
+docker-compose exec web pytest                                            → 304 passed
+```
+
+`makemigrations --check` matters here for its own reason: step 4 edits a migration file, and this
+is what confirms the annotations changed nothing Django records.
+
+---
+
+**Scope.** `django_version/pyproject.toml`, `accounts/apps.py`, `profiles/apps.py`, `manage.py`,
+`profiles/migrations/0002_seed_skills.py`, `accounts/admin.py`. No test file.
+
+**Acceptance.** mypy reports `Success` with the twelve flags on. Suite green. `makemigrations
+--check --dry-run` reports no changes.
+
+**Out of scope.**
+
+- **`disallow_any_generics`.** Deferred by the user, measured at +10 errors across four files
+  outside this scope — `get_display_info() -> dict` in three profile models,
+  `tuple[list, dict, set, list]` in `profiles/admin.py`, and the django-stubs generics
+  `ModelAdmin`, `ModelForm`, `StackedInline`, `Field` and `BaseUserManager` used bare. **T17
+  records it**; the omission is a decision, not an oversight.
+- **`warn_unreachable`**, which `--strict` does not enable and nothing here measured.
+- **Test files.** Unchanged from T6.
 
 ---
 
 ## T7 — `mypy`: add the CI step, build-failing from its first run
 
-**Implements:** D10, its second task. **Requires T6 finished and green.**
+**Implements:** D10, its second task. **Requires T6 _and_ T6a finished and green** — amended
+2026-08-29; the entry previously named T6 alone.
+
+### Entry gate — an Auditor session runs before this task starts
+
+**Added 2026-08-29.** Found while checking what actually enforces T6's tuple rule: **`ci.yml` has
+no `ruff` step, and no task in this plan adds one.** Verified by reading the file — its steps are
+checkout, generate `SECRET_KEY`, install uv, set up Python, `uv sync --locked`, `uv run pytest`,
+and two badge steps. Nothing else.
+
+So after T5 and T14, ruff runs in exactly two places: by hand, and in a `pre-commit` hook that
+executes on the host and that `git commit --no-verify` skips. Meanwhile this task is about to give
+**mypy** a blocking CI step. The two tools that jointly enforce the same rule would end up with
+very different teeth, and the weaker one is the one that catches the direction a person is more
+likely to write by hand.
+
+**This is a signal, not a finding, and this plan does not absorb it.** Per `PLANNER.md`, spotting
+something the Auditor never raised is grounds for flagging it, not for adding a task. It may be
+deliberate — D9's cost section, D12's scope, D14's hook set and D6's CI shape were each decided
+separately, and one of them may already carry the reasoning. This plan is over 5,000 lines and
+nobody has read it end to end against this specific question.
+
+**What the Auditor session must answer, in this order:**
+
+1. **Does the plan already explain it?** Search D6, D9 and its amendment, D9a, D12 and D14 for any
+   statement that ruff is deliberately not wired into CI, and any reason given. Report the passage
+   or report that none exists.
+2. **If none exists, is it an omission or an implication?** D14 decided the hook set; a hook is not
+   a gate. Determine whether "hooks only" was ever argued as sufficient for ruff, or whether the
+   CI question was simply never asked of ruff the way D7, D10, D12 and D13 asked it of their tools.
+3. **What does it cost to close?** One step, `uv run ruff check .` plus `uv run ruff format
+   --check .`, with `working-directory: django_version` — the same shape as this task's step, on a
+   tool already pinned in the `dev` group and already green.
+
+**Then:** if the audit finds the reasoning already written, record that and this gate closes with
+no change. If it finds an omission, **it goes to the Planner, not to the Developer** — a new CI
+gate is a decision, and this entry does not take it.
+
+**T7 is not blocked on the outcome**, only on the question having been asked. The mypy step is
+correct either way; the two can be implemented in the same session once the audit has reported.
+
+**Conflict check, 2026-08-29 — resolved by construction, not by discipline.** The risk this task
+carries is that the CI invocation and the local one drift apart in scope, exclusions or flags —
+which is a version of the failure that produced the T5 collision. T6 removes the possibility
+rather than warning against it: `files`, `exclude` and the twelve flags all live in `[tool.mypy]`
+in `django_version/pyproject.toml`, so there is nothing left to pass on a command line and no
+second place for the two to disagree.
+
+**Do.** One step in the existing job, after the install and before or beside the test step, with
+`working-directory: django_version` like its neighbours:
+
+```yaml
+- name: Type check
+  run: uv run mypy
+```
+
+`uv run`, not a bare `mypy`: D10 established by measurement that the plugin initialises the Django
+app registry and therefore needs the project's entire production dependency set present. A
+standalone `uvx mypy` step can never work.
+
+**Write no arguments after `mypy`.** Not a path, not `--strict`, not an `--exclude`. Any argument
+here is a second definition of the scope, and the first one it would silently override is the
+`exclude` that keeps `accounts/tests/` and `profiles/tests/` out — the deferral recorded in
+`docs/tech_debt/006-…`.
 
 **Scope.** `.github/workflows/ci.yml`.
 
 **Acceptance.** The step fails the job on a deliberately introduced type error, and passes on
-`main`. No `continue-on-error`.
+`main`. No `continue-on-error`. **Read the step's log once** and confirm it reports
+`checked 43 source files`: that number is the proof the CI run has the same scope as the local
+one, and it is the only thing distinguishing a correctly-scoped green from a green that checked
+the wrong tree.
 
 ---
 
@@ -4310,9 +5047,37 @@ guessed.
 
 **Scope.** `django_version/pyproject.toml`.
 
-**Acceptance.** Production coverage reports ~97% and the gate passes. Branch columns appear,
-proving `branch = true` is honoured from the file. The `omit` entries take effect — tests and
-migrations are absent from the report.
+**Acceptance.** Production coverage reports **~96%** — see the conflict check below, which lowered
+this from the ~97% D11 measured — and the gate passes. Branch columns appear, proving
+`branch = true` is honoured from the file. The `omit` entries take effect — tests and migrations
+are absent from the report.
+
+**Conflict check, 2026-08-29 — the gate still passes, with about half the headroom.** T6 and T6a
+land after D11 took its 97% measurement, so the number this task expects had to be re-derived.
+Three things were checked, and only one of them moves the figure.
+
+| T6 change | Effect on coverage |
+| --------- | ------------------ |
+| The `if formfield is not None and isinstance(…)` guard in `formfield_for_dbfield` | **none.** coverage.py measures branch arcs between lines; `if A and B:` has the same two exits as `if B:`, so no branch is added and no statement is. The method is exercised — see T6 step 16 |
+| `from collections.abc import Sequence` in `profiles/admin.py` | +1 statement, executed at import, covered |
+| The `if TYPE_CHECKING:` block in `accounts/admin.py` | +4 statements, **2 of which can never execute** — the `django_stubs_ext` import and `_AdminBase = admin.ModelAdmin` |
+
+So production goes from D11's measured 598 statements with 20 missed to roughly **603 with 22
+missed** — about **96%** against a 95% floor. The gate holds; the headroom drops from roughly two
+points to roughly one. **This is reasoning over D11's measured inputs, not a new measurement** —
+the Developer sees the real number the first time the gate runs, and this entry exists so that a
+96 is recognised as expected rather than as a regression to investigate.
+
+**The `if TYPE_CHECKING:` line itself is not a partial branch**, provided the resolved `coverage`
+is **7.10.0 or later** — that release added `if TYPE_CHECKING:` to coverage.py's built-in
+`partial_branches` defaults, so no `exclude_lines` entry is needed. Confirm the resolved version
+once in `uv.lock` when `pytest-cov` is added. If it is older, that one line reports as a partial
+branch, which costs a fraction of a point and still clears 95 — it is a thing to recognise, not a
+thing to fix.
+
+**The floor stays at 95, and the two dead statements stay uncovered.** No `# pragma: no cover`, no
+`exclude_lines` entry, no adjustment to the floor. D11's reasoning is unchanged: the floor is a
+ratchet that moves up when the real number does, as a decision.
 
 **The one trap, stated so it is not walked into.** `addopts` must never carry `--cov=<value>` or
 `--cov-branch`. Either one silently overrides the corresponding key in `[tool.coverage.run]`.
@@ -4498,6 +5263,18 @@ expose it as wrong.
 **Do not.** Use `--directory` on a hook that passes filenames — it moves the working directory and
 the root-relative paths stop resolving. Add `mypy`, `pytest` or `gitleaks` to the hook set.
 
+**Conflict check, 2026-08-29 — no conflict; the hooks cannot undo T6's edits.** `ruff check --fix`
+is the hook with the power to rewrite source, so the question is whether it would push T6's tuples
+back towards lists. It would not, for two independent reasons: `RUF012` does not fire on a tuple at
+all, since it exists to catch a *mutable* class-level default; and `RUF012` is not an auto-fixable
+rule, so `--fix` could not rewrite it even where it does fire. The applied diff was measured
+against both hooks and reported `All checks passed!` and `76 files already formatted`.
+
+**Do not add `mypy` to the hook set** once T6a exists and mypy is a real dependency — the
+temptation is new, the answer is D14's and unchanged. D10 measured that the plugin needs the full
+production dependency set, so a mypy hook would have to run `uv run --project django_version mypy`
+on every commit, at a cost the hook set deliberately refuses. T7's CI step is where mypy blocks.
+
 ---
 
 ## T15 — Enable Dependabot alerts and security updates
@@ -4541,6 +5318,32 @@ at `django_version/`.
 project environment, and the test runner rooted at `django_version/`. No machine-specific absolute
 path appears in the file.
 
+**Conflict check, 2026-08-29 — no conflict, and this task gains a second subject.** Nothing in T6
+or T6a touches the editor. What the verification found instead is that **the editor is currently
+running a linter nobody configured, and it is the source of the Django false positives the user
+had been seeing.**
+
+- The messages are Pylint's, not mypy's. Pylint `E1101` writes `Instance of 'X' has no 'Y'
+  member`; mypy writes `"X" has no attribute "Y"` followed by a bracketed error code.
+- **No Pylint configuration exists anywhere in the repository**, so the extension runs on defaults
+  with no Django plugin — which is precisely the tool shape that cannot resolve a model field, and
+  precisely what `django-stubs` avoids.
+- Three `# Type hint for Pylint` comments exist as workarounds for it, in
+  `accounts/models/base.py`, `profiles/models/base.py` and `profiles/models/skill.py`, each above
+  an `id: int` declaration. Measured under T6: **none of them conflicts with the plugin's own
+  inference**, and none produces a mypy error.
+
+**What this task must therefore decide, and it is a decision for the user, not for the Developer:**
+whether `.vscode/settings.json` disables the Pylint extension in favour of mypy, configures it, or
+leaves it running. **It is not decided here** — T16 has not been through a decision loop, and this
+plan does not decide an entry from inside a conflict check. Bring it to a Planner session before
+implementing T16.
+
+**Out of scope for T6, T6a and this task until that decision is taken:** removing the three
+`# Type hint for Pylint` comments or the `id: int` declarations under them. They are inert with
+respect to the type checker, and removing them is only correct once it is settled whether Pylint
+still runs.
+
 ---
 
 ## T17 — Record the deferrals in `docs/tech_debt/`
@@ -4559,11 +5362,33 @@ following the shape of the files already on disk.
 
 **Scope.** `docs/tech_debt/`.
 
+**Known entry to write, identified 2026-08-29: `011`, the deferred `disallow_any_generics`.** It
+qualifies on the project's own test — there is a reachable better state, and reaching it is a
+decision someone deliberately postponed rather than a consequence they accepted. The entry carries
+what was measured, not an estimate:
+
+- **+10 errors**, measured individually against the 24-error baseline. It is the single most
+  expensive of the thirteen `--strict` flags; the other twelve cost 7 between them.
+- **The ten are genuine, not false positives:** `get_display_info() -> dict` in the three profile
+  models, `tuple[list, dict, set, list]` in `profiles/admin.py`, and the django-stubs generics
+  `ModelAdmin`, `ModelForm`, `StackedInline`, `Field` and `BaseUserManager` used bare.
+- **The repayment**, which is what makes it debt: annotate the four unparameterised returns, and
+  parameterise the admin classes by the model each administers.
+- **The cost of deferring:** the flag is absent from a twelve-key list where its absence reads as
+  an omission unless recorded. That is the entry's main job.
+- **Spread across four files outside T6a's scope**, which is why it was not simply absorbed.
+
 **Not tech debt, and must not be filed as such.** The signals this plan flagged and deliberately
 did not absorb — the two `F821` findings, the test that failed once in three runs without
-reproducing, and `accounts/admin.py`'s 8 uncovered statements and 12 mypy errors — are **agenda
-for an Auditor session**, not recorded debt. Filing them as debt would assert a decision nobody
-took.
+reproducing, and `accounts/admin.py`'s 8 uncovered statements — are **agenda for an Auditor
+session**, not recorded debt. Filing them as debt would assert a decision nobody took. _(Struck
+2026-08-29: `accounts/admin.py`'s 12 mypy errors were on that list and are no longer a signal —
+all 12 are diagnosed and fixed in T6, including the modelling question, which the user decided.)_
+
+**Also not tech debt: the T5×T6 collision itself.** The user decided against an ADR and against a
+line in `conventions.md`, and it fails the debt test besides — there is no reachable better state
+to repay, only a check that was skipped once. Its record is T5's correction note and T6's closing
+note, in this file.
 
 ---
 
@@ -4896,6 +5721,110 @@ gh api "repos/thaisdMM/skillbridge/dependabot/alerts?state=open" \
 
 ---
 
+## T20 — Distil the implementation notes that survive this plan
+
+**Added 2026-08-29.** **Runs last, after T17**, and for a different reason than T17: that task
+records what was *deferred*, this one records what was *learned*. **Requires every other task
+closed**, because the input is what implementation actually turned up.
+
+### The problem this exists to solve
+
+This plan is over 5,000 lines and will be archived. A handful of things learned while implementing
+it are worth more than the plan that carried them — and today they live only inside task closure
+notes, which disappear with the file. Everything else in it should disappear with the file, and
+that is the harder half of this task.
+
+The failure mode is not losing a note. It is writing too many. An ADR register where most entries
+record no real choice stops being read; a tech-debt register full of things nobody intends to
+repay stops meaning anything. **This task is a filter first and a document second.**
+
+### The two tests that keep the existing registers clean
+
+State these before writing anything, and apply them to every candidate:
+
+- **ADR — *were there two or more viable options, and does the one chosen close doors?*** If the
+  stack admitted only one path, there was no decision; there was a discovery. Writing a discovery
+  up as a decision makes the next reader hunt for a trade-off that never existed. Most things
+  learned while wiring a toolchain are discoveries.
+- **Tech debt — *is there a reachable better state that someone deliberately did not reach, and
+  intends to?*** No better state means it is a consequence, and belongs to whichever entry decided
+  it. No intention to repay means it is a bug. Debt is the narrow middle: knowingly not-best, on
+  purpose, with a repayment that exists.
+
+Neither register is the destination for this task's output. `docs/adr/` and `docs/tech_debt/` are
+untouched by it.
+
+### The gate — one criterion, and nothing enters without meeting it
+
+> **A note is written only when someone can plausibly get this wrong AND no tool will tell them —
+> or a tool will tell them, pointing at the wrong cause.**
+
+Both halves are required. Read the second half literally: a gate that fires with a misleading
+message is *worse* than silence, because it sends the reader to a confident and wrong repair.
+
+**What the gate excludes, and these are the majority.** Anything a build-failing step catches with
+an accurate message needs no note — the tool says it, at the moment it matters, better than a
+document would. Anything already stated in `.claude/rules/conventions.md` or
+`.claude/rules/testing.md` needs no note; those files load into every session, which is stronger
+than anything this document can offer. Anything that is a plain fact about a tool's behaviour
+belongs in the `docs/verifications/` file that measured it.
+
+### The two candidates already identified — the audit starts from these, not only these
+
+| Candidate | Verdict | Why |
+| --------- | ------- | --- |
+| `Meta.ordering` stays `ClassVar[list[str]]`; converting it to a tuple generates an `AlterModelOptions` migration | **enters** | ruff, mypy and `manage.py check` all pass. Only `makemigrations --check` objects, and it reports *a missing migration* — so the natural repair is to generate and commit it, locking the mistake in. Carried from T6's closing note |
+| `addopts` uses bare `--cov`; `--cov=<value>` silently overrides `[tool.coverage.run] source` | **enters** | Nothing fails. The gate stays green and measures the wrong tree. Verified by execution under D11 |
+| Django class-level attributes flagged by `RUF012` are declared as tuples | **excluded** | mypy fails on the alternative, and after T7 that is a red CI run naming the exact line |
+| `django_db_setup` must live in `conftest.py`, not be loaded with `pytest -p` | **excluded** | already in `.claude/rules/testing.md`, which every session loads |
+
+### Do
+
+**Step 1.** Re-read the closure note of every implemented task — T1 through T19, T6a included — and
+put each thing it records through the gate above. One pass, one verdict per item, and the verdict
+for most items is *no note*.
+
+**Step 2.** Write `docs/IMPLEMENTATION_NOTES.md`, one section per surviving item, in this shape.
+Short-MADR in spirit, shorter in practice — **six lines is the target, twelve is the ceiling**:
+
+```markdown
+## <short title naming the trap, not the topic>
+
+**Rule.** One sentence: what to do.
+**What a tool says.** What the gates actually report — including "nothing".
+**Why that misleads.** The repair the message invites, and why it is wrong.
+**Source.** The plan entry or verification file that established it.
+```
+
+No _Context and Problem Statement_, no _Considered Options_, no _Consequences_. Those headings
+belong to MADR because an ADR records a choice; these entries record a trap, and a trap has no
+alternatives to list.
+
+**Step 3.** Add one row to the Docs map table in the repository-root `CLAUDE.md`:
+
+| `docs/IMPLEMENTATION_NOTES.md` | Traps found while implementing, that no tool reports correctly. |
+
+A single accumulating file rather than a directory of one-per-file: the gate is narrow enough that
+the whole register is expected to stay under a page, and three sections in one file read better
+than three files. Future plans append to it rather than starting their own.
+
+**Scope.** `docs/IMPLEMENTATION_NOTES.md` (new), repository-root `CLAUDE.md` (one table row).
+
+**Acceptance.** Every closure note in this plan has been through the gate and has a recorded
+verdict. The file exists, every section fits the shape above, and **every section names a real
+error someone could make**. If a section cannot name the wrong repair its trap invites, it fails
+the gate and comes out.
+
+**Out of scope.** `docs/adr/`, `docs/tech_debt/`, `.claude/rules/conventions.md`,
+`.claude/rules/testing.md`. If an item genuinely belongs in one of those, it is not this task's
+output — flag it and stop; both rule files are auto-loaded and editing one is its own decision.
+
+**Do not.** Summarise the plan. Restate a decision the plan already argued. Write a note for
+anything a build-failing step catches accurately. Pad the file to make it look substantial — **an
+`IMPLEMENTATION_NOTES.md` with two sections in it is the expected outcome, not a thin one.**
+
+---
+
 # Order of execution
 
 Four things constrain the order; everything else is free.
@@ -4929,8 +5858,9 @@ Four things constrain the order; everything else is free.
 | 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
 | 9   | ~~**T4** — migrations in the suite, `--reuse-db` and markers out~~ **done 2026-08-22**  | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
 | 10  | ~~**T5** — ruff~~ **done 2026-08-28**                                                   | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
-| 11  | **T6** — fix the 18 mypy errors                                                         | T3, T5    | django-stubs 6.1.0 targets Django 6.1                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 12  | **T7** — mypy CI step                                                                   | T6        | Enters build-failing, so the errors must be gone                                                                                                                                                                                                                                                                                                                                                                                              |
+| 11  | **T6** — mypy configuration and the 24 production errors                                | T3, T5    | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                  |
+| 11a | **T6a** — the twelve strictness flags and the 7 errors they surface                     | T6        | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                                |
+| 12  | **T7** — mypy CI step                                                                   | T6, T6a   | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land                                                                                                                                                                                                                                               |
 | 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
 | 14  | **T10** — Django's two checks                                                           | T3, T9    | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | **T11** — `docker build` step                                                           | T1, T2    | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -4939,6 +5869,7 @@ Four things constrain the order; everything else is free.
 | 18  | **T14** — pre-commit hooks                                                              | T2, T5    | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
 | 19  | **T16** — editor configuration                                                          | T2        | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
 | 20  | **T17** — tech debt entries                                                             | all       | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 21  | **T20** — distil the implementation notes                                               | all, T17  | Records what was *learned*, where T17 records what was *deferred*. It is a filter before it is a document, and it needs every closure note written before it can filter them                                                                                                                                                                                                                                                                   |
 
 **Independent of each other, in any order:** T12, T14, T16. **T18 has no predecessor** — it needs
 no file to exist and no task to run before it — **but it is one**: constraint 4 puts it before T9,
@@ -4950,6 +5881,37 @@ sequence"_, which is broader than the two clauses that follow it and reads, on a
 licence to place T18 anywhere — including after T9, the one position constraint 4 exists to
 forbid. Both clauses were and remain true; only the claim they hung off was wrong.
 
-**The two places where a task can stop and return to the Planner**, rather than being finished by
+~~**The two places where a task can stop and return to the Planner**, rather than being finished by
 a judgement call: the `QuerySet[BaseUser]` annotation in T6, and `mail.E001` firing under Django
-6.1 in T10. Both are named in their entries with what to do instead.
+6.1 in T10.~~
+
+**Amended 2026-08-29 — one is closed, one is added, and the count stays at two.** T6's
+`QuerySet[BaseUser]` question no longer returns to anyone: it was put to the user as three options
+and decided as option A, follow the supertype, and T6 block 5 implements it. Two remain:
+
+- **`mail.E001` firing under Django 6.1 in T10** — unchanged, and named in that entry with what to
+  do instead.
+- **T6a step 5**, the `no-any-return` in `ProfilePresenceMixin.get_queryset`. It is the one step in
+  either mypy task whose fix was diagnosed but never executed. If the shape the entry gives does
+  not clear it, that step stops rather than reaching for `# type: ignore` or `cast`.
+
+**One task now carries an entry gate rather than a stopping point: T7.** It does not start until an
+Auditor session has answered whether the absence of a `ruff` step in `ci.yml` is reasoned anywhere
+in this plan or is an omission — found on 2026-08-29 while checking what actually enforces T6's
+tuple rule, and recorded in T7 rather than acted on, because a new CI gate is a decision this plan
+has not taken. T7 is not blocked on the *answer*, only on the question having been asked.
+
+**A third place is not a task stopping but a task not starting: T16.** The verification found that
+Pylint runs in the editor with no configuration and is the source of the Django false positives.
+Whether the versioned `.vscode/settings.json` disables it, configures it, or leaves it alone is an
+open decision that has never been through a decision loop. **T16 goes to the Planner before it goes
+to the Developer**, and it is the last unstarted task in this plan carrying an undecided question.
+
+**Order-of-execution conflict check, 2026-08-29.** Every task after T6 was read against T6 and T6a
+before this pass closed — the check whose absence caused the collision. The conclusions live in the
+entries: T7 cannot drift from T6's scope because `files`, `exclude` and the flags are all in
+`pyproject.toml`; T8's gate still passes at roughly 96% against its 95% floor; T14's hooks cannot
+undo T6's tuples, since `RUF012` neither fires on a tuple nor is auto-fixable; T16 gains a subject
+and a decision; T17 gains entry `011` for the deferred `disallow_any_generics`. **T10, T11, T12 and
+T13 touch neither Python annotations nor `pyproject.toml`'s tool tables and were confirmed
+unaffected.**
