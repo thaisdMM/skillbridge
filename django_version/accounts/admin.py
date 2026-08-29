@@ -15,7 +15,7 @@ on screens of their own, so the profile inlines live here beside the account
 admins that own them. This module imports profiles.models, never profiles.admin.
 """
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.contrib import admin, messages
@@ -36,6 +36,13 @@ from accounts.models.freelancer import Freelancer
 from accounts.models.staff_user import StaffUser
 from profiles.models.client_profile import ClientProfile
 from profiles.models.freelancer_profile import FreelancerProfile
+
+if TYPE_CHECKING:
+    from django_stubs_ext import StrOrPromise
+
+    _AdminBase = admin.ModelAdmin
+else:
+    _AdminBase = object
 
 
 class BaseAccountAdmin(admin.ModelAdmin):
@@ -96,9 +103,9 @@ class ProfileInlineForm(forms.ModelForm):
         super().full_clean()
         hidden_fields_with_errors = {
             name for name, field in self.fields.items() if field.widget.is_hidden
-        } & set(self._errors)
+        } & set(self.errors)
         for name in hidden_fields_with_errors:
-            for error in self._errors.pop(name).as_data():
+            for error in self.errors.pop(name).as_data():
                 self.add_error(None, error)
 
 
@@ -130,7 +137,7 @@ class BaseProfileInline(admin.StackedInline):
 
     def formfield_for_dbfield(
         self, db_field: models.Field, request: HttpRequest, **kwargs: Any
-    ) -> forms.Field:
+    ) -> forms.Field | None:
         """
         Strip the add-related control from every related field on the section.
 
@@ -139,11 +146,14 @@ class BaseProfileInline(admin.StackedInline):
             request: The current admin request.
 
         Returns:
+            None: when Django builds no form field for the column.
             forms.Field: The form field, carrying no add-related control when
                 it renders a related field.
         """
         formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
-        if isinstance(formfield.widget, RelatedFieldWidgetWrapper):
+        if formfield is not None and isinstance(
+            formfield.widget, RelatedFieldWidgetWrapper
+        ):
             formfield.widget.can_add_related = False
         return formfield
 
@@ -186,7 +196,7 @@ class HasProfileFilter(admin.SimpleListFilter):
 
     def lookups(
         self, request: HttpRequest, model_admin: admin.ModelAdmin
-    ) -> tuple[tuple[str, str], ...]:
+    ) -> tuple[tuple[str, StrOrPromise], ...]:
         """
         List the two groups an administrator can narrow the list to.
 
@@ -198,9 +208,7 @@ class HasProfileFilter(admin.SimpleListFilter):
             ("no", _("Without a profile")),
         )
 
-    def queryset(
-        self, request: HttpRequest, queryset: QuerySet[BaseUser]
-    ) -> QuerySet[BaseUser]:
+    def queryset(self, request: HttpRequest, queryset: QuerySet[Any]) -> QuerySet[Any]:
         """
         Narrow the list to the group the administrator selected.
 
@@ -238,7 +246,7 @@ class SkillInUseFilter(admin.RelatedOnlyFieldListFilter):
         return self.lookup_val is not None or super().has_output()
 
 
-class ProfilePresenceMixin:
+class ProfilePresenceMixin(_AdminBase):
     """
     Mixin providing the profile presence badge on an account list.
 
@@ -249,7 +257,7 @@ class ProfilePresenceMixin:
     the reverse accessor, which would cost one query per row.
     """
 
-    def get_queryset(self, request: HttpRequest) -> QuerySet[BaseUser]:
+    def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
         """
         Annotate every account on the page with whether it has a profile.
 
@@ -264,7 +272,7 @@ class ProfilePresenceMixin:
         return super().get_queryset(request).annotate(has_profile=Exists(profiles))
 
     @admin.display(description=_("Profile"))
-    def profile_badge(self, obj: BaseUser) -> SafeString:
+    def profile_badge(self, obj: Any) -> SafeString:
         """
         Build the profile presence badge for list display.
 
@@ -380,11 +388,11 @@ class FreelancerAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
 
     inlines = (FreelancerProfileInline,)
 
-    actions: ClassVar[list[str]] = [
+    actions = (
         "activate_accounts",
         "set_available",
         "set_unavailable",
-    ]
+    )
 
     @admin.display(description=_("Availability"))
     def availability_badge(self, obj: Freelancer) -> SafeString:
@@ -568,7 +576,7 @@ class ClientAdmin(ProfilePresenceMixin, StatusBadgeMixin, BaseAccountAdmin):
 
     inlines = (ClientProfileInline,)
 
-    actions: ClassVar[list[str]] = ["activate_accounts"]
+    actions = ("activate_accounts",)
 
     @admin.action(description=_("Activate selected accounts"))
     def activate_accounts(
@@ -645,7 +653,10 @@ class StaffUserAdmin(BaseAccountAdmin):
         ),
     )
 
-    actions: ClassVar[list[str]] = ["activate_accounts", "deactivate_accounts"]
+    actions = (
+        "activate_accounts",
+        "deactivate_accounts",
+    )
 
     @admin.action(description=_("Deactivate selected accounts"))
     def deactivate_accounts(
