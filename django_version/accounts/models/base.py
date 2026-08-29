@@ -28,7 +28,7 @@ from accounts.validators.user_validators import (
 logger = logging.getLogger(__name__)
 
 
-class BaseUserManager(DjangoBaseUserManager):
+class BaseUserManager(DjangoBaseUserManager["BaseUser"]):
     """
     Custom manager for creating and managing BaseUser instances.
 
