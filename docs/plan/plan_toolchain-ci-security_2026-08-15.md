@@ -4419,8 +4419,20 @@ silent addition.
 
 ## T6 — `mypy`: the configuration and the 24 production errors
 
+**Status: Done — 2026-08-29.**
+
 **Replanned 2026-08-29.** Supersedes the entry titled _"fix the 18 production errors"_, whose
 baseline T5 invalidated.
+
+**Result.** All six blocks executed on the working tree, in order, with every _Expected result_
+matching exactly — including the block 2 checkpoint, `Found 18 errors in 4 files`, confirming the
+T5 collision closed rather than merely shrank. Group F (block 5) landed as option A, the choice
+already recorded above. Final gates: `mypy` → `Success: no issues found in 43 source files`;
+`ruff check .` → all checks passed; `ruff format --check .` → 76 files already formatted;
+`manage.py check` → no issues (0 silenced); `manage.py makemigrations --check --dry-run` → no
+changes detected; `pytest` → 304 passed. `Meta.ordering`, `BaseUser.REQUIRED_FIELDS`, and the three
+`# Type hint for Pylint` comments were left untouched. Nine files changed, matching the declared
+scope exactly; no test file touched.
 
 **Implements:** D10 and its 2026-08-29 amendment, its first task. **Does not enable the
 strictness flags** — that is T6a. **Does not add a CI step** — that is T7.
