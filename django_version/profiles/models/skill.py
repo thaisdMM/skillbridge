@@ -73,11 +73,11 @@ class Skill(models.Model):
         verbose_name_plural = _("Skills")
         db_table = "skills"
         ordering: ClassVar[list[str]] = ["category", "name"]
-        constraints: ClassVar[list[models.UniqueConstraint]] = [
+        constraints = (
             models.UniqueConstraint(
                 Lower("name"), name="skill_unique_name_case_insensitive"
-            )
-        ]
+            ),
+        )
 
     def __str__(self) -> str:
         """
