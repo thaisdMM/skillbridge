@@ -4921,23 +4921,67 @@ configuration.
 
 ### Block 3 — the last error, and the gates
 
-**Step 5.** `accounts/admin.py`, `ProfilePresenceMixin.get_queryset`. T6 changed this method's
-return annotation to `QuerySet[Any]`; `super().get_queryset(request)` on `_AdminBase` returns
-`Any`, and `warn_return_any` refuses to return an `Any` from a function declared to return
-something more specific. Bind the call to a local annotated with the return type, then annotate:
+**Step 5.** `accounts/admin.py`, `ProfilePresenceMixin.get_queryset`.
+
+~~T6 changed this method's return annotation to `QuerySet[Any]`; `super().get_queryset(request)` on
+`_AdminBase` returns `Any`, and `warn_return_any` refuses to return an `Any` from a function
+declared to return something more specific. Bind the call to a local annotated with the return
+type, then annotate.~~
+
+**Corrected 2026-08-30 — the diagnosis above was wrong, and the fix it prescribed could not work.**
+The step was written from inference: the verification measured the *error* and the cause was
+reasoned rather than run. The Developer executed the prescribed shape, the error survived unmoved,
+and the measurement below is what replaced the reasoning.
+
+**The real cause: the `Any` originates in `.annotate()`, not in `super()`.** django-stubs builds the
+annotated return type only when it can identify the model behind the queryset. Given a
+`QuerySet[Any]`, `Any` is no model, and the plugin's `annotate` hook falls through to returning
+`AnyType`. Measured with `reveal_type` inside the container, the two cases side by side:
+
+```
+qs: QuerySet[Any] = Freelancer.objects.all()
+reveal_type(qs.annotate(x=Exists(...)))   → "Any"
+
+qs2 = Freelancer.objects.all()             → QuerySet[BaseUser, BaseUser]
+reveal_type(qs2.annotate(x=Exists(...)))   → QuerySet[BaseUser@AnnotatedWith[TypedDict({'x': bool})], ...]
+```
+
+That is why binding the *input* to an annotated local changes nothing: the `Any` is produced one
+call later, by the expression actually being returned. The error text confirmed it before the
+plugin was ever read — it kept naming the `return` line, not the `super()` line.
+
+**The fix, executed and green.** Bind the result of `.annotate()` — not the result of `super()` —
+to a local annotated with the return type:
 
 ```python
     def get_queryset(self, request: HttpRequest) -> QuerySet[Any]:
         profile_relation = self.model._meta.get_field("profile")
         profiles = profile_relation.related_model.objects.filter(user=OuterRef("pk"))
-        queryset: QuerySet[Any] = super().get_queryset(request)
-        return queryset.annotate(has_profile=Exists(profiles))
+        queryset = super().get_queryset(request)
+        annotated: QuerySet[Any] = queryset.annotate(has_profile=Exists(profiles))
+        return annotated
 ```
 
-**This is the one step in either task whose fix was not executed during the verification** — it was
-diagnosed only, and the error text it must clear is quoted above. If this shape does not clear it,
-stop and return to the Planner rather than reaching for `# type: ignore` or `cast`. Do not add
-an inline comment explaining the local; `conventions.md` forbids it and the docstring is unchanged.
+Do not add an inline comment explaining the local; `conventions.md` forbids it and the docstring is
+unchanged. No `# type: ignore`, no `cast` — the constraint held.
+
+**Why not simply drop the flag, which was the first thing considered.** Removing `warn_return_any`
+from `[tool.mypy]` clears the error, and so does a `[[tool.mypy.overrides]]` block scoped to
+`accounts.admin` — all three were measured to `Success`. They were rejected on a number:
+`mypy --any-exprs-report` puts `accounts.admin` at **19 `Any` expressions, the most of any module in
+the project** (`accounts.models.base` is next at 8; `profiles.admin` and the validators are at 0).
+Both variants remove the check precisely where the codebase has most for it to catch, to buy silence
+on one line. The annotated local keeps all twelve flags in force across all 43 files.
+
+**What a real fix would require, and why it is not this task.** Eliminating the `Any` rather than
+containing it means parameterising `_AdminBase`, which is `disallow_any_generics` territory — the
+flag the user deferred, recorded as T17 entry `011`. Two variants were measured:
+`admin.ModelAdmin[BaseUser]` fails outright with `error: BaseUser has no field named 'profile'`,
+because the reverse relation exists only on the concrete models;
+`admin.ModelAdmin[Freelancer]` plus `_default_manager` in place of `.objects` reaches a genuinely
+typed result — `QuerySet[Freelancer@AnnotatedWith[TypedDict({'has_profile': bool})]]` — but pins the
+mixin to one model, and it serves both `FreelancerAdmin` and `ClientAdmin`. Preserving both would
+mean making the mixin generic over a `TypeVar`. **Carried to T17's `011` entry; not absorbed here.**
 
 **Step 6.** The same four gates T6 closed on, in the same order:
 
@@ -4969,6 +5013,41 @@ is what confirms the annotations changed nothing Django records.
   records it**; the omission is a decision, not an oversight.
 - **`warn_unreachable`**, which `--strict` does not enable and nothing here measured.
 - **Test files.** Unchanged from T6.
+
+---
+
+### Closed 2026-08-30 — green on all five gates, and one lesson worth keeping
+
+All twelve flags are in `[tool.mypy]` and all seven errors are closed. Measured on the implemented
+tree:
+
+```
+mypy                                      → Success: no issues found in 43 source files
+ruff check .                              → All checks passed!
+ruff format --check .                     → 76 files already formatted
+python manage.py check                    → System check identified no issues (0 silenced)
+python manage.py makemigrations --check --dry-run → No changes detected
+pytest                                    → 304 passed in 9.90s
+```
+
+Six files changed, exactly the declared scope and nothing outside it: the twelve keys in
+`pyproject.toml`, `-> None` on both `ready()` methods and on `main()`, the two `RunPython` callbacks
+annotated behind a `TYPE_CHECKING` guard, and the one-line containment in
+`ProfilePresenceMixin.get_queryset`. `makemigrations --check` earned its place — step 4 edits a
+migration file, and it confirms the annotations changed nothing Django records.
+
+**The lesson, and it is the same one T5 taught.** Steps 1–4 were written from fixes that had been
+*executed* during the verification and every one of them landed unchanged. Step 5 was written from a
+cause that had been *reasoned*, and its diagnosis was wrong — not merely its fix. The stopping point
+this entry carried is what caught it: the Developer ran the prescribed shape, saw it fail, refused
+to improvise a `cast`, and returned the question here. **The stopping point worked, and it is the
+mechanism worth carrying, not the shape it protected.** Where a step's cause has not been run,
+say so in the step itself; "diagnosed only" is a different claim from "verified" and must read
+differently.
+
+**Nothing carries to T7 beyond the green state.** T7's entry gate — whether `ci.yml`'s missing
+`ruff` step is reasoned or an omission — is untouched by this task and still owed an Auditor
+session.
 
 ---
 
@@ -5389,6 +5468,27 @@ what was measured, not an estimate:
 - **The cost of deferring:** the flag is absent from a twelve-key list where its absence reads as
   an omission unless recorded. That is the entry's main job.
 - **Spread across four files outside T6a's scope**, which is why it was not simply absorbed.
+
+**Extended 2026-08-30 by what T6a measured — the entry gains a fifth bullet and a named consequence.**
+`ProfilePresenceMixin.get_queryset` in `accounts/admin.py` now contains an `Any` behind an annotated
+local rather than eliminating it, and that containment exists *because* this flag is deferred. The
+entry must record it, with what was measured rather than what was assumed:
+
+- **`admin.ModelAdmin[BaseUser]` is not the repayment**, though it is the shape the bullet above
+  implies. Measured: `error: BaseUser has no field named 'profile'`. The reverse relation the mixin
+  reads exists only on `Freelancer` and `Client`, never on the abstract parent.
+- **`admin.ModelAdmin[Freelancer]` plus `_default_manager` in place of `.objects` does reach a fully
+  typed result** — `QuerySet[Freelancer@AnnotatedWith[TypedDict({'has_profile': bool})]]` — but pins
+  the mixin to one model, and it serves two. The real repayment is a mixin generic over a `TypeVar`
+  bound to `BaseUser`, which is more than "parameterise the admin classes by the model each
+  administers" describes and was **not** measured.
+- **What defers with it:** the annotated local in `get_queryset`, which is dead weight the moment
+  the mixin is properly parameterised. The entry names it so the repayment removes it rather than
+  leaving it behind.
+
+This is the difference between the flag's cost as measured on the unfixed tree (+10 errors) and its
+cost as it stands now — one of those ten was contained, not fixed, and the containment is itself
+part of the debt.
 
 **Not tech debt, and must not be filed as such.** The signals this plan flagged and deliberately
 did not absorb — the two `F821` findings, the test that failed once in three runs without
@@ -5903,9 +6003,13 @@ and decided as option A, follow the supertype, and T6 block 5 implements it. Two
 
 - **`mail.E001` firing under Django 6.1 in T10** — unchanged, and named in that entry with what to
   do instead.
-- **T6a step 5**, the `no-any-return` in `ProfilePresenceMixin.get_queryset`. It is the one step in
+- ~~**T6a step 5**, the `no-any-return` in `ProfilePresenceMixin.get_queryset`. It is the one step in
   either mypy task whose fix was diagnosed but never executed. If the shape the entry gives does
-  not clear it, that step stops rather than reaching for `# type: ignore` or `cast`.
+  not clear it, that step stops rather than reaching for `# type: ignore` or `cast`.~~
+  **Closed 2026-08-30 — the stopping point fired, and it was right to.** The prescribed shape did
+  not clear the error; the Developer stopped instead of improvising, and the Planner session that
+  followed found the step's *diagnosis* wrong, not just its fix. Corrected in the T6a entry with the
+  `reveal_type` measurement behind it. **One stopping point remains: `mail.E001` in T10.**
 
 **One task now carries an entry gate rather than a stopping point: T7.** It does not start until an
 Auditor session has answered whether the absence of a `ruff` step in `ci.yml` is reasoned anywhere
