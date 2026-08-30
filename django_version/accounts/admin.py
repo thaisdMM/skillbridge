@@ -267,9 +267,12 @@ class ProfilePresenceMixin(_AdminBase):
         Returns:
             The changelist queryset carrying the has_profile annotation.
         """
+
         profile_relation = self.model._meta.get_field("profile")
         profiles = profile_relation.related_model.objects.filter(user=OuterRef("pk"))
-        return super().get_queryset(request).annotate(has_profile=Exists(profiles))
+        queryset = super().get_queryset(request)
+        annotated: QuerySet[Any] = queryset.annotate(has_profile=Exists(profiles))
+        return annotated
 
     @admin.display(description=_("Profile"))
     def profile_badge(self, obj: Any) -> SafeString:
