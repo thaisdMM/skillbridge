@@ -15,8 +15,10 @@ and 5 record it, and one verification is deferred to the first real advisory. **
 closed on 2026-08-28**, settling the open question T5 itself returned to the Planner in favor of
 `typing.ClassVar` annotations over a per-file-ignore, so D9a's suppression principle stays
 unamended. ~~The next task free to start is **T6**, which waits on T3 and T5, both done.~~
-**T6 closed on 2026-08-29 and T6a on 2026-08-30**; the next task free to start is **T6b**, added by
-the revision pass of 2026-08-30 and waiting on nothing.
+~~**T6 closed on 2026-08-29 and T6a on 2026-08-30**; the next task free to start is **T6b**, added by
+the revision pass of 2026-08-30 and waiting on nothing.~~ **T6b closed on 2026-09-02**, its gate
+proved by a deliberate red run rather than by the green one. The next task free to start is **T7**,
+whose three prerequisites — T6, T6a and T6b — are now all closed and green.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -4893,6 +4895,9 @@ T20's entry gate. Carry this one line to T20 when the task closes; carry nothing
 
 ## T6a — `mypy`: the twelve strictness flags and the seven errors they surface
 
+**Status: Done — 2026-08-30.** Its closure is recorded at the end of this entry rather than here,
+where the other closed tasks record theirs.
+
 **Added 2026-08-29.** **Implements:** D10's amendment. **Requires T6 finished and green.**
 **Required by T7.**
 
@@ -5134,6 +5139,32 @@ produced.**
 ---
 
 ## T6b — `ruff`: a CI job of its own, build-failing from its first run
+
+**Status: Done — 2026-09-02.**
+
+**Result.** Run `33654183407` carries **two jobs, `test` and `quality`, both green** — `quality` in
+**9 s** against 46 s for `test`, declaring no `services` and showing no `Initialize containers`
+step. The commit added 36 lines and removed none, so the `test` job was not touched. The `Format`
+step's log reads `76 files already formatted`, the number step 5 produced locally, which is what
+proves the job ran with `django_version/` as its working directory.
+
+**The failure test is what earned its place in this entry.** Run `33657130860`, on the scratch
+branch, reported what a green run cannot: `Lint` failed on `F401`, `Format` **ran anyway and
+failed** on its own line rather than reading as skipped, and `test` went green beside them without
+waiting. The distinction is legible in the run's own step list, where `Post Set up Python` and
+`Post Install uv` read as skipped and `Format` does not. So `if: ${{ !cancelled() }}` does the work
+D22 split the two commands to get, and the job blocks rather than merely running. That run took
+11 s and reprinted `1 file would be reformatted, 76 files already formatted` — the scope proof
+holds on a failing run too. The scratch branch was deleted, remote included.
+
+**D9, D12 and D14 are now true rather than assumed.** D9's cost paragraph, D12's decision outcome
+— `S` rules chosen over bandit because they cost no new CI step — and D14's "the hooks cover two of
+the eight checks the CI runs" each described a CI that did not run ruff. It runs it now, and none
+of the three needs amending.
+
+**One deviation from step 7**, recorded because the step prescribed the string: the commit landed
+as `chore:` rather than `chore(ci):`, and was pushed before it was caught. Left as it is — a pushed
+commit is not worth rewriting for the scope prefix.
 
 **Added 2026-08-30.** **Implements:** D22. **Waits on nothing** — `ruff` has been pinned,
 configured and green since T5 closed. **Runs before T7**, which adds its `mypy` step to the job
@@ -6301,9 +6332,9 @@ Four things constrain the order; everything else is free.
 | 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
 | 9   | ~~**T4** — migrations in the suite, `--reuse-db` and markers out~~ **done 2026-08-22**  | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
 | 10  | ~~**T5** — ruff~~ **done 2026-08-28**                                                   | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
-| 11  | **T6** — mypy configuration and the 24 production errors                                | T3, T5    | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                  |
-| 11a | **T6a** — the twelve strictness flags and the 7 errors they surface                     | T6        | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                                |
-| 11b | **T6b** — the `quality` job running ruff in CI                                          | —         | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                  |
+| 11  | ~~**T6** — mypy configuration and the 24 production errors~~ **done 2026-08-29**        | T3, T5    | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                  |
+| 11a | ~~**T6a** — the twelve strictness flags and the 7 errors they surface~~ **done 2026-08-30** | T6        | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                                |
+| 11b | ~~**T6b** — the `quality` job running ruff in CI~~ **done 2026-09-02**                  | —         | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                  |
 | 12  | **T7** — mypy CI step                                                                   | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                        |
 | 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
 | 14  | **T10** — Django's two checks                                                           | T3, T9    | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
