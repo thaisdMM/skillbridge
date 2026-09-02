@@ -14,7 +14,9 @@ and 5 record it, and one verification is deferred to the first real advisory. **
 2026-08-22**, settling D17's open question on pytest-django 4.14.0 and unblocking T8. **T5
 closed on 2026-08-28**, settling the open question T5 itself returned to the Planner in favor of
 `typing.ClassVar` annotations over a per-file-ignore, so D9a's suppression principle stays
-unamended. The next task free to start is **T6**, which waits on T3 and T5, both done.
+unamended. ~~The next task free to start is **T6**, which waits on T3 and T5, both done.~~
+**T6 closed on 2026-08-29 and T6a on 2026-08-30**; the next task free to start is **T6b**, added by
+the revision pass of 2026-08-30 and waiting on nothing.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -60,6 +62,24 @@ closed.
 
 **No decision was reopened.** D9's rule set, D9a's suppression principle, D10's tool and scope,
 D11's 95% floor and D5's single `dev` group all stand exactly as written.
+**Files modified by this session:** this plan only. No production file was touched.
+
+**Revision pass, 2026-08-30**, acting on the Auditor session that T7's entry gate required. **The
+gate's question is answered: the absence of a `ruff` step in `ci.yml` is an omission, not a
+decision.** No entry argues it, and three assume the opposite — D9's cost paragraph, D12's decision
+outcome, and D14's cost 3, whose "two of the eight checks CI runs" only adds up if the two `ruff`
+checks are among the eight.
+
+**Four things changed in this file.** **D22 is added**, carrying the decision the gate said belongs
+to the Planner: `ruff` gets a build-failing CI gate, in a job of its own with no `postgres` service.
+**T6b is added** between T6a and T7, step by step, and it is free to start now. **T7's entry gate
+closes**, and T7 gains an amendment — its `mypy` step lands in T6b's job rather than in `test`, so
+the two tools the gate compared end up with the same teeth and in the same place. The _Order of
+execution_ gains T6b at 11b and loses its one entry gate.
+
+**No decision was reopened.** D5's single `dev` group stands; D22 records what its _"CI runs
+separate jobs, which is not yet decided"_ premise becomes now that a second job exists, and hands
+the consequence to `docs/tech_debt/007` rather than reopening the entry.
 **Files modified by this session:** this plan only. No production file was touched.
 
 ## What this plan supersedes, and why it is a new file
@@ -3698,6 +3718,67 @@ way.
 
 ---
 
+## D22 — `ruff` gets a CI gate, in a job of its own, and `mypy` joins it
+
+**Decided:** 2026-08-30. Acts on the Auditor session T7's entry gate required — reported in this
+session, with no file in `docs/audits/`.
+
+### What the gate asked, and what the audit answered
+
+The gate asked three questions in order. **Does the plan explain the absence?** No passage exists.
+**Omission or implication?** Omission — and three entries assume the step is there: D9's cost
+paragraph, D12's decision outcome (`S` rules chosen over bandit because they cost _"no new CI
+step"_), and D14's cost 3, whose _"the hooks cover two of the eight checks the CI runs"_ only sums
+to eight with the two `ruff` checks inside it. The structural evidence is that every decision
+sending a tool to CI got its own task — D6→T11, D7→T10, D10→T7, D11→T8, D13→T12 — and `ruff` has
+T5 for configuration and T14 for hooks, and nothing for CI. **What does it cost to close?** One
+job, on a tool already pinned in the `dev` group and already green.
+
+### Measured this session, not cited
+
+| What | How | Result |
+| ---- | --- | ------ |
+| Both gates already pass | `docker-compose exec web ruff check .` / `ruff format --check .` | `All checks passed!` (exit 0); `76 files already formatted` (exit 0) |
+| Exit codes | Ruff docs, _Linter_ and _Formatter_ | `check`: 0 clean, 1 violations, 2 abnormal. `format --check`: 1 when any file would be reformatted |
+| What a failing job costs today | Run `33324061355`, per-step timings via `gh api` | whole `test` job 49 s, of which _Initialize containers_ (postgres) is **22 s**; `uv sync --locked` 1 s |
+| `mypy` without a `SECRET_KEY` | `docker-compose exec -e SECRET_KEY= web mypy` | exit **2**, `Error constructing plugin instance of NewSemanalDjangoPlugin` — the plugin imports `config/settings.py`, which raises when the variable is absent |
+| GitHub annotations | `ruff check --stdin-filename … --output-format=github` | supported by both subcommands on 0.16.4, and the emitted `file=` is **absolute** (`/app/…`); GitHub's `::error` reference does not document whether an absolute path attaches |
+
+### The decision
+
+A second job, `quality`, running `ruff check .` and `ruff format --check .` with
+`working-directory: django_version`, no `postgres` service, no `needs:`, and no `continue-on-error`.
+Both commands bare — no `--output-format=github`, no arguments beyond `.`. The second step carries
+`if: ${{ !cancelled() }}`, GitHub's documented alternative to `always()`, so a lint failure never
+hides the formatting result. **T7's `mypy` step lands in this job too**, which needs the generated
+`SECRET_KEY` step for the reason measured above.
+
+### Alternatives considered
+
+- **A step inside the `test` job** — reuses the checkout, the uv cache and `uv sync --locked`, and
+  needs no structural change. Set aside by the user: a lint failure pays the 22 s of provisioning
+  postgres, and inside one job the first failing step suppresses the other's signal.
+- **Inline annotations**, by flag or by `RUFF_OUTPUT_FORMAT` in the job `env` — set aside because
+  the payoff rests on an unverified premise (the absolute `file=` path attaching to the diff) and
+  costs the readable output ruff 0.16.4 prints, which is where the failure is actually read. It is
+  a one-line change later, not a decision this closes.
+- **`uvx ruff@<version>`** — rejected where D5's amendment rejected it, and for the same reason: it
+  moves the version pin out of the lockfile into every invocation site.
+
+### Consequences for other entries
+
+- **D5 is not reopened, and one of its premises expires.** Its rejection of named groups rested on
+  the saving materialising _"only if CI runs separate jobs, which is not yet decided"_. It is
+  decided now, so the `lint` group it declined would let this job install less. Measured, the whole
+  `dev` group installs in **1 s** on a warm cache, so the saving is real and negligible. It belongs
+  to `docs/tech_debt/007`, which already records the migration; **T17 adds the line**.
+- **D9, D12 and D14 become true rather than assumed.** None is amended: each states what CI
+  enforces, and after T6b each does.
+- **D14 is unaffected in substance.** A hook is still convenience, not control; what changes is
+  that the control it was never a substitute for now exists.
+
+---
+
 # Planning state
 
 ## Closed
@@ -5046,17 +5127,237 @@ say so in the step itself; "diagnosed only" is a different claim from "verified"
 differently.
 
 **Nothing carries to T7 beyond the green state.** T7's entry gate — whether `ci.yml`'s missing
-`ruff` step is reasoned or an omission — is untouched by this task and still owed an Auditor
-session.
+`ruff` step is reasoned or an omission — is untouched by this task. ~~and still owed an Auditor
+session.~~ **The session ran on 2026-08-30 and reported an omission; D22 and T6b are what it
+produced.**
+
+---
+
+## T6b — `ruff`: a CI job of its own, build-failing from its first run
+
+**Added 2026-08-30.** **Implements:** D22. **Waits on nothing** — `ruff` has been pinned,
+configured and green since T5 closed. **Runs before T7**, which adds its `mypy` step to the job
+this task creates.
+
+Numbered `6b` rather than inserted as a new `T7` because renumbering T7–T20 would invalidate every
+cross-reference in this file and in the audits that cite it. T6a and D9a are the precedent.
+
+**What this task is, in one line.** `.github/workflows/ci.yml` gains a second job. **Nothing inside
+the existing `test` job is edited** — the diff is purely additive.
+
+### Block 1 — write the job
+
+**Step 1.** Open `.github/workflows/ci.yml`. The file today ends at the `Update tests badge` step of
+the `test` job, whose last line is `          color: brightgreen`. Append the block below **after
+that line**, separated by one blank line.
+
+`quality:` is indented **two spaces**, exactly like `test:` — the two are sibling keys of the
+`jobs:` map. Indented further, it becomes a key inside `test` and the workflow is invalid.
+
+```yaml
+  quality:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: django_version
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@<copy the SHA from the test job> # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@<copy the SHA from the test job> # v10.0.1
+        with:
+          version: "0.12.5"
+          enable-cache: true
+          working-directory: django_version
+
+      - name: Set up Python
+        uses: actions/setup-python@<copy the SHA from the test job> # v7.0.0
+        with:
+          python-version-file: django_version/.python-version
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format
+        if: ${{ !cancelled() }}
+        run: uv run ruff format --check .
+```
+
+**Step 2 — the three `uses:` lines are copied, never written from scratch.** Take each one verbatim
+from the `test` job above it, 40-character SHA and trailing version comment included. Do not look up
+a newer SHA, and do not bump a version. D8 pinned these three deliberately; a second SHA for the
+same action in the same file is a second version of that action, which is exactly the drift the
+pinning exists to prevent. The same applies to `version: "0.12.5"` on `setup-uv` — `conventions.md`
+requires it to equal the `Dockerfile`'s uv.
+
+**Step 3 — why `setup-uv` still carries its own `working-directory`.** `defaults.run` governs
+`run:` steps only; it does not reach an action's inputs. That is why the block sets the directory
+twice, once as the shell default and once as an input, and it is copied from the `test` job for the
+same reason.
+
+**Step 4 — eight things this job deliberately does not have.** Each absence is a decision. Do not
+add any of them.
+
+| Absent | Why |
+| ------ | --- |
+| `services: postgres` | `ruff` never touches the database. This absence is the 22 s the job exists to not pay |
+| the `env:` block with `DB_*` and `DJANGO_SETTINGS_MODULE` | same reason — nothing here imports Django |
+| the `Generate a SECRET_KEY for this run` step | `ruff` does not import `config/settings.py`. **T7 adds this step** together with the mypy step, which does need it |
+| `needs:` | the two jobs must run in parallel. `needs: test` serialises them and undoes the reason the job is separate |
+| `continue-on-error` | the job is a gate |
+| any argument to `ruff` beyond `.` | rules, scope and per-file ignores all live in `[tool.ruff]` in `django_version/pyproject.toml`. An argument here is a second definition of them |
+| `--output-format=github` or `RUFF_OUTPUT_FORMAT` | D22 set inline annotations aside — the payoff rests on an unverified premise and costs the readable output |
+| `uvx ruff@0.16.4` | D5's amendment rejects it: the version pin belongs in `uv.lock`, not in every invocation site |
+
+### Block 2 — verify before pushing
+
+**Step 5.** Take the "before" reading, so that a red run after the push is attributable to the
+workflow rather than to the code:
+
+```
+docker-compose exec web ruff check .          → All checks passed!
+docker-compose exec web ruff format --check . → 76 files already formatted
+```
+
+**Step 6.** `git diff .github/workflows/ci.yml` shows **additions only**. If any line inside the
+`test` job changed, undo it — this task adds a job and edits nothing.
+
+**No local YAML validation is prescribed, and that is deliberate.** The container has no YAML
+parser (measured: `ModuleNotFoundError: No module named 'yaml'`), and installing one for this is out
+of scope. GitHub reports a malformed workflow as a run titled `Invalid workflow file` naming the
+offending line, which is the signal if step 7 does not produce two jobs.
+
+**Step 7 — commit.** One file, one commit, following the two commits that last touched this file
+(`46d31ce`, `bab18f7`):
+
+```
+chore(ci): add a quality job running ruff in ci.yml
+```
+
+### Block 3 — the green run
+
+**Step 8.** Push the branch, then read the run:
+
+```
+gh run list --limit 1
+gh run view <run-id>
+```
+
+**Expected result.** The run carries **two jobs**, `test` and `quality`, both green. `quality` has
+no `Initialize containers` step — that step is the postgres service, and this job has none.
+
+**Step 9 — the scope proof, and it is the one number that matters.** Open the `Format` step's log
+and confirm it reads **`76 files already formatted`** — the same number step 5 produced locally.
+That is what proves the job ran with `django_version/` as its working directory: from the
+repository root the same command would take in `oop_version/`, which holds **972** `.py` files, and
+the number could not be 76. (`ruff check .` prints no count when it passes, which is why this
+criterion hangs on the formatter's line.)
+
+**Step 10 — record the `quality` job's total duration** from the Actions UI. No entry in this plan
+has that number, and it is what a future decision about job shape would be argued from.
+
+### Block 4 — the failure test, which is the acceptance criterion that can actually fail
+
+A green run proves the job runs. It does not prove the job **blocks**, and it does not prove the
+second step still reports when the first one fails. One push tests both.
+
+**Step 11.** Create a file carrying one lint error and one formatting error at once, at
+`django_version/scratch_ci_gate.py`:
+
+```python
+import os
+
+x=1
+```
+
+`import os` is unused → `F401`, so `ruff check` exits 1. `x=1` is unformatted → `ruff format
+--check` exits 1. Nothing else in the file matters.
+
+**Step 12.** Commit it on a scratch branch and push:
+
+```
+git switch -c scratch/ci-gate-check
+git add django_version/scratch_ci_gate.py
+git commit -m "chore(ci): prove the quality job blocks"
+git push -u origin scratch/ci-gate-check
+```
+
+**Step 13 — read that run and check three things, not one:**
+
+1. The `quality` job is **red**, and `Lint` is the failing step, naming `F401`.
+2. The `Format` step **ran and also failed**. It must not read _skipped_. A skipped `Format` means
+   `if: ${{ !cancelled() }}` is missing or misspelled, and the entire reason the two commands were
+   split into two steps is gone. The `${{ }}` wrapper is not optional: an expression beginning with
+   `!` must be wrapped or YAML reads the `!` as a tag.
+3. The `test` job ran and reported **independently** — neither job waited on the other.
+
+**Step 14 — clean up, completely:**
+
+```
+git switch feature/django-refactor
+git branch -D scratch/ci-gate-check
+git push origin --delete scratch/ci-gate-check
+```
+
+**Do not** leave `scratch_ci_gate.py` on `feature/django-refactor`, and do not turn it into a real
+file. T12 uses the same instrument for gitleaks and deletes its branch the same way.
+
+---
+
+**Scope.** `.github/workflows/ci.yml`. Plus `django_version/scratch_ci_gate.py`, which exists only
+on the scratch branch deleted in step 14 and is never merged.
+
+**Acceptance.**
+
+- The run carries two jobs, `test` and `quality`, and both are green on the current tree.
+- The `Format` step's log reads `76 files already formatted`.
+- `quality` has no `Initialize containers` step and declares no `services`.
+- On the scratch push: `Lint` fails, `Format` **runs and fails** rather than being skipped, and
+  `test` reports independently.
+- The three `uses:` SHAs in `quality` are byte-identical to the ones in `test`.
+- The scratch branch is deleted, remote included.
+
+**Out of scope.**
+
+- **The `mypy` step.** T7 adds it to this job, together with the `SECRET_KEY` step it needs.
+- **T10, T11, T12 and T14.** Each is its own task, and each has its own placement question.
+- **Anything inside the `test` job**, the badge steps included.
+- **Inline annotations**, in any form. D22 set them aside; adding them here re-takes a decision.
+- **Declaring a `lint` dependency group.** D22 hands that to T17 and `docs/tech_debt/007`.
+
+**Closing note to write when this lands.** Four things: the `quality` job's duration, whether
+`Format` ran when `Lint` failed, the `76 files already formatted` line, and that D9's cost
+paragraph, D12's decision outcome and D14's "two of the eight checks" are now true rather than
+assumed.
+
+**Open questions that return to the Planner.** None.
 
 ---
 
 ## T7 — `mypy`: add the CI step, build-failing from its first run
 
 **Implements:** D10, its second task. **Requires T6 _and_ T6a finished and green** — amended
-2026-08-29; the entry previously named T6 alone.
+2026-08-29; the entry previously named T6 alone. **Also requires T6b**, added 2026-08-30, which
+creates the job this step now lands in.
 
-### Entry gate — an Auditor session runs before this task starts
+### Entry gate — CLOSED 2026-08-30
+
+The Auditor session this gate demanded ran, and answered its three questions: **the absence is an
+omission**, not a decision; three entries assume the step exists; closing it costs one job. Per this
+gate's own instruction, the finding went to the Planner, which took it as **D22** and wrote **T6b**.
+The gate text below is kept unedited as the trail. **This task no longer waits on anything except
+T6, T6a and T6b.**
+
+### Entry gate as written on 2026-08-29 — an Auditor session runs before this task starts
 
 **Added 2026-08-29.** Found while checking what actually enforces T6's tuple rule: **`ci.yml` has
 no `ruff` step, and no task in this plan adds one.** Verified by reading the file — its steps are
@@ -5101,13 +5402,36 @@ rather than warning against it: `files`, `exclude` and the twelve flags all live
 in `django_version/pyproject.toml`, so there is nothing left to pass on a command line and no
 second place for the two to disagree.
 
-**Do.** One step in the existing job, after the install and before or beside the test step, with
-`working-directory: django_version` like its neighbours:
+**Do — amended 2026-08-30. The step lands in T6b's `quality` job, not in `test`.** The entry
+previously read _"one step in the existing job"_, written when `ci.yml` had one job. D22 gave the
+project a second one, and the user decided this step belongs there: `mypy` needs no database
+either, and the gate's whole subject was the two static-analysis tools having different teeth in
+different places.
+
+**Step 1.** In the `quality` job, add the `SECRET_KEY` step immediately after `Checkout code`,
+copied verbatim from the `test` job:
 
 ```yaml
-- name: Type check
-  run: uv run mypy
+      - name: Generate a SECRET_KEY for this run
+        run: echo "SECRET_KEY=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
 ```
+
+**This step is not optional and its position is not free.** Measured 2026-08-30:
+`docker-compose exec -e SECRET_KEY= web mypy` exits **2** with `Error constructing plugin instance
+of NewSemanalDjangoPlugin`, because the plugin imports `config/settings.py`, which raises when the
+variable is absent. It must run before the `Type check` step; putting it after produces that exit 2
+on every run.
+
+**Step 2.** Add the type-check step at the end of the `quality` job, after `Format`:
+
+```yaml
+      - name: Type check
+        if: ${{ !cancelled() }}
+        run: uv run mypy
+```
+
+`if: ${{ !cancelled() }}` for the same reason `Format` carries it — a ruff failure must not hide the
+type result. No `working-directory` on the step: the job's `defaults.run` already supplies it.
 
 `uv run`, not a bare `mypy`: D10 established by measurement that the plugin initialises the Django
 app registry and therefore needs the project's entire production dependency set present. A
@@ -5125,6 +5449,13 @@ here is a second definition of the scope, and the first one it would silently ov
 `checked 43 source files`: that number is the proof the CI run has the same scope as the local
 one, and it is the only thing distinguishing a correctly-scoped green from a green that checked
 the wrong tree.
+
+**Three criteria added 2026-08-30 with the placement.** The step runs inside `quality`, and the
+`test` job is not edited by this task either. `Type check` **runs and reports even when `Lint` or
+`Format` failed** — skipped means the `if:` is wrong. And the `quality` job's `Generate a
+SECRET_KEY for this run` step precedes it: without it the step fails with exit 2 and an internal
+plugin error rather than with a type error, which reads as a broken workflow instead of a broken
+type.
 
 ---
 
@@ -5972,7 +6303,8 @@ Four things constrain the order; everything else is free.
 | 10  | ~~**T5** — ruff~~ **done 2026-08-28**                                                   | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
 | 11  | **T6** — mypy configuration and the 24 production errors                                | T3, T5    | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                  |
 | 11a | **T6a** — the twelve strictness flags and the 7 errors they surface                     | T6        | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                                |
-| 12  | **T7** — mypy CI step                                                                   | T6, T6a   | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land                                                                                                                                                                                                                                               |
+| 11b | **T6b** — the `quality` job running ruff in CI                                          | —         | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                  |
+| 12  | **T7** — mypy CI step                                                                   | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                        |
 | 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
 | 14  | **T10** — Django's two checks                                                           | T3, T9    | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | **T11** — `docker build` step                                                           | T1, T2    | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -6011,11 +6343,18 @@ and decided as option A, follow the supertype, and T6 block 5 implements it. Two
   followed found the step's *diagnosis* wrong, not just its fix. Corrected in the T6a entry with the
   `reveal_type` measurement behind it. **One stopping point remains: `mail.E001` in T10.**
 
-**One task now carries an entry gate rather than a stopping point: T7.** It does not start until an
+~~**One task now carries an entry gate rather than a stopping point: T7.** It does not start until an
 Auditor session has answered whether the absence of a `ruff` step in `ci.yml` is reasoned anywhere
 in this plan or is an omission — found on 2026-08-29 while checking what actually enforces T6's
 tuple rule, and recorded in T7 rather than acted on, because a new CI gate is a decision this plan
-has not taken. T7 is not blocked on the *answer*, only on the question having been asked.
+has not taken. T7 is not blocked on the *answer*, only on the question having been asked.~~
+
+**Closed 2026-08-30 — the gate was right to exist, and the answer was the worse of the two.** The
+Auditor session ran and found an omission: no entry argues that `ruff` stays out of CI, and three
+assume it does not — D9's cost paragraph, D12's decision outcome and D14's count of eight checks.
+The finding went to the Planner exactly as the gate instructed, and became **D22** and **T6b**. No
+task in this plan carries an entry gate any more. **One stopping point remains, unchanged:
+`mail.E001` in T10.**
 
 **A third place is not a task stopping but a task not starting: T16.** The verification found that
 Pylint runs in the editor with no configuration and is the source of the Django false positives.
