@@ -107,6 +107,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Generate a SECRET_KEY for this run
+        run: echo "SECRET_KEY=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+
       - name: Install uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -128,3 +131,7 @@ jobs:
       - name: Format
         if: ${{ !cancelled() }}
         run: uv run ruff format --check .
+
+      - name: Type check
+        if: ${{ !cancelled() }}
+        run: uv run mypy
