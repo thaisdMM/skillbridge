@@ -16,9 +16,12 @@ closed on 2026-08-28**, settling the open question T5 itself returned to the Pla
 `typing.ClassVar` annotations over a per-file-ignore, so D9a's suppression principle stays
 unamended. ~~The next task free to start is **T6**, which waits on T3 and T5, both done.~~
 ~~**T6 closed on 2026-08-29 and T6a on 2026-08-30**; the next task free to start is **T6b**, added by
-the revision pass of 2026-08-30 and waiting on nothing.~~ **T6b closed on 2026-09-02**, its gate
-proved by a deliberate red run rather than by the green one. The next task free to start is **T7**,
-whose three prerequisites — T6, T6a and T6b — are now all closed and green.
+the revision pass of 2026-08-30 and waiting on nothing.~~
+~~**T6b closed on 2026-09-02**, its gate proved by a deliberate red run rather than by the green
+one. The next task free to start is **T7**, whose three prerequisites — T6, T6a and T6b — are now
+all closed and green.~~ **T7 closed on 2026-09-11**, proved the same way T6b was — a green run
+and a deliberate red one, on `mypy` rather than on `ruff`. The next task in the _Order of
+execution_ is **T8**, which waits only on T4, already done.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -5376,6 +5379,33 @@ assumed.
 
 ## T7 — `mypy`: add the CI step, build-failing from its first run
 
+**Status: Done — 2026-09-11.**
+
+**Result.** Run `34510245915`, on `feature/django-refactor`, carries **two jobs, `test` and
+`quality`, both green** — `quality` in **19 s** against 44 s for `test`. The `quality` job's step
+list now reads `Checkout code`, `Generate a SECRET_KEY for this run`, `Install uv`, `Set up
+Python`, `Install dependencies`, `Lint`, `Format`, `Type check` — the two steps this task added
+land exactly where D22 and the 2026-08-30 amendment placed them. The `Type check` step's log
+reads `Success: no issues found in 43 source files`, the same number the local run produced, and
+the generated `SECRET_KEY` is visible in the step's own `env:` block, confirming it ran before
+`Type check` rather than after. The commit (`706ed52`) touched only
+`.github/workflows/ci.yml`, and the `test` job's steps are unchanged.
+
+**The failure test is what proves the step blocks, not the green run.** Run `34569206240`, on the
+scratch branch `scratch/t7-type-gate`, pushed a file (`accounts/scratch_ci_gate.py`) carrying one
+lint error and one genuine type error at once. `Lint` failed on `F401`; **`Type check` ran anyway
+and failed** on its own error — `Incompatible types in assignment (expression has type "str",
+variable has type "int")` — reporting `checked 44 source files` (43 plus the scratch file,
+confirming scope held on a red run too). `Format` also ran and passed (`77 files already
+formatted`), so `if: ${{ !cancelled() }}` on both later steps did the work the amendment split
+them to get: neither reads as `skipped` in the run's own step list. `test` reported green and
+independent, 54 s, without waiting on `quality`. The scratch branch was deleted, remote included.
+
+**The three criteria added 2026-08-30 with the placement all hold.** The step runs inside
+`quality`; `test` was not edited by this task; `Type check` ran and reported on the red run
+despite `Lint` failing before it; and `Generate a SECRET_KEY for this run` precedes `Type check`
+in both runs, closing off the exit-2 plugin-error failure mode D10 and D22 measured.
+
 **Implements:** D10, its second task. **Requires T6 _and_ T6a finished and green** — amended
 2026-08-29; the entry previously named T6 alone. **Also requires T6b**, added 2026-08-30, which
 creates the job this step now lands in.
@@ -6335,7 +6365,7 @@ Four things constrain the order; everything else is free.
 | 11  | ~~**T6** — mypy configuration and the 24 production errors~~ **done 2026-08-29**        | T3, T5    | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                  |
 | 11a | ~~**T6a** — the twelve strictness flags and the 7 errors they surface~~ **done 2026-08-30** | T6        | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                                |
 | 11b | ~~**T6b** — the `quality` job running ruff in CI~~ **done 2026-09-02**                  | —         | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                  |
-| 12  | **T7** — mypy CI step                                                                   | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                        |
+| 12  | ~~**T7** — mypy CI step~~ **done 2026-09-11**                                           | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                        |
 | 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
 | 14  | **T10** — Django's two checks                                                           | T3, T9    | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | **T11** — `docker build` step                                                           | T1, T2    | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
