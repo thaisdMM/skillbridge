@@ -76,6 +76,10 @@ jobs:
       - name: Run tests
         run: uv run pytest
 
+      - name: Check for missing migrations
+        if: ${{ !cancelled() }}
+        run: uv run python manage.py makemigrations --check
+
       - name: Count tests for badge
         if: github.ref == 'refs/heads/main'
         id: test_count
@@ -135,3 +139,7 @@ jobs:
       - name: Type check
         if: ${{ !cancelled() }}
         run: uv run mypy
+
+      - name: Deployment checks
+        if: ${{ !cancelled() }}
+        run: uv run python manage.py check --deploy
