@@ -19,9 +19,12 @@ unamended. ~~The next task free to start is **T6**, which waits on T3 and T5, bo
 the revision pass of 2026-08-30 and waiting on nothing.~~
 ~~**T6b closed on 2026-09-02**, its gate proved by a deliberate red run rather than by the green
 one. The next task free to start is **T7**, whose three prerequisites — T6, T6a and T6b — are now
-all closed and green.~~ **T7 closed on 2026-09-11**, proved the same way T6b was — a green run
+all closed and green.~~ ~~**T7 closed on 2026-09-11**, proved the same way T6b was — a green run
 and a deliberate red one, on `mypy` rather than on `ruff`. The next task in the _Order of
-execution_ is **T8**, which waits only on T4, already done.
+execution_ is **T8**, which waits only on T4, already done.~~ **T8 closed on 2026-09-12** at
+**97.00%** against the 95% floor, with `source = ["."]` rather than the three packages D11
+measured, and `manage.py` added to `omit` by name. The next task in the _Order of execution_ is
+**T10**, which waits on T3 and T9, both done.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -1776,10 +1779,10 @@ against, the strictness setting it declined to take, and the two questions it le
 **The baseline moved from 18 in 4 files to 24 in 7.** D10 measured on 2026-08-17; T5 closed on
 2026-08-28. Every one of the six extra errors is a `typing.ClassVar` annotation T5 introduced:
 
-| Error | Symbol | Files |
-| ----- | ------ | ----- |
-| `Cannot override instance variable … with class variable` | `ModelAdmin.actions` | `accounts/admin.py` ×3 |
-| `Incompatible types in assignment … "list[BaseConstraint] \| tuple[BaseConstraint, ...]"` | `Meta.constraints` | `accounts/models/freelancer.py`, `accounts/models/staff_user.py`, `profiles/models/skill.py` |
+| Error                                                                                     | Symbol               | Files                                                                                        |
+| ----------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| `Cannot override instance variable … with class variable`                                 | `ModelAdmin.actions` | `accounts/admin.py` ×3                                                                       |
+| `Incompatible types in assignment … "list[BaseConstraint] \| tuple[BaseConstraint, ...]"` | `Meta.constraints`   | `accounts/models/freelancer.py`, `accounts/models/staff_user.py`, `profiles/models/skill.py` |
 
 `ClassVar[list[CheckConstraint]]` narrows a type django-stubs declares as `list[BaseConstraint]`,
 and narrowing a mutable container in an override is unsound. The `actions` case is a different
@@ -3741,13 +3744,13 @@ job, on a tool already pinned in the `dev` group and already green.
 
 ### Measured this session, not cited
 
-| What | How | Result |
-| ---- | --- | ------ |
-| Both gates already pass | `docker-compose exec web ruff check .` / `ruff format --check .` | `All checks passed!` (exit 0); `76 files already formatted` (exit 0) |
-| Exit codes | Ruff docs, _Linter_ and _Formatter_ | `check`: 0 clean, 1 violations, 2 abnormal. `format --check`: 1 when any file would be reformatted |
-| What a failing job costs today | Run `33324061355`, per-step timings via `gh api` | whole `test` job 49 s, of which _Initialize containers_ (postgres) is **22 s**; `uv sync --locked` 1 s |
-| `mypy` without a `SECRET_KEY` | `docker-compose exec -e SECRET_KEY= web mypy` | exit **2**, `Error constructing plugin instance of NewSemanalDjangoPlugin` — the plugin imports `config/settings.py`, which raises when the variable is absent |
-| GitHub annotations | `ruff check --stdin-filename … --output-format=github` | supported by both subcommands on 0.16.4, and the emitted `file=` is **absolute** (`/app/…`); GitHub's `::error` reference does not document whether an absolute path attaches |
+| What                           | How                                                              | Result                                                                                                                                                                        |
+| ------------------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Both gates already pass        | `docker-compose exec web ruff check .` / `ruff format --check .` | `All checks passed!` (exit 0); `76 files already formatted` (exit 0)                                                                                                          |
+| Exit codes                     | Ruff docs, _Linter_ and _Formatter_                              | `check`: 0 clean, 1 violations, 2 abnormal. `format --check`: 1 when any file would be reformatted                                                                            |
+| What a failing job costs today | Run `33324061355`, per-step timings via `gh api`                 | whole `test` job 49 s, of which _Initialize containers_ (postgres) is **22 s**; `uv sync --locked` 1 s                                                                        |
+| `mypy` without a `SECRET_KEY`  | `docker-compose exec -e SECRET_KEY= web mypy`                    | exit **2**, `Error constructing plugin instance of NewSemanalDjangoPlugin` — the plugin imports `config/settings.py`, which raises when the variable is absent                |
+| GitHub annotations             | `ruff check --stdin-filename … --output-format=github`           | supported by both subcommands on 0.16.4, and the emitted `file=` is **absolute** (`/app/…`); GitHub's `::error` reference does not document whether an absolute path attaches |
 
 ### The decision
 
@@ -3890,13 +3893,13 @@ errors in 7 files against the 18 in 4 the entry states. The cause is internal to
 closed eleven days after D10 measured, and the `ClassVar` annotations T5 chose to satisfy ruff are
 what mypy rejects.
 
-| What implementation showed | Decided | Landed in |
-| -------------------------- | ------- | --------- |
+| What implementation showed                                                                                       | Decided                                                                                                              | Landed in                                    |
+| ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | T5's `ClassVar` annotations on `Meta.constraints` and `ModelAdmin.actions` produce six mypy errors D10 never saw | convert those six to plain tuples, which satisfies both tools; `Meta.ordering` and `REQUIRED_FIELDS` keep `ClassVar` | **D10** amendment, **T5** correction, **T6** |
-| The strictness question D10 deferred for want of a measurement now has one, flag by flag | the twelve cheapest flags on, listed one by one; `disallow_any_generics` deferred with its cost recorded | **D10** amendment, **T6a** (new) |
-| The modelling judgement D10 refused to guess — how a queryset over two independent concrete models is typed | **the user chose option A**: follow what django-stubs declares on the supertype | **D10** amendment, **T6** block 5 |
-| `django-stubs-ext` is transitive, and must never be imported at runtime | declared nowhere; the one annotation needing it goes behind `TYPE_CHECKING` | **D10** amendment, **T6** step 11 |
-| Pylint is running in the editor with no configuration, and is the source of the Django false positives | **not decided** — it is an editor decision and belongs to a Planner session on T16 | **T16**, conflict check |
+| The strictness question D10 deferred for want of a measurement now has one, flag by flag                         | the twelve cheapest flags on, listed one by one; `disallow_any_generics` deferred with its cost recorded             | **D10** amendment, **T6a** (new)             |
+| The modelling judgement D10 refused to guess — how a queryset over two independent concrete models is typed      | **the user chose option A**: follow what django-stubs declares on the supertype                                      | **D10** amendment, **T6** block 5            |
+| `django-stubs-ext` is transitive, and must never be imported at runtime                                          | declared nowhere; the one annotation needing it goes behind `TYPE_CHECKING`                                          | **D10** amendment, **T6** step 11            |
+| Pylint is running in the editor with no configuration, and is the source of the Django false positives           | **not decided** — it is an editor decision and belongs to a Planner session on T16                                   | **T16**, conflict check                      |
 
 **No decision was reversed and no rule-set decision was reopened.** D9's default set stands, D9a's
 suppression principle stands — reconfirmed for a second time, on different grounds — D10's tool and
@@ -3906,8 +3909,8 @@ scope stand, D11's 95% floor stands, and D5's single `dev` group is untouched, s
 flags).
 
 **The lesson, recorded where the next task can act on it.** T5 broke T6 because nobody read T6
-before choosing how to satisfy `RUF012`. Every task entry from T7 onward now carries a *Conflict
-check* section stating what was examined and what the conclusion was — T7 for the CI invocation,
+before choosing how to satisfy `RUF012`. Every task entry from T7 onward now carries a _Conflict
+check_ section stating what was examined and what the conclusion was — T7 for the CI invocation,
 T8 for the coverage floor, T14 for the ruff hooks, T16 for the editor, T17 for the deferral. That
 is the only structural change this pass makes to how tasks are written.
 
@@ -4437,14 +4440,14 @@ question. Measured under T6, six of those annotations are the reason mypy report
 never saw: `ClassVar[list[CheckConstraint]]` narrows a type django-stubs declares as
 `list[BaseConstraint]`, and `ClassVar` cannot override `ModelAdmin.actions`, which the supertype
 declares as an instance variable. **T6 converts those six to plain tuples**, which satisfies mypy
-and `RUF012` at once, since `RUF012` exists to catch a *mutable* class-level default.
+and `RUF012` at once, since `RUF012` exists to catch a _mutable_ class-level default.
 
-| Symbol | After T5 | After T6 |
-| ------ | -------- | -------- |
+| Symbol                                                                                             | After T5              | After T6                                                                 |
+| -------------------------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------ |
 | `Meta.ordering` (`accounts/models/base.py`, `profiles/models/base.py`, `profiles/models/skill.py`) | `ClassVar[list[str]]` | **unchanged** — converting it generates an `AlterModelOptions` migration |
-| `BaseUser.REQUIRED_FIELDS` | `ClassVar[list[str]]` | **unchanged** — produces no mypy error |
-| `Meta.constraints` (`freelancer.py`, `staff_user.py`, `skill.py`) | `ClassVar[list[…]]` | tuple |
-| `ModelAdmin.actions` (`accounts/admin.py` ×3) | `ClassVar[list[str]]` | tuple |
+| `BaseUser.REQUIRED_FIELDS`                                                                         | `ClassVar[list[str]]` | **unchanged** — produces no mypy error                                   |
+| `Meta.constraints` (`freelancer.py`, `staff_user.py`, `skill.py`)                                  | `ClassVar[list[…]]`   | tuple                                                                    |
+| `ModelAdmin.actions` (`accounts/admin.py` ×3)                                                      | `ClassVar[list[str]]` | tuple                                                                    |
 
 **Nothing about T5's execution was wrong given what it could see**, and D9a's principle really is
 unamended — see the conflict check appended to that entry. What was missing is a step: the
@@ -4600,11 +4603,11 @@ satisfies the supertype instead of narrowing it.
 **Step 4.** Convert `Meta.constraints` from an annotated list to a tuple in three models, and
 delete the now-unused import where `constraints` was its only user:
 
-| File | Symbol | `from typing import ClassVar` |
-| ---- | ------ | ----------------------------- |
-| `accounts/models/freelancer.py` | `Freelancer.Meta.constraints` | **delete the line** |
-| `accounts/models/staff_user.py` | `StaffUser.Meta.constraints` | **delete the line** |
-| `profiles/models/skill.py` | `Skill.Meta.constraints` | **keep it** — `Meta.ordering` still uses it |
+| File                            | Symbol                        | `from typing import ClassVar`               |
+| ------------------------------- | ----------------------------- | ------------------------------------------- |
+| `accounts/models/freelancer.py` | `Freelancer.Meta.constraints` | **delete the line**                         |
+| `accounts/models/staff_user.py` | `StaffUser.Meta.constraints`  | **delete the line**                         |
+| `profiles/models/skill.py`      | `Skill.Meta.constraints`      | **keep it** — `Meta.ordering` still uses it |
 
 The shape is the same in all three; the trailing comma is what makes it a tuple rather than a
 parenthesised expression:
@@ -4835,10 +4838,10 @@ docker-compose exec web pytest    → 304 passed
 **The two fixes that touch behaviour are covered, and these are the tests that cover them.** Read
 their names before running, so a failure is attributable rather than mysterious:
 
-| Fix | Tests |
-| --- | ----- |
-| Step 9, `ProfileInlineForm.full_clean` | `test_refusal_on_a_hidden_field_is_shown_above_the_section`, `test_refusal_on_a_hidden_field_leaves_no_orphan_error` in `accounts/tests/admin/test_freelancer_profile_inline.py` |
-| Step 10, `formfield_for_dbfield` | `test_skills_widget_offers_no_add_related_control`, `test_rendered_skills_widget_carries_no_add_related_link`, in **both** `test_freelancer_profile_inline.py` and `test_client_profile_inline.py` |
+| Fix                                    | Tests                                                                                                                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Step 9, `ProfileInlineForm.full_clean` | `test_refusal_on_a_hidden_field_is_shown_above_the_section`, `test_refusal_on_a_hidden_field_leaves_no_orphan_error` in `accounts/tests/admin/test_freelancer_profile_inline.py`                   |
+| Step 10, `formfield_for_dbfield`       | `test_skills_widget_offers_no_add_related_control`, `test_rendered_skills_widget_carries_no_add_related_link`, in **both** `test_freelancer_profile_inline.py` and `test_client_profile_inline.py` |
 
 Everything else in this task is an annotation and cannot move the suite.
 
@@ -4875,8 +4878,8 @@ of the T5 collision splits into a half that needs no record and a half that does
 against an ADR and against a line in `conventions.md`; T20 defines the gate that decides which half
 survives this plan.
 
-**Half one — the tuple rule. Records nowhere; the tools enforce it.** *Django class-level
-attributes that ruff's `RUF012` flags are declared as tuples.* Writing
+**Half one — the tuple rule. Records nowhere; the tools enforce it.** _Django class-level
+attributes that ruff's `RUF012` flags are declared as tuples._ Writing
 `ClassVar[list[CheckConstraint]]` instead makes mypy fail, and after T7 that turns CI red with the
 exact message naming the exact line. A document restating what a build-failing gate already
 imposes is redundant and can only drift away from it. The diagnosis, with the commands and the
@@ -4884,8 +4887,8 @@ numbers, already lives in `docs/verifications/2026-08-29-verification-mypy-t5-co
 is the right home for a fact about a tool.
 
 **Half two — the `Meta.ordering` exception. This one is written down, and T20 is where.**
-*`Meta.ordering` stays `ClassVar[list[str]]`; converting it to a tuple generates an
-`AlterModelOptions` migration.* It is the only line of the four that no gate protects correctly.
+_`Meta.ordering` stays `ClassVar[list[str]]`; converting it to a tuple generates an
+`AlterModelOptions` migration._ It is the only line of the four that no gate protects correctly.
 Convert `ordering` for consistency and ruff passes, mypy passes, `manage.py check` passes — only
 `makemigrations --check` objects, **and it objects to the wrong thing**: it reports a missing
 migration, so the natural repair is to generate the migration and commit it, which locks the
@@ -4969,11 +4972,11 @@ positives.
 **Step 3.** Annotate the two `ready()` methods and `main()`. All three take no arguments and
 return nothing:
 
-| File | Symbol | Signature |
-| ---- | ------ | --------- |
+| File               | Symbol                 | Signature                  |
+| ------------------ | ---------------------- | -------------------------- |
 | `accounts/apps.py` | `AccountsConfig.ready` | `def ready(self) -> None:` |
 | `profiles/apps.py` | `ProfilesConfig.ready` | `def ready(self) -> None:` |
-| `manage.py` | `main` | `def main() -> None:` |
+| `manage.py`        | `main`                 | `def main() -> None:`      |
 
 Annotating `main` also closes the `no-untyped-call` at `manage.py:23` — that error exists only
 because the call site is now typed and the target was not. Six of the seven, from four edits.
@@ -5018,7 +5021,7 @@ declared to return something more specific. Bind the call to a local annotated w
 type, then annotate.~~
 
 **Corrected 2026-08-30 — the diagnosis above was wrong, and the fix it prescribed could not work.**
-The step was written from inference: the verification measured the *error* and the cause was
+The step was written from inference: the verification measured the _error_ and the cause was
 reasoned rather than run. The Developer executed the prescribed shape, the error survived unmoved,
 and the measurement below is what replaced the reasoning.
 
@@ -5035,7 +5038,7 @@ qs2 = Freelancer.objects.all()             → QuerySet[BaseUser, BaseUser]
 reveal_type(qs2.annotate(x=Exists(...)))   → QuerySet[BaseUser@AnnotatedWith[TypedDict({'x': bool})], ...]
 ```
 
-That is why binding the *input* to an annotated local changes nothing: the `Any` is produced one
+That is why binding the _input_ to an annotated local changes nothing: the `Any` is produced one
 call later, by the expression actually being returned. The error text confirmed it before the
 plugin was ever read — it kept naming the `return` line, not the `super()` line.
 
@@ -5126,8 +5129,8 @@ annotated behind a `TYPE_CHECKING` guard, and the one-line containment in
 migration file, and it confirms the annotations changed nothing Django records.
 
 **The lesson, and it is the same one T5 taught.** Steps 1–4 were written from fixes that had been
-*executed* during the verification and every one of them landed unchanged. Step 5 was written from a
-cause that had been *reasoned*, and its diagnosis was wrong — not merely its fix. The stopping point
+_executed_ during the verification and every one of them landed unchanged. Step 5 was written from a
+cause that had been _reasoned_, and its diagnosis was wrong — not merely its fix. The stopping point
 this entry carried is what caught it: the Developer ran the prescribed shape, saw it fail, refused
 to improvise a `cast`, and returned the question here. **The stopping point worked, and it is the
 mechanism worth carrying, not the shape it protected.** Where a step's cause has not been run,
@@ -5189,41 +5192,41 @@ that line**, separated by one blank line.
 `jobs:` map. Indented further, it becomes a key inside `test` and the workflow is invalid.
 
 ```yaml
-  quality:
-    runs-on: ubuntu-latest
+quality:
+  runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
+  permissions:
+    contents: read
 
-    defaults:
-      run:
+  defaults:
+    run:
+      working-directory: django_version
+
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@<copy the SHA from the test job> # v7.0.1
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@<copy the SHA from the test job> # v10.0.1
+      with:
+        version: "0.12.5"
+        enable-cache: true
         working-directory: django_version
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@<copy the SHA from the test job> # v7.0.1
+    - name: Set up Python
+      uses: actions/setup-python@<copy the SHA from the test job> # v7.0.0
+      with:
+        python-version-file: django_version/.python-version
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@<copy the SHA from the test job> # v10.0.1
-        with:
-          version: "0.12.5"
-          enable-cache: true
-          working-directory: django_version
+    - name: Install dependencies
+      run: uv sync --locked
 
-      - name: Set up Python
-        uses: actions/setup-python@<copy the SHA from the test job> # v7.0.0
-        with:
-          python-version-file: django_version/.python-version
+    - name: Lint
+      run: uv run ruff check .
 
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Lint
-        run: uv run ruff check .
-
-      - name: Format
-        if: ${{ !cancelled() }}
-        run: uv run ruff format --check .
+    - name: Format
+      if: ${{ !cancelled() }}
+      run: uv run ruff format --check .
 ```
 
 **Step 2 — the three `uses:` lines are copied, never written from scratch.** Take each one verbatim
@@ -5241,16 +5244,16 @@ same reason.
 **Step 4 — eight things this job deliberately does not have.** Each absence is a decision. Do not
 add any of them.
 
-| Absent | Why |
-| ------ | --- |
-| `services: postgres` | `ruff` never touches the database. This absence is the 22 s the job exists to not pay |
-| the `env:` block with `DB_*` and `DJANGO_SETTINGS_MODULE` | same reason — nothing here imports Django |
-| the `Generate a SECRET_KEY for this run` step | `ruff` does not import `config/settings.py`. **T7 adds this step** together with the mypy step, which does need it |
-| `needs:` | the two jobs must run in parallel. `needs: test` serialises them and undoes the reason the job is separate |
-| `continue-on-error` | the job is a gate |
-| any argument to `ruff` beyond `.` | rules, scope and per-file ignores all live in `[tool.ruff]` in `django_version/pyproject.toml`. An argument here is a second definition of them |
-| `--output-format=github` or `RUFF_OUTPUT_FORMAT` | D22 set inline annotations aside — the payoff rests on an unverified premise and costs the readable output |
-| `uvx ruff@0.16.4` | D5's amendment rejects it: the version pin belongs in `uv.lock`, not in every invocation site |
+| Absent                                                    | Why                                                                                                                                             |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `services: postgres`                                      | `ruff` never touches the database. This absence is the 22 s the job exists to not pay                                                           |
+| the `env:` block with `DB_*` and `DJANGO_SETTINGS_MODULE` | same reason — nothing here imports Django                                                                                                       |
+| the `Generate a SECRET_KEY for this run` step             | `ruff` does not import `config/settings.py`. **T7 adds this step** together with the mypy step, which does need it                              |
+| `needs:`                                                  | the two jobs must run in parallel. `needs: test` serialises them and undoes the reason the job is separate                                      |
+| `continue-on-error`                                       | the job is a gate                                                                                                                               |
+| any argument to `ruff` beyond `.`                         | rules, scope and per-file ignores all live in `[tool.ruff]` in `django_version/pyproject.toml`. An argument here is a second definition of them |
+| `--output-format=github` or `RUFF_OUTPUT_FORMAT`          | D22 set inline annotations aside — the payoff rests on an unverified premise and costs the readable output                                      |
+| `uvx ruff@0.16.4`                                         | D5's amendment rejects it: the version pin belongs in `uv.lock`, not in every invocation site                                                   |
 
 ### Block 2 — verify before pushing
 
@@ -5446,7 +5449,7 @@ nobody has read it end to end against this specific question.
    a gate. Determine whether "hooks only" was ever argued as sufficient for ruff, or whether the
    CI question was simply never asked of ruff the way D7, D10, D12 and D13 asked it of their tools.
 3. **What does it cost to close?** One step, `uv run ruff check .` plus `uv run ruff format
-   --check .`, with `working-directory: django_version` — the same shape as this task's step, on a
+--check .`, with `working-directory: django_version` — the same shape as this task's step, on a
    tool already pinned in the `dev` group and already green.
 
 **Then:** if the audit finds the reasoning already written, record that and this gate closes with
@@ -5473,8 +5476,8 @@ different places.
 copied verbatim from the `test` job:
 
 ```yaml
-      - name: Generate a SECRET_KEY for this run
-        run: echo "SECRET_KEY=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+- name: Generate a SECRET_KEY for this run
+  run: echo "SECRET_KEY=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
 ```
 
 **This step is not optional and its position is not free.** Measured 2026-08-30:
@@ -5486,9 +5489,9 @@ on every run.
 **Step 2.** Add the type-check step at the end of the `quality` job, after `Format`:
 
 ```yaml
-      - name: Type check
-        if: ${{ !cancelled() }}
-        run: uv run mypy
+- name: Type check
+  if: ${{ !cancelled() }}
+  run: uv run mypy
 ```
 
 `if: ${{ !cancelled() }}` for the same reason `Format` carries it — a ruff failure must not hide the
@@ -5522,6 +5525,38 @@ type.
 
 ## T8 — Coverage: `pytest-cov` with a 95% floor
 
+**Status: Done — 2026-09-12.**
+
+**Result.** `pyproject.toml` declares `pytest-cov==7.1.0` in the `dev` group. `addopts` gains bare
+`--cov` and `--cov-fail-under=95`. `[tool.coverage.run]` carries `branch = true`, `source = ["."]`,
+and `omit` naming four patterns: `*/tests/*`, `*/migrations/*`, `*/.venv/*` (the host virtualenv
+`docker-compose.yml` bind-mounts into `/app`, invisible in D11's disposable-container measurement),
+and `manage.py`. Measured in the running `web` container with bare `pytest`, no `--cov-config` on
+the command line: **304 passed**, coverage **97.00%** against the 95% floor —
+`Required test coverage of 95% reached`. Branch and BrPart columns are present, `pytest-cov`
+resolved `coverage==7.16.0`, and neither `tests/`, `migrations/`, `.venv/` nor `manage.py` appear
+in the report. Files touched: `django_version/pyproject.toml` and `django_version/uv.lock`
+(regenerated by `uv lock` inside the container, not hand-edited).
+
+**Two of D11's open verification debts are settled by this run.** Whether `coverage` discovers
+`django_version/pyproject.toml` without `--cov-config` — it does, confirmed by the same run that
+produced the 97.00% above. And `coverage` resolved at 7.16.0, past the 7.10.0 floor D11 named for
+`if TYPE_CHECKING:` to cost nothing — confirmed: `accounts/admin.py` reports the same 2 `BrPart` it
+always has, none of them the `TYPE_CHECKING` block.
+
+**`source` is `["."]`, not the three packages D11 measured — a decision this entry's own text left
+open.** Three configurations were run in a disposable container before choosing: `source =
+["accounts", "profiles", "config"]` reproduces D11's 97.00% exactly; `source = ["."]` alone drops
+to **95.23%**, entirely on `manage.py`'s 11 statements and 2 branches, never executed because no
+test imports it; `source = ["."]` with `manage.py` named in `omit` returns to 97.00%. The third was
+chosen over the first because a future app is measured without a name added here; chosen over the
+second because `manage.py`'s body only runs as a subprocess entry point, which no test can exercise
+without mocking away the Django installation the suite itself depends on — traded off explicitly
+against **T10**, whose `makemigrations --check` and `check --deploy` steps already check
+`manage.py` by invoking it for real, a path `coverage` cannot see either way. `asgi.py` and
+`wsgi.py` stay measured, unlike `manage.py`: both are importable, so a future test can move their
+number, where `manage.py`'s cannot move.
+
 **Implements:** D11.
 
 **Do.** Declare `pytest-cov` in the `dev` group. Add **`--cov` with no value** and
@@ -5539,11 +5574,11 @@ are absent from the report.
 land after D11 took its 97% measurement, so the number this task expects had to be re-derived.
 Three things were checked, and only one of them moves the figure.
 
-| T6 change | Effect on coverage |
-| --------- | ------------------ |
+| T6 change                                                                         | Effect on coverage                                                                                                                                                                             |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The `if formfield is not None and isinstance(…)` guard in `formfield_for_dbfield` | **none.** coverage.py measures branch arcs between lines; `if A and B:` has the same two exits as `if B:`, so no branch is added and no statement is. The method is exercised — see T6 step 16 |
-| `from collections.abc import Sequence` in `profiles/admin.py` | +1 statement, executed at import, covered |
-| The `if TYPE_CHECKING:` block in `accounts/admin.py` | +4 statements, **2 of which can never execute** — the `django_stubs_ext` import and `_AdminBase = admin.ModelAdmin` |
+| `from collections.abc import Sequence` in `profiles/admin.py`                     | +1 statement, executed at import, covered                                                                                                                                                      |
+| The `if TYPE_CHECKING:` block in `accounts/admin.py`                              | +4 statements, **2 of which can never execute** — the `django_stubs_ext` import and `_AdminBase = admin.ModelAdmin`                                                                            |
 
 So production goes from D11's measured 598 statements with 20 missed to roughly **603 with 22
 missed** — about **96%** against a 95% floor. The gate holds; the headroom drops from roughly two
@@ -5749,7 +5784,7 @@ the root-relative paths stop resolving. Add `mypy`, `pytest` or `gitleaks` to th
 **Conflict check, 2026-08-29 — no conflict; the hooks cannot undo T6's edits.** `ruff check --fix`
 is the hook with the power to rewrite source, so the question is whether it would push T6's tuples
 back towards lists. It would not, for two independent reasons: `RUF012` does not fire on a tuple at
-all, since it exists to catch a *mutable* class-level default; and `RUF012` is not an auto-fixable
+all, since it exists to catch a _mutable_ class-level default; and `RUF012` is not an auto-fixable
 rule, so `--fix` could not rewrite it even where it does fire. The applied diff was measured
 against both hooks and reported `All checks passed!` and `76 files already formatted`.
 
@@ -5807,7 +5842,7 @@ running a linter nobody configured, and it is the source of the Django false pos
 had been seeing.**
 
 - The messages are Pylint's, not mypy's. Pylint `E1101` writes `Instance of 'X' has no 'Y'
-  member`; mypy writes `"X" has no attribute "Y"` followed by a bracketed error code.
+member`; mypy writes `"X" has no attribute "Y"` followed by a bracketed error code.
 - **No Pylint configuration exists anywhere in the repository**, so the extension runs on defaults
   with no Django plugin — which is precisely the tool shape that cannot resolve a model field, and
   precisely what `django-stubs` avoids.
@@ -5863,7 +5898,7 @@ what was measured, not an estimate:
 
 **Extended 2026-08-30 by what T6a measured — the entry gains a fifth bullet and a named consequence.**
 `ProfilePresenceMixin.get_queryset` in `accounts/admin.py` now contains an `Any` behind an annotated
-local rather than eliminating it, and that containment exists *because* this flag is deferred. The
+local rather than eliminating it, and that containment exists _because_ this flag is deferred. The
 entry must record it, with what was measured rather than what was assumed:
 
 - **`admin.ModelAdmin[BaseUser]` is not the repayment**, though it is the shape the bullet above
@@ -6228,7 +6263,7 @@ gh api "repos/thaisdMM/skillbridge/dependabot/alerts?state=open" \
 ## T20 — Distil the implementation notes that survive this plan
 
 **Added 2026-08-29.** **Runs last, after T17**, and for a different reason than T17: that task
-records what was *deferred*, this one records what was *learned*. **Requires every other task
+records what was _deferred_, this one records what was _learned_. **Requires every other task
 closed**, because the input is what implementation actually turned up.
 
 ### The problem this exists to solve
@@ -6246,12 +6281,12 @@ repay stops meaning anything. **This task is a filter first and a document secon
 
 State these before writing anything, and apply them to every candidate:
 
-- **ADR — *were there two or more viable options, and does the one chosen close doors?*** If the
+- **ADR — _were there two or more viable options, and does the one chosen close doors?_** If the
   stack admitted only one path, there was no decision; there was a discovery. Writing a discovery
   up as a decision makes the next reader hunt for a trade-off that never existed. Most things
   learned while wiring a toolchain are discoveries.
-- **Tech debt — *is there a reachable better state that someone deliberately did not reach, and
-  intends to?*** No better state means it is a consequence, and belongs to whichever entry decided
+- **Tech debt — _is there a reachable better state that someone deliberately did not reach, and
+  intends to?_** No better state means it is a consequence, and belongs to whichever entry decided
   it. No intention to repay means it is a bug. Debt is the narrow middle: knowingly not-best, on
   purpose, with a repayment that exists.
 
@@ -6264,7 +6299,7 @@ untouched by it.
 > or a tool will tell them, pointing at the wrong cause.**
 
 Both halves are required. Read the second half literally: a gate that fires with a misleading
-message is *worse* than silence, because it sends the reader to a confident and wrong repair.
+message is _worse_ than silence, because it sends the reader to a confident and wrong repair.
 
 **What the gate excludes, and these are the majority.** Anything a build-failing step catches with
 an accurate message needs no note — the tool says it, at the moment it matters, better than a
@@ -6275,18 +6310,18 @@ belongs in the `docs/verifications/` file that measured it.
 
 ### The two candidates already identified — the audit starts from these, not only these
 
-| Candidate | Verdict | Why |
-| --------- | ------- | --- |
-| `Meta.ordering` stays `ClassVar[list[str]]`; converting it to a tuple generates an `AlterModelOptions` migration | **enters** | ruff, mypy and `manage.py check` all pass. Only `makemigrations --check` objects, and it reports *a missing migration* — so the natural repair is to generate and commit it, locking the mistake in. Carried from T6's closing note |
-| `addopts` uses bare `--cov`; `--cov=<value>` silently overrides `[tool.coverage.run] source` | **enters** | Nothing fails. The gate stays green and measures the wrong tree. Verified by execution under D11 |
-| Django class-level attributes flagged by `RUF012` are declared as tuples | **excluded** | mypy fails on the alternative, and after T7 that is a red CI run naming the exact line |
-| `django_db_setup` must live in `conftest.py`, not be loaded with `pytest -p` | **excluded** | already in `.claude/rules/testing.md`, which every session loads |
+| Candidate                                                                                                        | Verdict      | Why                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Meta.ordering` stays `ClassVar[list[str]]`; converting it to a tuple generates an `AlterModelOptions` migration | **enters**   | ruff, mypy and `manage.py check` all pass. Only `makemigrations --check` objects, and it reports _a missing migration_ — so the natural repair is to generate and commit it, locking the mistake in. Carried from T6's closing note |
+| `addopts` uses bare `--cov`; `--cov=<value>` silently overrides `[tool.coverage.run] source`                     | **enters**   | Nothing fails. The gate stays green and measures the wrong tree. Verified by execution under D11                                                                                                                                    |
+| Django class-level attributes flagged by `RUF012` are declared as tuples                                         | **excluded** | mypy fails on the alternative, and after T7 that is a red CI run naming the exact line                                                                                                                                              |
+| `django_db_setup` must live in `conftest.py`, not be loaded with `pytest -p`                                     | **excluded** | already in `.claude/rules/testing.md`, which every session loads                                                                                                                                                                    |
 
 ### Do
 
 **Step 1.** Re-read the closure note of every implemented task — T1 through T19, T6a included — and
 put each thing it records through the gate above. One pass, one verdict per item, and the verdict
-for most items is *no note*.
+for most items is _no note_.
 
 **Step 2.** Write `docs/IMPLEMENTATION_NOTES.md`, one section per surviving item, in this shape.
 Short-MADR in spirit, shorter in practice — **six lines is the target, twelve is the ceiling**:
@@ -6350,31 +6385,31 @@ Four things constrain the order; everything else is free.
    against the manifest paths the default branch's dependency graph reports, and the merge is what
    changes them from `django_version/requirements.txt` to the `uv` pair.
 
-| #   | Task                                                                                    | Waits on  | Why                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --- | --------------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | ~~**T15** — enable Dependabot~~ **done 2026-08-18**                                     | —         | Free, server-side, and nothing watched dependencies before it. Its security half is narrowed by T18                                                                                                                                                                                                                                                                                                                                           |
-| 2   | ~~**T1** — `Dockerfile` cleanup~~ **done**                                              | —         | `requirements.txt` must still exist                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 3   | ~~**T2** — uv migration~~ **done**                                                      | T1        | D16 commit 1                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 4   | ~~**T3** — stack bump~~ **done 2026-08-19**                                             | T2        | D16 commit 2, same session, once green                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 5   | ~~**T18** — narrow Dependabot to `/django_version`~~ **done 2026-08-19**                | —         | Server-side and immediate. Every day it waited was another closed-directory pull request and another red run                                                                                                                                                                                                                                                                                                                                  |
-| 6   | ~~**T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`~~ **done 2026-08-19** | T2, T18   | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing                                                                                                                                                                                                                                                                                                             |
-| 7   | **Merge `feature/django-refactor` into `main`**                                         | T9        | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, removes the manifest the four `sqlparse` alerts are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts would close on their own — was measured on 2026-08-20 and 2026-08-21 and did not hold**; D18's amendment 4 records why, and T19's step 0 is what clears them instead |
-| 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                | the merge | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
-| 9   | ~~**T4** — migrations in the suite, `--reuse-db` and markers out~~ **done 2026-08-22**  | T3        | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
-| 10  | ~~**T5** — ruff~~ **done 2026-08-28**                                                   | T2        | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
-| 11  | ~~**T6** — mypy configuration and the 24 production errors~~ **done 2026-08-29**        | T3, T5    | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                  |
-| 11a | ~~**T6a** — the twelve strictness flags and the 7 errors they surface~~ **done 2026-08-30** | T6        | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                                |
-| 11b | ~~**T6b** — the `quality` job running ruff in CI~~ **done 2026-09-02**                  | —         | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                  |
-| 12  | ~~**T7** — mypy CI step~~ **done 2026-09-11**                                           | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                        |
-| 13  | **T8** — coverage                                                                       | T4        | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
-| 14  | **T10** — Django's two checks                                                           | T3, T9    | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
-| 15  | **T11** — `docker build` step                                                           | T1, T2    | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 16  | **T13** — non-root user                                                                 | T2, T11   | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
-| 17  | **T12** — gitleaks                                                                      | T9        | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
-| 18  | **T14** — pre-commit hooks                                                              | T2, T5    | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
-| 19  | **T16** — editor configuration                                                          | T2        | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
-| 20  | **T17** — tech debt entries                                                             | all       | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| 21  | **T20** — distil the implementation notes                                               | all, T17  | Records what was *learned*, where T17 records what was *deferred*. It is a filter before it is a document, and it needs every closure note written before it can filter them                                                                                                                                                                                                                                                                   |
+| #   | Task                                                                                        | Waits on     | Why                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --- | ------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | ~~**T15** — enable Dependabot~~ **done 2026-08-18**                                         | —            | Free, server-side, and nothing watched dependencies before it. Its security half is narrowed by T18                                                                                                                                                                                                                                                                                                                                           |
+| 2   | ~~**T1** — `Dockerfile` cleanup~~ **done**                                                  | —            | `requirements.txt` must still exist                                                                                                                                                                                                                                                                                                                                                                                                           |
+| 3   | ~~**T2** — uv migration~~ **done**                                                          | T1           | D16 commit 1                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 4   | ~~**T3** — stack bump~~ **done 2026-08-19**                                                 | T2           | D16 commit 2, same session, once green                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 5   | ~~**T18** — narrow Dependabot to `/django_version`~~ **done 2026-08-19**                    | —            | Server-side and immediate. Every day it waited was another closed-directory pull request and another red run                                                                                                                                                                                                                                                                                                                                  |
+| 6   | ~~**T9** — CI hardening, generated `SECRET_KEY`, `dependabot.yml`~~ **done 2026-08-19**     | T2, T18      | Moved up from position 10: it is what the merge to `main` depends on, and D21 is what makes any Dependabot run capable of passing                                                                                                                                                                                                                                                                                                             |
+| 7   | **Merge `feature/django-refactor` into `main`**                                             | T9           | Not a task, and listed anyway because two later items depend on it: it activates `dependabot.yml`, removes the manifest the four `sqlparse` alerts are computed from, and is what T19's filters are written against. **Its one unmeasured premise — that the four alerts would close on their own — was measured on 2026-08-20 and 2026-08-21 and did not hold**; D18's amendment 4 records why, and T19's step 0 is what clears them instead |
+| 8   | ~~**T19** — the three Dependabot auto-triage rules~~ **done 2026-08-21**                    | the merge    | The `manifest` values only become correct once the default branch describes the project through `uv`. Its step 0 was added on the day it ran, to clear the alerts the merge did not close                                                                                                                                                                                                                                                     |
+| 9   | ~~**T4** — migrations in the suite, `--reuse-db` and markers out~~ **done 2026-08-22**      | T3           | Needs `[tool.pytest]`, and D17's fixture is re-confirmed on pytest-django 4.14.0                                                                                                                                                                                                                                                                                                                                                              |
+| 10  | ~~**T5** — ruff~~ **done 2026-08-28**                                                       | T2           | Touches many source files; landing it before the type work keeps the two diffs separable                                                                                                                                                                                                                                                                                                                                                      |
+| 11  | ~~**T6** — mypy configuration and the 24 production errors~~ **done 2026-08-29**            | T3, T5       | django-stubs 6.1.0 targets Django 6.1. **Re-scoped 2026-08-29**: 24 errors in 7 files, not 18 in 4 — T5 landed six of them after D10 measured                                                                                                                                                                                                                                                                                                 |
+| 11a | ~~**T6a** — the twelve strictness flags and the 7 errors they surface~~ **done 2026-08-30** | T6           | Every fix in T6 was executed and observed; these seven carry a verified diagnosis and no verified fix. Split so that a judgement here cannot stall a task that is already green                                                                                                                                                                                                                                                               |
+| 11b | ~~**T6b** — the `quality` job running ruff in CI~~ **done 2026-09-02**                      | —            | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                 |
+| 12  | ~~**T7** — mypy CI step~~ **done 2026-09-11**                                               | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                         |
+| 13  | ~~**T8** — coverage~~ **done 2026-09-12**                                                   | T4           | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
+| 14  | **T10** — Django's two checks                                                               | T3, T9       | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
+| 15  | **T11** — `docker build` step                                                               | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 16  | **T13** — non-root user                                                                     | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
+| 17  | **T12** — gitleaks                                                                          | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
+| 18  | **T14** — pre-commit hooks                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
+| 19  | **T16** — editor configuration                                                              | T2           | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
+| 20  | **T17** — tech debt entries                                                                 | all          | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 21  | **T20** — distil the implementation notes                                                   | all, T17     | Records what was _learned_, where T17 records what was _deferred_. It is a filter before it is a document, and it needs every closure note written before it can filter them                                                                                                                                                                                                                                                                  |
 
 **Independent of each other, in any order:** T12, T14, T16. **T18 has no predecessor** — it needs
 no file to exist and no task to run before it — **but it is one**: constraint 4 puts it before T9,
@@ -6401,14 +6436,14 @@ and decided as option A, follow the supertype, and T6 block 5 implements it. Two
   not clear it, that step stops rather than reaching for `# type: ignore` or `cast`.~~
   **Closed 2026-08-30 — the stopping point fired, and it was right to.** The prescribed shape did
   not clear the error; the Developer stopped instead of improvising, and the Planner session that
-  followed found the step's *diagnosis* wrong, not just its fix. Corrected in the T6a entry with the
+  followed found the step's _diagnosis_ wrong, not just its fix. Corrected in the T6a entry with the
   `reveal_type` measurement behind it. **One stopping point remains: `mail.E001` in T10.**
 
 ~~**One task now carries an entry gate rather than a stopping point: T7.** It does not start until an
 Auditor session has answered whether the absence of a `ruff` step in `ci.yml` is reasoned anywhere
 in this plan or is an omission — found on 2026-08-29 while checking what actually enforces T6's
 tuple rule, and recorded in T7 rather than acted on, because a new CI gate is a decision this plan
-has not taken. T7 is not blocked on the *answer*, only on the question having been asked.~~
+has not taken. T7 is not blocked on the _answer_, only on the question having been asked.~~
 
 **Closed 2026-08-30 — the gate was right to exist, and the answer was the worse of the two.** The
 Auditor session ran and found an omission: no entry argues that `ruff` stays out of CI, and three
