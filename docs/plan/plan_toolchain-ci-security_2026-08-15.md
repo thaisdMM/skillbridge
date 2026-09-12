@@ -23,8 +23,11 @@ all closed and green.~~ ~~**T7 closed on 2026-09-11**, proved the same way T6b w
 and a deliberate red one, on `mypy` rather than on `ruff`. The next task in the _Order of
 execution_ is **T8**, which waits only on T4, already done.~~ **T8 closed on 2026-09-12** at
 **97.00%** against the 95% floor, with `source = ["."]` rather than the three packages D11
-measured, and `manage.py` added to `omit` by name. The next task in the _Order of execution_ is
-**T10**, which waits on T3 and T9, both done.
+measured, and `manage.py` added to `omit` by name. ~~The next task in the _Order of execution_ is
+**T10**, which waits on T3 and T9, both done.~~ **T10 closed on 2026-09-12**, splitting the
+`makemigrations --check` and `check --deploy` steps across both CI jobs rather than landing them
+together, and closing the plan's last stopping point — `mail.E001` did not fire under Django 6.1.
+The next task in the _Order of execution_ is **T11**, which waits on T1 and T2, both done.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -5687,6 +5690,32 @@ step 1 of the first push and the revert is replacing `permissions: {}` with
 
 ## T10 — CI runs Django's own two checks
 
+**Status: Done — 2026-09-12.**
+
+**Result.** The two commands land in different jobs, not together. `check --deploy` is a step in
+`quality`, right after `Type check` — it never opens a database connection, so it costs about two
+seconds and needs nothing new in that job's `env`. `makemigrations --check` is a step in `test`,
+right after `Run tests` — measured directly, without a reachable database it costs **32 seconds**
+(`psycopg_pool` 3.3.1's `ConnectionPool` default `timeout`, confirmed by reading the installed
+package) and floods the log with 22 `connection refused` lines, so it goes where the `postgres`
+service already lives. Both steps carry `if: ${{ !cancelled() }}`, so a failing `pytest` does not
+hide a missing migration. Files touched: `.github/workflows/ci.yml` only.
+
+**The CI baseline is 5 warnings, not the 7 D7 measured locally — closing the open `W009` question
+D7 left.** Run `34697417289`: `security.W004`, `W008`, `W012`, `W016`, `W020`,
+`System check identified 5 issues (0 silenced)`, no `mail.E001`. `W018` and `W009` are absent for
+the reason D7 predicted but could not confirm: CI leaves `DEBUG` unset, and D21's generated
+`SECRET_KEY` — 64 random characters from `openssl rand -base64 48`, no `django-insecure-` prefix —
+clears all three thresholds `check --deploy` tests for.
+
+**The red run, on a change the test suite cannot see.** `verbose_name="Available"` →
+`"Available for work"` on `Freelancer.is_available` generates a migration with no SQL — the class
+of change D7's own text names as uncaught by anything else in the project. Verified on a disposable
+branch, deleted after and never merged: run `34699154096` shows `Run tests` green and
+`Check for missing migrations` red on `~ Alter field is_available on freelancer`, `quality`
+entirely green. **The stopping point the header carried since 2026-08-29 — `mail.E001` firing under
+Django 6.1 — did not fire, and closes with this task. No stopping point remains in this plan.**
+
 **Implements:** D7. **Requires T3**, because `check --deploy` must be measured under Django 6.1
 before it is made build-failing.
 
@@ -5699,6 +5728,18 @@ both) and `python manage.py check --deploy` at its default `--fail-level ERROR`.
 uncommitted model change. The `check --deploy` warning baseline under 6.1 is recorded in the run
 log, and **`mail.E001` is confirmed not to fire** with no `MAILERS` defined — if it does, the step
 does not become build-failing and the finding returns to the Planner.
+
+**Notes and deviations.**
+
+- **The two steps do not share a job.** D7 could not have decided this: the `quality` job did not
+  exist until D22 and T6b, on 2026-09-02, seventeen days after D7 was written. Splitting by which
+  command needs the database answers a question D7 never faced, rather than reopening one it did.
+- **`makemigrations --check` lands after `pytest`, not before.** Explicit choice: the suite runs to
+  completion regardless of a missing migration, at the cost of the two badge steps being skipped on
+  a `main` run where the check fails.
+- **Acceptance says "on `main`"; both runs cited are on `feature/django-refactor`.** Same pattern as
+  T7 and T8 — the merge to `main` is a later step in the _Order of execution_, not a precondition
+  either task waited on.
 
 ---
 
@@ -6402,7 +6443,7 @@ Four things constrain the order; everything else is free.
 | 11b | ~~**T6b** — the `quality` job running ruff in CI~~ **done 2026-09-02**                      | —            | **Added 2026-08-30.** Free to start now: ruff has been pinned, configured and green since T5. It creates the job T7's step lands in, so it runs before T7 — but it waits on neither mypy task                                                                                                                                                                                                                                                 |
 | 12  | ~~**T7** — mypy CI step~~ **done 2026-09-11**                                               | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                         |
 | 13  | ~~**T8** — coverage~~ **done 2026-09-12**                                                   | T4           | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
-| 14  | **T10** — Django's two checks                                                               | T3, T9       | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
+| 14  | ~~**T10** — Django's two checks~~ **done 2026-09-12**                                       | T3, T9       | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | **T11** — `docker build` step                                                               | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 16  | **T13** — non-root user                                                                     | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
 | 17  | **T12** — gitleaks                                                                          | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -6429,15 +6470,19 @@ a judgement call: the `QuerySet[BaseUser]` annotation in T6, and `mail.E001` fir
 `QuerySet[BaseUser]` question no longer returns to anyone: it was put to the user as three options
 and decided as option A, follow the supertype, and T6 block 5 implements it. Two remain:
 
-- **`mail.E001` firing under Django 6.1 in T10** — unchanged, and named in that entry with what to
-  do instead.
+- ~~**`mail.E001` firing under Django 6.1 in T10** — unchanged, and named in that entry with what to
+  do instead.~~ **Closed 2026-09-12 — the stopping point did not fire.** T10 measured
+  `check --deploy` on run `34697417289`: 5 warnings, no `mail.E001`. Named in the T10 entry with the
+  measurement behind it.
 - ~~**T6a step 5**, the `no-any-return` in `ProfilePresenceMixin.get_queryset`. It is the one step in
   either mypy task whose fix was diagnosed but never executed. If the shape the entry gives does
   not clear it, that step stops rather than reaching for `# type: ignore` or `cast`.~~
   **Closed 2026-08-30 — the stopping point fired, and it was right to.** The prescribed shape did
   not clear the error; the Developer stopped instead of improvising, and the Planner session that
   followed found the step's _diagnosis_ wrong, not just its fix. Corrected in the T6a entry with the
-  `reveal_type` measurement behind it. **One stopping point remains: `mail.E001` in T10.**
+  `reveal_type` measurement behind it.
+
+**Both stopping points are now closed. None remain in this plan.**
 
 ~~**One task now carries an entry gate rather than a stopping point: T7.** It does not start until an
 Auditor session has answered whether the absence of a `ruff` step in `ci.yml` is reasoned anywhere
@@ -6449,8 +6494,8 @@ has not taken. T7 is not blocked on the _answer_, only on the question having be
 Auditor session ran and found an omission: no entry argues that `ruff` stays out of CI, and three
 assume it does not — D9's cost paragraph, D12's decision outcome and D14's count of eight checks.
 The finding went to the Planner exactly as the gate instructed, and became **D22** and **T6b**. No
-task in this plan carries an entry gate any more. **One stopping point remains, unchanged:
-`mail.E001` in T10.**
+task in this plan carries an entry gate any more. **One stopping point remained at the time,
+unchanged: `mail.E001` in T10 — closed 2026-09-12, see above.**
 
 **A third place is not a task stopping but a task not starting: T16.** The verification found that
 Pylint runs in the editor with no configuration and is the source of the Django false positives.
