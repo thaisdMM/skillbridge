@@ -143,3 +143,20 @@ jobs:
       - name: Deployment checks
         if: ${{ !cancelled() }}
         run: uv run python manage.py check --deploy
+
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: django_version
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build image
+        run: docker build .
