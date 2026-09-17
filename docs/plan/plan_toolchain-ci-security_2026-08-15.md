@@ -27,7 +27,12 @@ measured, and `manage.py` added to `omit` by name. ~~The next task in the _Order
 **T10**, which waits on T3 and T9, both done.~~ **T10 closed on 2026-09-12**, splitting the
 `makemigrations --check` and `check --deploy` steps across both CI jobs rather than landing them
 together, and closing the plan's last stopping point — `mail.E001` did not fire under Django 6.1.
-The next task in the _Order of execution_ is **T11**, which waits on T1 and T2, both done.
+~~The next task in the _Order of execution_ is **T11**, which waits on T1 and T2, both done.~~
+**T11 closed on 2026-09-17** at **18 seconds**, well under the roughly 90-second threshold D6's
+amendment 2 set, so the plain uncached `docker build` stays as decided. The new `build` job runs
+it with `contents: read` and nothing else, needing neither a generated `SECRET_KEY` nor the
+`postgres` service. The next task in the _Order of execution_ is **T13**, which waits on T2 and
+T11, both done.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -4009,8 +4014,13 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
 
 ## Open questions for the user, carried forward
 
-- Whether the `docker build` step added in D6 runs on every push or only on pushes to `main`.
-  To be answered with the measured build duration in hand, not before (D6).
+- ~~Whether the `docker build` step added in D6 runs on every push or only on pushes to `main`.
+  To be answered with the measured build duration in hand, not before (D6).~~ **Answered
+  2026-09-17: every push.** At 18 seconds the per-push cost is not an argument for narrowing, and
+  what argues against narrowing is D6's own purpose: restricting the step to `main` moves the
+  signal to after the merge, which is the failure the step exists to catch. Nothing changes in
+  `ci.yml` — the `build` job carries no `if:`, so every push the workflow's `paths-ignore` does
+  not filter out already runs it.
 - ~~Whether `.vscode/settings.json` is versioned (D2).~~ **Answered 2026-08-17: it is** — see
   _Items that need no decision_.
 - ~~Whether the orphan `django_version-web:latest` image is removed.~~ **Answered 2026-08-17: it
@@ -5745,6 +5755,17 @@ does not become build-failing and the finding returns to the Planner.
 
 ## T11 — CI builds the image
 
+**Status: Done — 2026-09-17.**
+
+**Result.** A new `build` job, granted `contents: read` and nothing else, runs a plain
+`docker build .` from `django_version` — no buildx, no `type=gha` cache. It needs neither a
+generated `SECRET_KEY` nor the `postgres` service, since building the image never executes the
+application. Measured on run `35199587917`: **18 seconds**, well under the roughly 90-second
+threshold the acceptance criterion set — the plain uncached build stays as D6's amendment 2
+decided. **The same number closes the open question D6 left on the step's trigger scope**: every
+push, not only `main`, recorded under _Open questions for the user, carried forward_. Files
+touched: `.github/workflows/ci.yml` only.
+
 **Implements:** D6, amendment 2. **Requires T1 and T2.**
 
 **Do.** A plain, uncached `docker build`. No buildx, no `type=gha` cache.
@@ -6444,7 +6465,7 @@ Four things constrain the order; everything else is free.
 | 12  | ~~**T7** — mypy CI step~~ **done 2026-09-11**                                               | T6, T6a, T6b | Enters build-failing, so the errors must be gone — **all of them**, including the seven the flags surface. A CI step wired before T6a would go green and then turn red the moment the flags land. **T6b added to the waits-on 2026-08-30**: the step now lands in the job T6b creates                                                                                                                                                         |
 | 13  | ~~**T8** — coverage~~ **done 2026-09-12**                                                   | T4           | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
 | 14  | ~~**T10** — Django's two checks~~ **done 2026-09-12**                                       | T3, T9       | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
-| 15  | **T11** — `docker build` step                                                               | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 15  | ~~**T11** — `docker build` step~~ **done 2026-09-17**                                       | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 16  | **T13** — non-root user                                                                     | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
 | 17  | **T12** — gitleaks                                                                          | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
 | 18  | **T14** — pre-commit hooks                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
