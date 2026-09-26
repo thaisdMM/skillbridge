@@ -33,6 +33,9 @@ amendment 2 set, so the plain uncached `docker build` stays as decided. The new 
 it with `contents: read` and nothing else, needing neither a generated `SECRET_KEY` nor the
 `postgres` service. The next task in the _Order of execution_ is **T13**, which waits on T2 and
 T11, both done.
+**T12 closed on 2026-09-26**, run `36262742686` at **9 seconds** for the `secrets` job. The
+failure test on a deleted scratch branch (run `36262980614`) confirmed the gate blocks. T12 is
+independent of T13, which remains the next task in the _Order of execution_.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -5780,6 +5783,20 @@ step stays as decided.
 
 ## T12 — Secret scanning: `gitleaks` in CI, and a widened `.gitignore`
 
+**Status: Done — 2026-09-26.**
+
+**Result.** `git check-ignore` confirms `.env.prod`, `.env.production` and `.env.ci` ignored and
+`.env.example` not ignored, via `-q` — `-v` changes the exit-code meaning when the last matching
+pattern is a negation, which the plan's own Step 4 verification command did not account for. The
+`secrets` job runs at **9 seconds** (run `36262742686`), alongside `test`, `quality` and `build`,
+all green. The failure test (run `36262980614`, branch `scratch/t12-secret-gate`, deleted after)
+confirms the gate blocks: `secrets` red on `RuleID: django-secret-key`,
+`File: django_version/scratch_secret.py`, value redacted, `332 commits scanned` — the same count
+as the local run, confirming full history reached the runner. `test` and `build` stayed green
+independently; `quality` also went red, on `ruff`'s `S105` ("possible hardcoded password")
+independently catching the same fake key — a second, unrelated tool overlapping on the same file,
+not a defect. Files touched: `.gitignore`, `.gitleaks.toml` (new), `.github/workflows/ci.yml`.
+
 **Implements:** D13.
 
 **Do.** Add a `gitleaks` step to `ci.yml` and a `.gitleaks.toml` at the repository root with
@@ -5799,6 +5816,21 @@ finding is one rule: the allowlist is scoped by rule _and_ path.
 **Treat as a starting point.** The two custom regexes were written during planning and are
 unreviewed. They produced 8 working-tree findings on this repository, all explainable. Tune
 against a real run.
+
+**Notes and deviations.**
+
+- **D13 measured 0 findings under the default rules; this run found 1** — a CI-generated
+  `SECRET_KEY` quoted in `docs/verifications/2026-08-20-verification-audit-t18-t9-conflict.md`,
+  a document newer than D13. Not a leak: the value is random per run and the document analyses
+  that exposure.
+- **8 findings against D13's 7**, the eighth being that same newer document. Allowlisted by rule
+  and path, never by path alone, matching D13's rejection of directory-level allowlisting.
+- **The `generic-api-key` overlap is confirmed and deliberate**: the documents allowlist names
+  `generic-api-key` alongside the two custom rules, because silencing only the custom rule left
+  the inherited default rule reporting the same line. Candidate for T20.
+- **A second, independent overlap surfaced in the failure test**: `ruff`'s `S105` rule also flags
+  a hardcoded-looking `SECRET_KEY` assignment, so a fake secret in a `.py` file fails `quality`
+  and `secrets` simultaneously, for unrelated reasons. Not a defect in either tool.
 
 ---
 
@@ -6467,7 +6499,7 @@ Four things constrain the order; everything else is free.
 | 14  | ~~**T10** — Django's two checks~~ **done 2026-09-12**                                       | T3, T9       | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | ~~**T11** — `docker build` step~~ **done 2026-09-17**                                       | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 16  | **T13** — non-root user                                                                     | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
-| 17  | **T12** — gitleaks                                                                          | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
+| 17  | ~~**T12** — gitleaks~~ **done 2026-09-26**                                                  | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
 | 18  | **T14** — pre-commit hooks                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
 | 19  | **T16** — editor configuration                                                              | T2           | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
 | 20  | **T17** — tech debt entries                                                                 | all          | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
