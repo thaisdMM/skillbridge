@@ -31,11 +31,15 @@ together, and closing the plan's last stopping point — `mail.E001` did not fir
 **T11 closed on 2026-09-17** at **18 seconds**, well under the roughly 90-second threshold D6's
 amendment 2 set, so the plain uncached `docker build` stays as decided. The new `build` job runs
 it with `contents: read` and nothing else, needing neither a generated `SECRET_KEY` nor the
-`postgres` service. The next task in the _Order of execution_ is **T13**, which waits on T2 and
-T11, both done.
+`postgres` service. **T13 closed on 2026-09-28** — the image builds, `docker-compose exec web
+pytest` → 304 passed as the new user (`app`, uid/gid 1000), and a build run with the `chown`
+deliberately removed failed at `uv sync --locked`, confirming D15's automated gate actually
+catches the mistake it names rather than asserting that it would.
 **T12 closed on 2026-09-26**, run `36262742686` at **9 seconds** for the `secrets` job. The
-failure test on a deleted scratch branch (run `36262980614`) confirmed the gate blocks. T12 is
-independent of T13, which remains the next task in the _Order of execution_.
+failure test on a deleted scratch branch (run `36262980614`) confirmed the gate blocks. T12 and
+T13 are independent of each other. The next task in the _Order of execution_ is **T14**, which
+waits on T2 and T5, both done. **T16** is also free by dependency but carries an undecided
+question — see _Order of execution_ below — so it does not start until that is taken.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -5836,6 +5840,37 @@ against a real run.
 
 ## T13 — Non-root user in the `Dockerfile`
 
+**Status: Done — 2026-09-28.**
+
+**Result.** `django_version/Dockerfile` gains a `groupadd`/`useradd` block creating `app`
+(uid/gid 1000, `--create-home`, `--no-log-init`), followed by `mkdir /opt/venv && chown app:app
+/opt/venv` and `USER app`, all landing **before** the `COPY pyproject.toml uv.lock
+.python-version ./` and `uv sync --locked` steps — the "create and chown first, sync afterwards"
+form D15 left open, chosen over syncing as root first because it is the only form under which
+D6's `docker build` step can actually fail on a wrong ownership, which is what D15's own text
+promises it will do. `--create-home` was added beyond D15's literal instruction: uv resolves its
+cache to `$HOME/.cache/uv`, confirmed against uv's own cache documentation, and a user with no
+home would fail `uv add` on that ground alone, unrelated to `/opt/venv`'s ownership.
+
+**Both halves of the acceptance criterion were measured, not just the one D15's text names.**
+`docker-compose exec web pytest` → **304 passed** as `uid=1000(app) gid=1000(app)`, confirming
+`/opt/venv` is readable and executable by the new user. Separately — because a directory a
+build stage creates is world-readable by default, so the read/execute half cannot fail and was
+not the real question — `docker-compose exec web uv sync --locked` was run as `app` and
+succeeded, and the same write was attempted as an unrelated UID (`1234:1234`) directly against
+`/opt/venv` and returned `Permission denied`. The negative control is what makes this a real
+criterion rather than one that passes for every UID, the defect D15 itself found in the audit's
+first replacement criterion.
+
+**The automated gate D15 promised was exercised, not assumed.** A throwaway copy of the
+`Dockerfile` with the `chown` line removed was built in isolation (never committed, never
+pushed): the build failed inside `uv sync --locked` with exit code 2, because `app` cannot write
+`/opt/venv` without it. This is what D15's "CI's build step is what catches getting it wrong"
+claim rests on, and it had never been executed before this task closed.
+
+**The bind-mount half stays exactly as D15 recorded it** — unverifiable on this machine, and this
+task adds no new measurement of it. `docs/tech_debt/010` is unchanged.
+
 **Implements:** D15. **Requires T2** (`/opt/venv` must exist) **and T11** (which is what guards
 it).
 
@@ -6498,7 +6533,7 @@ Four things constrain the order; everything else is free.
 | 13  | ~~**T8** — coverage~~ **done 2026-09-12**                                                   | T4           | Measures the final test regime, not the interim one                                                                                                                                                                                                                                                                                                                                                                                           |
 | 14  | ~~**T10** — Django's two checks~~ **done 2026-09-12**                                       | T3, T9       | `check --deploy` must be measured under 6.1, and under D21's generated key                                                                                                                                                                                                                                                                                                                                                                    |
 | 15  | ~~**T11** — `docker build` step~~ **done 2026-09-17**                                       | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
-| 16  | **T13** — non-root user                                                                     | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
+| 16  | ~~**T13** — non-root user~~ **done 2026-09-28**                                             | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
 | 17  | ~~**T12** — gitleaks~~ **done 2026-09-26**                                                  | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
 | 18  | **T14** — pre-commit hooks                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
 | 19  | **T16** — editor configuration                                                              | T2           | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
