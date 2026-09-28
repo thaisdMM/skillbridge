@@ -37,9 +37,13 @@ deliberately removed failed at `uv sync --locked`, confirming D15's automated ga
 catches the mistake it names rather than asserting that it would.
 **T12 closed on 2026-09-26**, run `36262742686` at **9 seconds** for the `secrets` job. The
 failure test on a deleted scratch branch (run `36262980614`) confirmed the gate blocks. T12 and
-T13 are independent of each other. The next task in the _Order of execution_ is **T14**, which
-waits on T2 and T5, both done. **T16** is also free by dependency but carries an undecided
-question — see _Order of execution_ below — so it does not start until that is taken.
+T13 are independent of each other. **T14 closed on 2026-09-28** — both acceptance halves measured
+directly: a deliberate formatting and lint error blocked the commit, and a file staged under
+`oop_version/` alone left both hooks `Skipped`, confirming D14's central inference rather than
+assuming it. **T16** is the only task left unstarted, and it carries an undecided
+question — see _Order of execution_ below — so it goes to a Planner session before it goes to a
+Developer session. T17 and T20 both wait on it, so nothing in this plan is free to start until
+T16's decision is taken.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -5892,6 +5896,35 @@ Record it as verified on a Linux host or in Phase 5, not here.
 
 ## T14 — `pre-commit` hooks: `ruff` only
 
+**Status: Done — 2026-09-28.**
+
+**Result.** `.pre-commit-config.yaml` at the repository root, two `repo: local` hooks, each
+`entry: uv run --project django_version <tool>`, `files: ^django_version/`,
+`language: unsupported`. `pre-commit==4.6.2` — current on PyPI, matching the audit's read — was
+installed with `uv tool install`, outside `pyproject.toml` and `uv.lock`, per D14 cost 1. Two
+deviations from the entry's literal text, both additions rather than contradictions:
+
+- **`ruff-check` runs before `ruff-format`, not after.** D14's own example ordered them the other
+  way; ruff's upstream `pre-commit` hook documentation states the lint hook should run first when
+  `--fix` is used, so a fix it applies is reformatted in the same pass rather than left for the
+  next commit.
+- **`minimum_pre_commit_version: "4.4.0"` was added.** D14's text did not ask for it; it guards
+  the `unsupported` spelling, which only 4.4.0+ recognises, and gives a clear message instead of
+  a confusing one if an older `pre-commit` is ever on `PATH`.
+
+**Both acceptance halves were measured.** A staged file with a deliberate unused import and a
+deliberate spacing error: both hooks reported `files were modified by this hook` and `git commit`
+was blocked; the scratch commit never landed (`git log` still read the prior commit immediately
+after). A staged file under `oop_version/` alone: both hooks reported `(no files to check)Skipped`
+and the commit succeeded — the second half is what falsifies D14's load-bearing inference, that a
+hook receiving only staged paths never reaches the closed tree, rather than merely restating it,
+and it held.
+
+**The open question on whether `ruff format` reformats an untouched file is settled by
+observation, not by a dedicated test.** `pre-commit run --all-files` on the already-clean tree
+passed with nothing modified, and the half-A run touched only the one staged scratch file — both
+already show the hooks acting on staged paths only.
+
 **Implements:** D14. **Requires T2 and T5.**
 
 **Do.** A `.pre-commit-config.yaml` at the repository root with two `repo: local` hooks —
@@ -6535,7 +6568,7 @@ Four things constrain the order; everything else is free.
 | 15  | ~~**T11** — `docker build` step~~ **done 2026-09-17**                                       | T1, T2       | Measured against the cleaned, migrated image                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 16  | ~~**T13** — non-root user~~ **done 2026-09-28**                                             | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
 | 17  | ~~**T12** — gitleaks~~ **done 2026-09-26**                                                  | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
-| 18  | **T14** — pre-commit hooks                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
+| 18  | ~~**T14** — pre-commit hooks~~ **done 2026-09-28**                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
 | 19  | **T16** — editor configuration                                                              | T2           | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
 | 20  | **T17** — tech debt entries                                                                 | all          | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 21  | **T20** — distil the implementation notes                                                   | all, T17     | Records what was _learned_, where T17 records what was _deferred_. It is a filter before it is a document, and it needs every closure note written before it can filter them                                                                                                                                                                                                                                                                  |
