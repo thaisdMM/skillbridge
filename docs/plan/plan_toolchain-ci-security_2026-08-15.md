@@ -40,10 +40,10 @@ failure test on a deleted scratch branch (run `36262980614`) confirmed the gate 
 T13 are independent of each other. **T14 closed on 2026-09-28** — both acceptance halves measured
 directly: a deliberate formatting and lint error blocked the commit, and a file staged under
 `oop_version/` alone left both hooks `Skipped`, confirming D14's central inference rather than
-assuming it. **T16** is the only task left unstarted, and it carries an undecided
-question — see _Order of execution_ below — so it goes to a Planner session before it goes to a
-Developer session. T17 and T20 both wait on it, so nothing in this plan is free to start until
-T16's decision is taken.
+assuming it. **T16 closed on 2026-09-28** — put to the user as four options, **the user chose to
+switch Pylint off**; the entry's own `Do` is corrected in the same session, since a `.gitignore`
+exception under an ignored directory is never re-included, measured on git 2.46.1. **T17 and T20
+are free to start**, waiting on nothing else in this plan.
 **Replanned 2026-08-29** — see the revision pass below; T6's baseline did not survive contact with
 T5, and the task now runs as **T6 followed by T6a**.
 
@@ -3918,7 +3918,7 @@ what mypy rejects.
 | The strictness question D10 deferred for want of a measurement now has one, flag by flag                         | the twelve cheapest flags on, listed one by one; `disallow_any_generics` deferred with its cost recorded             | **D10** amendment, **T6a** (new)             |
 | The modelling judgement D10 refused to guess — how a queryset over two independent concrete models is typed      | **the user chose option A**: follow what django-stubs declares on the supertype                                      | **D10** amendment, **T6** block 5            |
 | `django-stubs-ext` is transitive, and must never be imported at runtime                                          | declared nowhere; the one annotation needing it goes behind `TYPE_CHECKING`                                          | **D10** amendment, **T6** step 11            |
-| Pylint is running in the editor with no configuration, and is the source of the Django false positives           | **not decided** — it is an editor decision and belongs to a Planner session on T16                                   | **T16**, conflict check                      |
+| Pylint is running in the editor with no configuration, and is the source of the Django false positives           | ~~**not decided**~~ **decided 2026-09-28**: Pylint is switched off in the versioned workspace settings               | **T16**, conflict check and decision         |
 
 **No decision was reversed and no rule-set decision was reopened.** D9's default set stands, D9a's
 suppression principle stands — reconfirmed for a second time, on different grounds — D10's tool and
@@ -3994,11 +3994,15 @@ execution** section, and the `docs/tech_debt/` entries recording the deferrals.
   `docs/tech_debt/009-web-service-has-no-healthcheck.md`.**
 - Add `.ruff_cache/` and `.mypy_cache/` to the root `.gitignore`, and to
   `django_version/.dockerignore` (audit Observation O4).
-- **Un-ignore `.vscode/settings.json`** in the root `.gitignore` — `.vscode/` stays ignored, with
-  an exception for that one file — and write into it the interpreter and test working directory
-  D2 requires. **Decided 2026-08-17.** The reason is this repository's layout rather than a
-  preference: it contains two Python projects, and `oop_version/` carries its own `.venv` and its
-  own `requirements.txt`, so an editor opened at the root can resolve imports against the closed
+- **Un-ignore `.vscode/settings.json`** in the root `.gitignore` — ~~`.vscode/` stays ignored, with
+  an exception for that one file~~ **corrected when T16 closed, 2026-09-28: `.vscode/*` stays
+  ignored, with an exception for that one file.** `.vscode/` alone never re-includes anything
+  inside it — git does not descend into a directory it is told to ignore, so the exception is
+  never read — measured on git 2.46.1 in a scratch repository. Write into it the interpreter and
+  test working directory D2 requires. **Decided 2026-08-17.** The reason is this repository's
+  layout rather than a preference: it contains two Python projects, and `oop_version/` carries its
+  own `.venv` and its own `requirements.txt`, so an editor opened at the root can resolve imports
+  against the closed
   project. A versioned settings file prevents that and survives a fresh clone; documentation
   depends on being read before the editor is opened.
 - **Remove the orphan `django_version-web:latest` image (254 MB). Decided 2026-08-17**, on
@@ -5986,6 +5990,25 @@ narrowed on purpose once its cost was measured. Anyone tempted to re-enable secu
 
 ## T16 — Version the editor configuration
 
+**Status: Done — 2026-09-28.**
+
+**Result.** Put to the user as four options — turn Pylint off, set it up with `pylint-django`,
+disable `no-member` only, or leave it running. **The user chose to turn it off.** The root
+`.gitignore` line changed from `.vscode/` to `.vscode/*` plus `!.vscode/settings.json` — not the
+exception this entry's original `Do` describes below, which git never re-includes: measured on git
+2.46.1 in a scratch repository, `.vscode/` plus the exception leaves the file ignored with no
+error, `.vscode/*` plus the exception shows it as untracked. `.vscode/settings.json` was rewritten
+from scratch — the file on disk was an old, untracked copy of the user's personal settings, kept
+nowhere — down to four keys: the interpreter path, `python.testing.pytestEnabled`,
+`python.testing.cwd`, and `pylint.enabled: false`.
+
+**Both file-level acceptance checks were run and passed.** `git status` lists
+`.vscode/settings.json` as a new file; `git check-ignore -v .vscode/launch.json` still reports the
+rest of the directory ignored. **The two editor-level checks are the user's manual walk, still
+pending before commit** — no Pylint diagnostics on `profiles/models/freelancer_profile.py` after a
+window reload, and the Testing panel discovering the suite from `django_version/` — the same class
+of gap as T13's bind-mount half: real acceptance criteria this session cannot exercise itself.
+
 **Implements:** the decided item under _Items that need no decision_. **Requires T2.**
 
 **Do.** In the root `.gitignore`, keep `.vscode/` ignored and add an exception for
@@ -6023,6 +6046,64 @@ implementing T16.
 `# Type hint for Pylint` comments or the `id: int` declarations under them. They are inert with
 respect to the type checker, and removing them is only correct once it is settled whether Pylint
 still runs.
+
+### Decided 2026-09-28 — Pylint is switched off for this workspace; formatting is left to the user's own editor settings
+
+Put to the user as four options: turn Pylint off, set it up with `pylint-django`, disable
+`no-member` only, or leave it. **The user chose to turn it off.** ruff and mypy are the project's
+checkers, and both have CI gates (D22, T6b, T7). A third checker that no gate enforces produces
+warnings the build can never agree with.
+
+- **Why Pylint was running unconfigured.** The user-level settings loaded `pylint_django` through
+  `python.linting.*` keys, which `ms-python.python` 2026.4.0 no longer contributes (zero occurrences
+  in its `package.json`). `ms-python.pylint` 2026.6.0 reads `pylint.*` keys and defaults to its
+  bundled Pylint 4.0.5, with no plugin. The dead keys were removed from the user's own settings in
+  the same session; that file is outside the repository.
+- **Formatting is not configured here.** The user keeps Black as their personal format-on-save.
+  The Ruff formatter is _"designed as a drop-in replacement for Black"_ with _"> 99.9% of lines …
+  formatted identically"_ (docs.astral.sh/ruff/formatter), and the `ruff-format` pre-commit hook
+  (T14) settles any divergence at commit. The Ruff and mypy editor extensions were offered and
+  declined for this task.
+
+**Do.**
+
+1. In the root `.gitignore`, replace the line `.vscode/` with `.vscode/*`, and add
+   `!.vscode/settings.json` on the line below it. **Not** `.vscode/` plus the exception, which is
+   what this entry's original _Do_ reads as: git does not re-include a file whose parent directory
+   is excluded, and it reports nothing. Measured on git 2.46.1 in a scratch repository: with
+   `.vscode/` the file stays ignored; with `.vscode/*` it shows as untracked.
+2. Replace the whole content of `.vscode/settings.json`. The file on disk is an old copy of the
+   user's personal settings and none of it is kept. It carries exactly these four keys:
+   `"python.defaultInterpreterPath": "${workspaceFolder}/django_version/.venv/bin/python"`,
+   `"python.testing.pytestEnabled": true`,
+   `"python.testing.cwd": "${workspaceFolder}/django_version"`,
+   `"pylint.enabled": false`.
+
+**Scope.** Root `.gitignore`, `.vscode/settings.json`.
+
+**Acceptance.**
+
+- `git status` lists `.vscode/settings.json` as a new file, and `git check-ignore -v
+.vscode/launch.json` still reports the rest of the directory ignored.
+- The file contains the four keys above and nothing else, and no absolute path.
+- After a window reload, the editor shows no Pylint diagnostics on
+  `profiles/models/freelancer_profile.py`.
+- The Testing panel discovers the suite from `django_version/`.
+
+**Known limitation, recorded and not decided.** Tests run from the editor run on the host, and
+`config/settings.py` reads `DB_HOST=db` from `django_version/.env`. That hostname exists only inside
+the Docker network, so database-backed tests cannot connect from the editor. Discovery and
+database-free tests work. Changing that is a separate decision.
+
+**Default-interpreter caveat.** `python.defaultInterpreterPath` is used _"when extension loads up
+for the first time, no longer used once an interpreter is selected for the workspace"_ (the key's
+own description in `ms-python.python` 2026.4.0). It governs a fresh clone, which is what this
+entry's acceptance asks for, and changes nothing on a machine that already chose one.
+
+**Out of scope.** The three `# Type hint for Pylint` comments and their `id: int` lines. With Pylint
+off the comment text is no longer true, so removing them is now a legitimate question. But
+`BaseUser.__str__` reads `self.id` on an abstract model, so removal needs its own mypy measurement
+first. It returns to the Planner as its own item. No `.vscode/extensions.json`, no formatter keys.
 
 ---
 
@@ -6478,6 +6559,7 @@ belongs in the `docs/verifications/` file that measured it.
 | `addopts` uses bare `--cov`; `--cov=<value>` silently overrides `[tool.coverage.run] source`                     | **enters**   | Nothing fails. The gate stays green and measures the wrong tree. Verified by execution under D11                                                                                                                                    |
 | Django class-level attributes flagged by `RUF012` are declared as tuples                                         | **excluded** | mypy fails on the alternative, and after T7 that is a red CI run naming the exact line                                                                                                                                              |
 | `django_db_setup` must live in `conftest.py`, not be loaded with `pytest -p`                                     | **excluded** | already in `.claude/rules/testing.md`, which every session loads                                                                                                                                                                    |
+| `.gitignore` re-includes one file inside an ignored directory only when the directory is written `dir/*`, not `dir/` | **candidate** | Nothing reports it: with `.vscode/` plus `!.vscode/settings.json` the file stays ignored and `git status` is silent. Measured on git 2.46.1 in T16's decision. Step 1 decides whether it enters |
 
 ### Do
 
@@ -6569,7 +6651,7 @@ Four things constrain the order; everything else is free.
 | 16  | ~~**T13** — non-root user~~ **done 2026-09-28**                                             | T2, T11      | T11 is the automated gate on getting the ownership wrong                                                                                                                                                                                                                                                                                                                                                                                      |
 | 17  | ~~**T12** — gitleaks~~ **done 2026-09-26**                                                  | T9           | Independent of everything else; grouped with the CI work                                                                                                                                                                                                                                                                                                                                                                                      |
 | 18  | ~~**T14** — pre-commit hooks~~ **done 2026-09-28**                                                                  | T2, T5       | The ruff configuration must exist for the hooks to run it                                                                                                                                                                                                                                                                                                                                                                                     |
-| 19  | **T16** — editor configuration                                                              | T2           | The interpreter path depends on where the environment ends up                                                                                                                                                                                                                                                                                                                                                                                 |
+| 19  | ~~**T16** — editor configuration~~ **done 2026-09-28**                                      | T2           | The interpreter path depends on where the environment ends up. Decided: Pylint off, formatting left to the user's own settings. Two acceptance checks are the user's manual walk, before commit                                                                                                                                                                                                                                              |
 | 20  | **T17** — tech debt entries                                                                 | all          | Records what happened                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 21  | **T20** — distil the implementation notes                                                   | all, T17     | Records what was _learned_, where T17 records what was _deferred_. It is a filter before it is a document, and it needs every closure note written before it can filter them                                                                                                                                                                                                                                                                  |
 
@@ -6618,11 +6700,16 @@ The finding went to the Planner exactly as the gate instructed, and became **D22
 task in this plan carries an entry gate any more. **One stopping point remained at the time,
 unchanged: `mail.E001` in T10 — closed 2026-09-12, see above.**
 
-**A third place is not a task stopping but a task not starting: T16.** The verification found that
+~~**A third place is not a task stopping but a task not starting: T16.** The verification found that
 Pylint runs in the editor with no configuration and is the source of the Django false positives.
 Whether the versioned `.vscode/settings.json` disables it, configures it, or leaves it alone is an
 open decision that has never been through a decision loop. **T16 goes to the Planner before it goes
-to the Developer**, and it is the last unstarted task in this plan carrying an undecided question.
+to the Developer**, and it is the last unstarted task in this plan carrying an undecided question.~~
+
+**Closed 2026-09-28 — decided and applied in one Planner session.** The user chose to switch Pylint
+off. The entry also corrects its own original _Do_: `.vscode/` plus an exception would have left the
+file silently ignored. **No task in this plan carries an undecided question any more**, and T17 and
+T20 are free to start.
 
 **Order-of-execution conflict check, 2026-08-29.** Every task after T6 was read against T6 and T6a
 before this pass closed — the check whose absence caused the collision. The conclusions live in the

@@ -27,7 +27,8 @@ oop_version/.coverage
 oop_version/.pytest_cache/
 
 # IDEs
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 .qoder/
 *.swp
