@@ -16,7 +16,13 @@ behavior rules across the project, consult `CLAUDE.md`.
 - All tests run inside Docker: `docker-compose exec web pytest`.
 - Configuration lives in the `[tool.pytest]` table of
   `django_version/pyproject.toml`. Active flags: `--strict-markers`,
-  `--tb=short`, `-v`.
+  `-v`, `--tb=short`, `--cov`, `--cov-fail-under=95`.
+- Every run measures coverage and fails below 95%, even when every test
+  passes. `--cov` carries no value, so what is measured comes from
+  `[tool.coverage.run]` in the same file.
+- Running a subset of the suite (one file, one test) therefore reports a
+  coverage failure. Add `--no-cov` to such a run:
+  `docker-compose exec web pytest accounts/tests/models/test_base.py --no-cov`.
 
 ---
 
