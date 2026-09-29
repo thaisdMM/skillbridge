@@ -4,12 +4,12 @@ from decimal import Decimal
 
 import pytest
 
-from profiles.models.base import Profile
-from profiles.models.freelancer_profile import FreelancerProfile
-from profiles.models.client_profile import ClientProfile
-from profiles.models.skill import Skill
-from accounts.models.freelancer import Freelancer
 from accounts.models.client import Client
+from accounts.models.freelancer import Freelancer
+from profiles.models.base import Profile
+from profiles.models.client_profile import ClientProfile
+from profiles.models.freelancer_profile import FreelancerProfile
+from profiles.models.skill import Skill
 
 
 class UnimplementedProfile(Profile):

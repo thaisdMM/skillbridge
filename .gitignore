@@ -13,8 +13,8 @@ venv/
 ENV/
 
 # Environment
-.env
-.env.local
+.env*
+!.env.example
 
 # Django
 django_version/db.sqlite3
@@ -27,7 +27,8 @@ oop_version/.coverage
 oop_version/.pytest_cache/
 
 # IDEs
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 .qoder/
 *.swp

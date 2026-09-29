@@ -7,6 +7,7 @@ and functionality.
 """
 
 import logging
+from typing import ClassVar
 
 from django.core.validators import MaxLengthValidator
 from django.db import models
@@ -57,7 +58,7 @@ class Profile(models.Model):
         abstract = True
         verbose_name = _("Base Profile")
         verbose_name_plural = _("Base Profiles")
-        ordering = ["-created_at"]
+        ordering: ClassVar[list[str]] = ["-created_at"]
 
     def __str__(self) -> str:
         """

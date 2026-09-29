@@ -96,6 +96,10 @@ All work targets `django_version/` exclusively.
     Never install packages on the system Python. Never run project
     commands in `oop_version/` — that version is closed.
 
+    One exception: the git `pre-commit` hooks run on the host, not in
+    Docker, through `uv run --project django_version`, and use
+    `django_version/.venv/`.
+
     Note on specs: spec artifacts live at the monorepo root in `specs/`,
     not inside `django_version/`, because they describe domain features
     independently of the implementation. Any command triggered by a spec

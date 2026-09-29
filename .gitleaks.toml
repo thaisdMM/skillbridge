@@ -1,0 +1,34 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "django-secret-key"
+description = "Django SECRET_KEY assignment"
+regex = '''(?i)secret_key[a-z0-9_]*\s*[:=]\s*["']?([^"'\s]{20,})["']?'''
+keywords = ["secret_key"]
+
+[[rules]]
+id = "django-db-password"
+description = "Database password assignment"
+regex = '''(?i)(db|database|postgres)_password\s*[:=]\s*["']?([^"'\s]{8,})["']?'''
+keywords = ["password"]
+
+[[allowlists]]
+description = "Example environment files carry deliberate placeholders"
+targetRules = ["django-secret-key", "django-db-password"]
+paths = ['''^\.env\.example$''', '''^django_version/\.env\.example$''']
+
+[[allowlists]]
+description = "The CI postgres service credentials are hardcoded by design"
+targetRules = ["django-db-password"]
+paths = ['''^\.github/workflows/ci\.yml$''']
+
+[[allowlists]]
+description = "docker-compose refers to the variable, never to a value"
+targetRules = ["django-db-password"]
+paths = ['''^django_version/docker-compose\.yml$''']
+
+[[allowlists]]
+description = "Audit and verification documents quote the credentials they analyse"
+targetRules = ["django-secret-key", "django-db-password", "generic-api-key"]
+paths = ['''^docs/audits/AUDITORIA_SKILLBRIDGE\.md$''', '''^docs/verifications/2026-08-20-verification-audit-t18-t9-conflict\.md$''']

@@ -6,8 +6,8 @@ the base Profile model with freelancer-specific attributes like hourly rate,
 skills, portfolio URL, and years of experience.
 """
 
-from decimal import Decimal
 import logging
+from decimal import Decimal
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models

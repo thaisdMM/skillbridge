@@ -263,9 +263,8 @@ def test_client_profile_user_uniqueness_enforced_at_database_level(
     client_profile: ClientProfile, client_user: Client
 ) -> None:
     """Creating a second ClientProfile for the same user without validation raises IntegrityError."""
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            ClientProfile.objects.create(user=client_user)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        ClientProfile.objects.create(user=client_user)
 
 
 @pytest.mark.django_db

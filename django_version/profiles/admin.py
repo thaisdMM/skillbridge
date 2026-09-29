@@ -9,6 +9,8 @@ profiles are administered inside the account screen they belong to, so their
 inlines live in accounts/admin.py.
 """
 
+from collections.abc import Sequence
+
 from django.contrib import admin
 from django.db.models import QuerySet
 from django.http import HttpRequest
@@ -49,7 +51,7 @@ class SkillAdmin(admin.ModelAdmin):
     )
 
     def get_deleted_objects(
-        self, objs: QuerySet[Skill] | list[Skill], request: HttpRequest
+        self, objs: QuerySet[Skill] | Sequence[Skill], request: HttpRequest
     ) -> tuple[list, dict, set, list]:
         """
         Mark the selected skills as protected while profiles still refer to them.
@@ -79,7 +81,7 @@ class SkillAdmin(admin.ModelAdmin):
         return deletable_objects, model_count, perms_needed, protected
 
     @staticmethod
-    def _count_referring_profiles(objs: QuerySet[Skill] | list[Skill]) -> int:
+    def _count_referring_profiles(objs: QuerySet[Skill] | Sequence[Skill]) -> int:
         """
         Count the distinct profiles referring to any of the selected skills.
 

@@ -58,7 +58,9 @@ tooling under the `dev` group.
 ## Docker workflow
 
 All commands run inside Docker. Never install packages on the system Python
-or activate a non-project virtual environment.
+or activate a non-project virtual environment. One exception: the git
+`pre-commit` hooks run on the host, not in Docker, through
+`uv run --project django_version`, and use `django_version/.venv/`.
 
 ```
 docker-compose exec web python manage.py <command>

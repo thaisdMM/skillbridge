@@ -8,9 +8,8 @@ account fields.
 
 import logging
 
-from django.db import models
-
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models.base import BaseUser
@@ -55,12 +54,12 @@ class Freelancer(BaseUser):
         verbose_name = "Freelancer"
         verbose_name_plural = "Freelancers"
         db_table = "freelancers"
-        constraints = [
+        constraints = (
             models.CheckConstraint(
                 condition=~models.Q(is_active=False, is_available=True),
                 name="freelancer_no_inactive_available",
-            )
-        ]
+            ),
+        )
 
     def __repr__(self) -> str:
         """

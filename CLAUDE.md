@@ -28,6 +28,8 @@ Never run project commands in `oop_version/`.
 - Never install packages on the system Python.
 - The host virtualenv at `django_version/.venv/` is **IDE-only**. It is
   independent of Docker and is not the runtime.
+- One exception: the git `pre-commit` hooks run on the host, not in Docker,
+  through `uv run --project django_version`, and use `django_version/.venv/`.
 
 ---
 

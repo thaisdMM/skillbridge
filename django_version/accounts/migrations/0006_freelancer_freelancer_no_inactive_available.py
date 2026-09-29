@@ -4,14 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('accounts', '0005_alter_staffuser_is_staff'),
+        ("accounts", "0005_alter_staffuser_is_staff"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='freelancer',
-            constraint=models.CheckConstraint(condition=models.Q(('is_active', False), ('is_available', True), _negated=True), name='freelancer_no_inactive_available'),
+            model_name="freelancer",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    ("is_active", False), ("is_available", True), _negated=True
+                ),
+                name="freelancer_no_inactive_available",
+            ),
         ),
     ]

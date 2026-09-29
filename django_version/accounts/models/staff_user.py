@@ -8,8 +8,8 @@ keeping administrative access separate from Client and Freelancer concerns.
 
 import logging
 
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models.base import BaseUser
@@ -51,12 +51,12 @@ class StaffUser(BaseUser):
         verbose_name = "Staff User"
         verbose_name_plural = "Staff Users"
         db_table = "staff_users"
-        constraints = [
+        constraints = (
             models.CheckConstraint(
                 condition=~models.Q(is_active=True, is_staff=False),
                 name="staffuser_active_no_staff_status",
-            )
-        ]
+            ),
+        )
 
     def clean(self) -> None:
         """

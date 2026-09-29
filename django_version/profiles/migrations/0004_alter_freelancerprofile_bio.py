@@ -5,15 +5,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('profiles', '0003_freelancerprofile'),
+        ("profiles", "0003_freelancerprofile"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='freelancerprofile',
-            name='bio',
-            field=models.TextField(blank=True, help_text='Short user biography (max 500 characters)', max_length=500, validators=[django.core.validators.MaxLengthValidator(500)], verbose_name='Biography'),
+            model_name="freelancerprofile",
+            name="bio",
+            field=models.TextField(
+                blank=True,
+                help_text="Short user biography (max 500 characters)",
+                max_length=500,
+                validators=[django.core.validators.MaxLengthValidator(500)],
+                verbose_name="Biography",
+            ),
         ),
     ]

@@ -269,9 +269,8 @@ def test_freelancer_profile_user_uniqueness_enforced_at_database_level(
     freelancer_user: Freelancer,
 ) -> None:
     """Creating a second FreelancerProfile for the same user without validation raises IntegrityError."""
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            FreelancerProfile.objects.create(user=freelancer_user)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        FreelancerProfile.objects.create(user=freelancer_user)
 
 
 def test_freelancer_profile_ordering() -> None:

@@ -7,26 +7,28 @@ identification functionality.
 """
 
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from django.contrib.auth.models import (
     AbstractBaseUser,
+)
+from django.contrib.auth.models import (
     BaseUserManager as DjangoBaseUserManager,
 )
-from django.db import models
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from accounts.validators.user_validators import (
     validate_email,
-    validate_user_name,
     validate_strong_password,
+    validate_user_name,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class BaseUserManager(DjangoBaseUserManager):
+class BaseUserManager(DjangoBaseUserManager["BaseUser"]):
     """
     Custom manager for creating and managing BaseUser instances.
 
@@ -212,7 +214,7 @@ class BaseUser(AbstractBaseUser):
 
     USERNAME_FIELD = "email"
 
-    REQUIRED_FIELDS = ["name"]
+    REQUIRED_FIELDS: ClassVar[list[str]] = ["name"]
 
     objects = BaseUserManager()
 
@@ -220,7 +222,7 @@ class BaseUser(AbstractBaseUser):
         abstract = True
         verbose_name = "Base User"
         verbose_name_plural = "Base Users"
-        ordering = ["-created_at"]
+        ordering: ClassVar[list[str]] = ["-created_at"]
 
     @property
     def user_type(self) -> str:
@@ -288,19 +290,18 @@ class BaseUser(AbstractBaseUser):
                 or if a non-staff user model is assigned staff or superuser privileges.
         """
         super().clean()
-        if self.user_type != "staffuser":
-            if self.is_staff or self.is_superuser:
-                logger.error("Non-staff user type assigned staff/superuser privileges")
-                raise ValidationError(
-                    {
-                        "is_staff": ValidationError(
-                            _(
-                                "Only staff users can have administrative or staff privileges."
-                            ),
-                            code="invalid_staff_privileges",
-                        )
-                    }
-                )
+        if self.user_type != "staffuser" and (self.is_staff or self.is_superuser):
+            logger.error("Non-staff user type assigned staff/superuser privileges")
+            raise ValidationError(
+                {
+                    "is_staff": ValidationError(
+                        _(
+                            "Only staff users can have administrative or staff privileges."
+                        ),
+                        code="invalid_staff_privileges",
+                    )
+                }
+            )
         if self.is_superuser and not self.is_staff:
             logger.error("Superuser without staff status")
             raise ValidationError(

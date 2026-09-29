@@ -26,6 +26,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user owning the project environment, and switch to it
+RUN groupadd --gid 1000 app \
+    && useradd --uid 1000 --gid app --create-home --no-log-init app \
+    && mkdir /opt/venv \
+    && chown app:app /opt/venv
+USER app
+
 # Install dependencies first (better Docker cache usage)
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked
