@@ -32,7 +32,9 @@ wrong, so a candidate is checked against the real files before anything is writt
 ## What the plan delivered — from the task closure notes
 
 Only the `pyproject.toml` row was re-verified by execution in this closure; the others are as the
-plan recorded them.
+plan recorded them. This table is a summary. What each task found — its measurements, deviations
+from the entry as written, and corrections — is in that task's entry in the plan, under its
+**Result**, **Notes and deviations** and **Closed** sections.
 
 | Area | Outcome |
 | ---- | ------- |
@@ -127,8 +129,10 @@ Not verified against the files unless marked.
 
 ## What stays open
 
-- **A Dependabot pull request reporting a green `test` check**, which is the only proof the
-  generated `SECRET_KEY` works for Dependabot-triggered runs, and **whether the first
-  `django_version` advisory arrives attributed to `uv.lock`**, which confirms the triage rule's
-  filter. Both are observed when they happen.
+- **Whether the first `django_version` advisory arrives attributed to `uv.lock`**, which confirms
+  the triage rule's filter. Observed when it happens.
 - **`007`**, whose reversal criterion has fired.
+
+**Settled since the plan closed:** a Dependabot pull request reports a green `test` check. Pull
+request #11 (`python-dotenv` 1.2.2 → 1.2.3) passed `test` on both of its runs, `32372238069` and
+`32372242913`, which is the proof the generated `SECRET_KEY` works for Dependabot-triggered runs.
