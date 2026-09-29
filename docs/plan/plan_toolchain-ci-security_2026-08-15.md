@@ -3,6 +3,11 @@
 **Date:** 2026-08-15
 **Persona:** Planner
 **Tree:** `feature/django-refactor`
+**Closed 2026-09-29.** The plan ends with `docs/audits/2026-09-29-audit-toolchain-plan-closure.md`,
+which resolves T17 and T20, summarises what was delivered, and keeps the ADR and technical-debt
+candidates as an optional backlog. What each task actually found — measurements, deviations,
+corrections — is in that task's own entry below: its **Result**, **Notes and deviations** and
+**Closed** sections. Read those for the detail the closing note does not repeat.
 **Status:** Complete as a plan, as of 2026-08-20. The Decision log runs D1–D21 with nothing
 open; the task entries T1–T19 and the _Order of execution_ are written; the deferrals are
 recorded in `docs/tech_debt/006`–`010`. **T15, T1, T2, T3, T18, T9, T19, T4 and T5 are
