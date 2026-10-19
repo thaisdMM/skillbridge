@@ -36,6 +36,11 @@ which version of a package *nobody declared* ended up installed.
 - **Default: do not open it.** To answer "which range of X this project
   accepts", read `pyproject.toml`. Any package the project chose deliberately
   is declared there with a `~=` range.
+- **The exact installed version of a direct dependency** is in `uv.lock`, not
+  in `pyproject.toml`. Find it with a targeted search for that one package —
+  `grep -A1 '^name = "<package>"' django_version/uv.lock`, with the name in
+  lower case as `uv.lock` records it (`django`, not `Django`) — instead of
+  opening the file. This search does not need permission.
 - **When the task genuinely needs a transitive version** — a security advisory
   against an undeclared package, a resolution conflict, a bug traced into a
   dependency of a dependency — reading it is legitimate. Ask the user for
