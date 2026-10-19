@@ -17,7 +17,7 @@ never copy the value into a second place.
 
 | What | Where it is pinned |
 | ---- | ------------------ |
-| Direct Python dependencies — production and `dev` | `django_version/pyproject.toml`, under `[project].dependencies` and `[dependency-groups].dev`. Every entry carries an exact `==` pin |
+| Direct Python dependencies — production and `dev` | `django_version/pyproject.toml`, under `[project].dependencies` and `[dependency-groups].dev`. Every entry carries a compatible-release range (`~=X.Y.Z`); the exact installed version is in `uv.lock` |
 | The Python interpreter, to the patch | `django_version/.python-version` |
 | PostgreSQL | `django_version/docker-compose.yml`, the `db` service image |
 | `uv` itself | `django_version/Dockerfile` (the `COPY --from=ghcr.io/astral-sh/uv:<version>` line) and `.github/workflows/ci.yml` (the `setup-uv` `version` input). The two must agree |
@@ -33,9 +33,14 @@ file named in this section put together. Reading it consumes a significant
 share of the session's context, and it answers exactly one kind of question:
 which version of a package *nobody declared* ended up installed.
 
-- **Default: do not open it.** To answer "which version of X is this project
-  on", read `pyproject.toml`. Any package the project chose deliberately is
-  declared there with an exact pin.
+- **Default: do not open it.** To answer "which range of X this project
+  accepts", read `pyproject.toml`. Any package the project chose deliberately
+  is declared there with a `~=` range.
+- **The exact installed version of a direct dependency** is in `uv.lock`, not
+  in `pyproject.toml`. Find it with a targeted search for that one package —
+  `grep -A1 '^name = "<package>"' django_version/uv.lock`, with the name in
+  lower case as `uv.lock` records it (`django`, not `Django`) — instead of
+  opening the file. This search does not need permission.
 - **When the task genuinely needs a transitive version** — a security advisory
   against an undeclared package, a resolution conflict, a bug traced into a
   dependency of a dependency — reading it is legitimate. Ask the user for
@@ -43,14 +48,14 @@ which version of a package *nobody declared* ended up installed.
 - **Never** open it to confirm something `pyproject.toml` already states, and
   never open it speculatively "for context".
 
-**Not yet installed — pin exact version on install:**
+**Not yet installed — declare a `~=` range on install:**
 
 - DRF (Django REST Framework)
 - drf-spectacular
 
 Never reference these as "latest compatible" in code or documentation. When
-installed, declare them in `django_version/pyproject.toml` with an exact `==`
-pin — production dependencies under `[project].dependencies`, development
+installed, declare them in `django_version/pyproject.toml` with a `~=X.Y.Z`
+range — production dependencies under `[project].dependencies`, development
 tooling under the `dev` group.
 
 ---

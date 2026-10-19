@@ -1,7 +1,8 @@
 # The Django Project Is Managed by `uv`, From a `pyproject.toml` Inside `django_version/`
 
 **Date:** 2026-08-19
-**Status:** Accepted
+**Status:** Accepted — the `==` pin rule is superseded by
+[direct-dependencies-are-declared-as-compatible-release-ranges.md](direct-dependencies-are-declared-as-compatible-release-ranges.md).
 **Applies to:** `django_version/pyproject.toml`, `django_version/uv.lock`.
 
 ## Context and Problem Statement
@@ -21,7 +22,9 @@ Chosen option: **`uv` with `pyproject.toml` and `uv.lock`**, both in `django_ver
 
 * `requirements.txt` and `pytest.ini` are deleted.
 * Production dependencies are under `[project].dependencies`, development tools under a single
-  `dev` group, each with an exact `==` pin. `uv.lock` is committed.
+  `dev` group, each with an exact `==` pin — superseded: entries are now `~=` ranges, see
+  [direct-dependencies-are-declared-as-compatible-release-ranges.md](direct-dependencies-are-declared-as-compatible-release-ranges.md).
+  `uv.lock` is committed.
 * The image and CI install with `uv sync --locked`.
 * Tool configuration lives in the same file: `[tool.pytest]`, `[tool.coverage.run]`,
   `[tool.mypy]`, `[tool.django-stubs]`, `[tool.ruff]`.

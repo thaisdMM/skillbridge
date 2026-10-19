@@ -8,5 +8,6 @@ updates:
 
   - package-ecosystem: "uv"
     directory: "/django_version"
+    versioning-strategy: "lockfile-only"
     schedule:
       interval: "monthly"
